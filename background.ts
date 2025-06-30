@@ -49,6 +49,19 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         path: 'sidepanel/index.tsx',
         enabled: true
       });
+
+      // Send word to sidepanel after slight delay to ensure it's mounted
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          type: "word_from_bubble",
+          word: message.word
+        })
+      }, 500) // delay may be necessary
+
     }
   })();
 });
+
+
+
+

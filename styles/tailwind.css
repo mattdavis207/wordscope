@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html, body, #plasmo-shadow-container {
+    height: 100vh;
+  }
+
+html, body, #__plasmo {
+  height: 100vh !important;
+  min-height: 100vh !important;
+}

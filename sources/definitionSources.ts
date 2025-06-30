@@ -228,7 +228,7 @@ export const definitionSources = {
   // 
   // Lingua Robot
   //
-  linguarobot: {
+  'linguarobot': {
     name: "Lingua Robot",
     icon: "🗣️",
     fetchDefinition: async (word: string) => {

@@ -26,7 +26,7 @@ export const MiniDefinitionView = ({
     return (
     <div>
         {/* Tabs */}
-            <div className="flex pt-2 px-2 mt-2 rounded-t-lg over-x-auto" style = {{backgroundColor: '#000a1b', scrollbarWidth: 'thin'}}>
+        <div className="flex pt-2 px-2 mt-2 rounded-t-lg over-x-auto" style = {{backgroundColor: '#000a1b', scrollbarWidth: 'thin'}}>
             {Object.entries(definitionSources).map(([key, source]) => {
             const isActive = key === activeSource
             
