@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
 import { IoVolumeMediumSharp, IoTimeOutline, IoSearch, IoPin, IoBook, IoSettings, IoTrashSharp, IoTrashOutline } from "react-icons/io5"
 import { IoMdArrowDropdown, IoMdArrowDropup } from "react-icons/io";
-import { HiMiniChatBubbleBottomCenterText } from "react-icons/hi2";
+import { HiMiniChatBubbleBottomCenterText, HiOutlineSparkles } from "react-icons/hi2";
+import { GoHeart, GoHeartFill } from "react-icons/go"
 import React from "react"
 import "~/styles/tailwind.css"
 
@@ -11,12 +12,15 @@ import "~/styles/tailwind.css"
 import { definitionSources } from "~sources/definitionSources"
 import { useDictionary } from "~hooks/useDictionary"
 import { useHistory } from "~hooks/useHistory"
-import { MiniDefinitionView } from "tabDefinitionView"
+import { useSourceSettings } from "~hooks/useSourceSettings";
+import ContextAIView from "../views/contextAIView"
+import { extractContext } from "../context/contextExtractor"
+import { MiniDefinitionView } from "~views/tabDefinitionView"
 
 
 const SidePanel = () => {
     // History hook useStates
-    const { saveWord, history, deleteWord, clearHistory } = useHistory()
+    const { saveWord, history, deleteWord, clearHistory, isSaved, autoAddToHistory, toggleSave} = useHistory()
 
     const {
     text,
@@ -28,9 +32,16 @@ const SidePanel = () => {
     handleSynonymAntonyms
     } = useDictionary<typeof definitionSources>(definitionSources)
 
+    // Source Settings
+    const {
+    sourceOrder,
+    enabledSources,
+    } = useSourceSettings()
+
     const [expandedWord, setExpandedWord] = useState<string | null>(null)
     const [searchInput, setSearchInput] = useState("")
     const [showHistory, setShowHistory] = useState(false)
+    const [showContextAI, setShowContextAI] = useState(false)
     const [hoverTrash, setHoverTrash] = useState(false)
     
 
@@ -41,10 +52,10 @@ const SidePanel = () => {
 
     // useEffect for saving word to history records
     useEffect(() => {
-    if (text && Object.keys(definitions).length > 0) {
+    if (text && Object.keys(definitions).length > 0 && autoAddToHistory && !isSaved(text)){
         saveWord(text, definitions)
     }
-    }, [text, definitions])
+    }, [text, definitions, autoAddToHistory])
 
 
     // useEffect for transferring word from bubble
@@ -88,7 +99,11 @@ const SidePanel = () => {
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                        setActiveSource("wordsapi")
+                        // Reset active tab to first enabled
+                        const firstEnabled = sourceOrder.find((key) => enabledSources[key])
+                        if (firstEnabled) {
+                            setActiveSource(firstEnabled as keyof typeof definitionSources)
+                        }
                         setShowHistory(false)
                         setText(searchInput.trim())
                         setSearchInput("")
@@ -101,7 +116,11 @@ const SidePanel = () => {
                 title="Search"
                 className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]"
                 onClick={(e) => {
-                    setActiveSource("wordsapi")
+                    // Reset active tab to first enabled
+                    const firstEnabled = sourceOrder.find((key) => enabledSources[key])
+                    if (firstEnabled) {
+                        setActiveSource(firstEnabled as keyof typeof definitionSources)
+                    }
                     setShowHistory(false)
                     setText(searchInput.trim())
                     setSearchInput("")
@@ -115,9 +134,23 @@ const SidePanel = () => {
             {/* Right Side */}
             <div className="flex items-center space-x-2">
 
-                {/* Pin */}
-                <button title="Pin" className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]">
-                <IoPin size={16} />
+                {/* Context AI Button */}
+                <button
+                    title="Context AI (Pro)"
+                    className="p-1 flex items-center gap-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47] transition-colors duration-200"
+                    onClick={() => {
+                    const selection = window.getSelection()?.toString().trim()
+                    if (!selection && !text) {
+                        alert("Please select a word first!")
+                        return
+                    }
+    
+                    setShowContextAI((prev) => !prev)
+                    setShowHistory(false)
+                    }}
+                >
+                    <HiOutlineSparkles size={18} /> {/* swap icon if you prefer */}
+                    <span className="hidden lg:inline text-sm font-medium">Context AI</span>
                 </button>
 
                 {/* History */}
@@ -125,17 +158,12 @@ const SidePanel = () => {
                 <IoBook size={16} />
                 </button>
 
-                {/* Settings */}
-                <button title="Settings" className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]">
-                <IoSettings size={16} />
-                </button>
-
             </div>
         </div>
 
         {/* Return to Bubble Button  */}
         <button 
-            className="flex items-center justify-center gap-2 px-2 py-2 bg-[#072141] rounded text-[#BBE1FA] hover:bg-[#1c2f47]"
+            className="flex items-center justify-center gap-2 px-2 py-2 mb-2 bg-[#072141] rounded text-[#BBE1FA] hover:bg-[#1c2f47]"
             title = "Reeturn to Bubble"
             onClick={async () => {
                 await chrome.storage.local.set({ fromSidePanel: { word: text } })
@@ -149,8 +177,13 @@ const SidePanel = () => {
 
         
 
-
-         {showHistory ? (
+        {showContextAI ? (
+          <ContextAIView
+            word={text}
+            contextSnippet={extractContext(text)}
+            url={window.location.href}
+          />
+        ): showHistory ? (
             <div className="flex-1 bg-[#072141] border border-gray-700 mt-2 rounded-lg p-2 overflow-y-auto">
             <h2 className="text-lg font-semibold text-[#BBE1FA] mb-4 flex items-center gap-2">
                 <IoTimeOutline className="text-[#BBE1FA]" /> Recent Dictionary Lookups
@@ -188,7 +221,7 @@ const SidePanel = () => {
                         </div>
                     </div>
 
-                    <button className="text-[#BBE1FA] text-xl ml-2">
+                    <button className="text-[#BBE1FA] hover:text-white text-xl ml-2">
                         {isOpen ? <IoMdArrowDropup/> : <IoMdArrowDropdown/>}
                     </button>
 
@@ -219,8 +252,11 @@ const SidePanel = () => {
             <div className = "overflow-hidden rounded-b-lg h-[100%]">
             {/* Tabs */}
                 <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto" style = {{backgroundColor: '#000a1b', scrollbarWidth: 'none'}}>
-                {Object.entries(definitionSources).map(([key, source]) => {
-                const isActive = key === activeSource
+                {sourceOrder
+                .filter((key) => enabledSources[key]) // Only enabled
+                .map((key) => {
+                    const source = definitionSources[key]
+                    const isActive = key === activeSource
                 
                 return(
                 <div key={key} >
@@ -251,56 +287,58 @@ const SidePanel = () => {
 
             {/* Main Text */}
             <div className="flex-1 mb-2 rounded-b-lg p-2 h-[100%]" style={{ backgroundColor: '#072141' }}>
-            {activeSource === "youglish" ? (
-            <div className="flex flex-col items-center justify-center h-full text-white">
-                <h2 className="text-lg font-semibold mb-4">YouGlish Pronunciation</h2>
-                
-                <p className="text-sm text-gray-300 mb-2 text-center">
-                Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
-                </p>
-                
-                <a
-                href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
-                >
-                🔊 Open YouGlish
-                </a>
-            </div>
+                {activeSource === "youglish" ? (
+                <div className="flex flex-col items-center h-full text-white">
+                    <h2 className="text-lg font-semibold mb-4">YouGlish Pronunciation</h2>
+                    
+                    <p className="text-sm text-gray-300 mb-2 text-center">
+                    Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
+                    </p>
+                    
+                    <a
+                    href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
+                    >
+                    🔊 Open YouGlish
+                    </a>
+                </div>
             ) : (
                 <div className = "flex flex-col overflow-y-auto h-full space-y-2">
                 {/* Word and Phonetic Text */}
                 <div className="flex items-center">
-                    <h2 className="font-semibold text-white text-lg mr-2">{text}</h2>
-                    <h2 className="text-sm text-gray-50">{definitions['freedictionaryapi']?.phoneticText}</h2>
-                    <button
-                    title="Play Pronunciation"
-                    className="ml-1 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
-                    onClick={() => {
-                        const rawUrl = definitions['freedictionaryapi']?.pronunciationAudio
-                        // Use speech synthesis if no audio from freedictionaryapi
-                        if (!rawUrl) {
-                        // Fallback to Web Speech API
-                        const utterance = new SpeechSynthesisUtterance(text)
-                        utterance.lang = "en-US"
-                        speechSynthesis.speak(utterance)
-                        } else {
-                        console.log(rawUrl);
-                        const audioUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl
-                    
-                        const audio = new Audio(audioUrl)
-                        audio.play().catch((err) => console.warn("Audio failed to play", err))
-                        }
 
-
-                    }}
-                    >
-                    <IoVolumeMediumSharp size={20} />
+                    {/* Left side  */}
+                    <div className="flex items-center flex-1">
+                        <h2 className="font-semibold text-white text-lg mr-2">{text}</h2>
+                        <h2 className="text-sm text-gray-50">{definitions['freedictionaryapi']?.phoneticText}</h2>
+                        <button
+                        title="Play Pronunciation"
+                        className="ml-2 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
+                        onClick={() => {
+                            const rawUrl = definitions['freedictionaryapi']?.pronunciationAudio
+                            // Use speech synthesis if no audio from freedictionaryapi
+                            if (!rawUrl) {
+                            // Fallback to Web Speech API
+                            const utterance = new SpeechSynthesisUtterance(text)
+                            utterance.lang = "en-US"
+                            speechSynthesis.speak(utterance)
+                            } else {
+                            console.log(rawUrl);
+                            const audioUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl
+                        
+                            const audio = new Audio(audioUrl)
+                            audio.play().catch((err) => console.warn("Audio failed to play", err))
+                            }
+                        }}
+                        >
+                        <IoVolumeMediumSharp size={20} />
                     </button>
+
                     <button
                     title="Lingua Robot Audio"
-                    className="ml-3 mb-3 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
+                    className="ml-1 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
                     onClick={() => {
                         const audioUrl = definitions['linguarobotapi']?.pronunciationAudio
                     
@@ -310,6 +348,18 @@ const SidePanel = () => {
                     >
                     <IoVolumeMediumSharp size={20} />
                     </button>
+                    </div>
+
+                    {/* Manual Save Button (Right side) */}
+                    {!autoAddToHistory && (
+                        <button onClick={() => toggleSave(text, definitions)} className="mr-3">
+                        {isSaved(text) ? (
+                            <GoHeartFill size={20} className="text-pink-400" />
+                        ) : (
+                            <GoHeart size={20} className="text-gray-400 hover:text-pink-400" />
+                        )}
+                        </button>
+                    )}
 
                 </div>
 
@@ -318,54 +368,63 @@ const SidePanel = () => {
                 {/* Definitions */}
                 <div className="space-y-3">
                     {definitions[activeSource]?.definition
-                    ?.split("\n")
-                    .map((line, idx) => (
-                        <div key={idx} className="border-b border-gray-600 pb-3">
-                        <p className="text-sm text-white italic">{line}</p>
+                      ?.split("\n")
+                      .map((line, idx, arr) => (
+                        <div
+                          key={idx}
+                          className={`pb-3 ${
+                            idx === arr.length - 1 && activeSource === "duckduckgo" ? "" : "border-b border-gray-600"
+                          }`}
+                        >
+                          <p className="text-sm text-white italic">{line}</p>
                         </div>
-                    )) ?? (
+                      )) ?? (
                         <p className="text-sm text-white italic">Loading...</p>
                     )}
                 </div>
 
-                <p className="whitespace-pre-wrap text-sm italic text-blue-500" onClick={handleSynonymAntonyms}>
-                    Show Synonyms and Antonyms
-                </p>
-                
-                {/* Synonyms and Antyonyms */}
-                {showExtras && (
+                {activeSource !== "duckduckgo" && (
                     <>
-                    {definitions[activeSource]?.synonyms?.length > 0 && (
-                        <div className="mt-2">
-                        <strong className="block text-xs text-white mb-1">Synonyms:</strong>
-                        <div className="flex flex-wrap gap-1">
-                            {definitions[activeSource].synonyms.map((syn, i) => (
-                            <span
-                                key={`syn-${i}`}
-                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                            >
-                                {syn}
-                            </span>
-                            ))}
-                        </div>
-                        </div>
-                    )}
+                        <p className="whitespace-pre-wrap text-sm italic text-blue-500" onClick={handleSynonymAntonyms}>
+                            Show Synonyms and Antonyms
+                        </p>
+                        
+                        {/* Synonyms and Antyonyms */}
+                        {showExtras && (
+                            <>
+                            {definitions[activeSource]?.synonyms?.length > 0 && (
+                                <div className="mt-2">
+                                <strong className="block text-xs text-white mb-1">Synonyms:</strong>
+                                <div className="flex flex-wrap gap-1">
+                                    {definitions[activeSource].synonyms.map((syn, i) => (
+                                    <span
+                                        key={`syn-${i}`}
+                                        className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                    >
+                                        {syn}
+                                    </span>
+                                    ))}
+                                </div>
+                                </div>
+                            )}
 
-                    {definitions[activeSource]?.antonyms?.length > 0 && (
-                        <div className="mt-2">
-                        <strong className="block text-xs text-white mb-1">Antonyms:</strong>
-                        <div className="flex flex-wrap gap-1">
-                            {definitions[activeSource].antonyms.map((ant, i) => (
-                            <span
-                                key={`ant-${i}`}
-                                className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full"
-                            >
-                                {ant}
-                            </span>
-                            ))}
-                        </div>
-                        </div>
-                    )}
+                            {definitions[activeSource]?.antonyms?.length > 0 && (
+                                <div className="mt-2">
+                                <strong className="block text-xs text-white mb-1">Antonyms:</strong>
+                                <div className="flex flex-wrap gap-1">
+                                    {definitions[activeSource].antonyms.map((ant, i) => (
+                                    <span
+                                        key={`ant-${i}`}
+                                        className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full"
+                                    >
+                                        {ant}
+                                    </span>
+                                    ))}
+                                </div>
+                                </div>
+                            )}
+                        </>
+                        )}
                     </>
                 )}
                 

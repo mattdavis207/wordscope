@@ -1,14 +1,31 @@
 import { useState, useEffect } from "react"
 import type { DefinitionData } from "~types"
+import { useSourceSettings } from "./useSourceSettings"
 
 
 
 export const useDictionary = <T extends Record<string, any>>(definitionSources: T) => {
+
+    // Source Settings
+    const {
+      sourceOrder,
+      enabledSources,
+    } = useSourceSettings()
+
     const [text, setText] = useState("")
     const [definitions, setDefinitions] = useState<Record<keyof T, DefinitionData>>({} as any)
-    const [activeSource, setActiveSource] = useState<keyof T>(Object.keys(definitionSources)[0] as keyof T)
+    const firstEnabled = sourceOrder.find((key) => enabledSources[key])
+    const [activeSource, setActiveSource] = useState<keyof T>(firstEnabled || null)
     const [showExtras, setShowExtras] = useState(false)
-  
+
+
+    useEffect(() => {
+      const firstEnabled = sourceOrder.find((key) => enabledSources[key])
+      if (!activeSource || !enabledSources[activeSource as string]) {
+        setActiveSource(firstEnabled || null)
+      }
+    }, [sourceOrder, enabledSources, activeSource])
+    
     useEffect(() => {
       if (!text) return
   

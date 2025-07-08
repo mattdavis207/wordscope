@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
+import { useSourceSettings } from "./useSourceSettings"
 
 const HISTORY_KEY = "history"
+const AUTO_ADD_KEY = "autoAddToHistory"
 
 export interface DefinitionRecord {
   word: string
@@ -22,10 +24,26 @@ export function useHistory() {
   const [history, setHistory] = useState<DefinitionRecord[]>([])
   const [loading, setLoading] = useState(true)
 
+  // State for tracking auto add settings
+  const [autoAddToHistory, setAutoAddToHistory] = useState(true)
+
+  const {sourceOrder, enabledSources, defaultExportSource} = useSourceSettings()
+
+  const isSaved = (word: string) =>
+    history.some((entry) => entry.word === word)
+  
+  const setAutoAdd = (val: boolean) => {
+    setAutoAddToHistory(val)
+    chrome.storage.local.set({ [AUTO_ADD_KEY]: val }, () => {
+        console.log("Saved autoAddToHistory to storage:", val) 
+    });
+  }
+
   // Load history on mount
   useEffect(() => {
-    chrome.storage.local.get([HISTORY_KEY], (result) => {
+    chrome.storage.local.get([HISTORY_KEY, AUTO_ADD_KEY], (result) => {
       setHistory(result[HISTORY_KEY] || [])
+      setAutoAddToHistory(result[AUTO_ADD_KEY] ?? true)
       setLoading(false)
     })
   }, [])
@@ -70,11 +88,22 @@ export function useHistory() {
   const exportAsTSV = () => {
     return history
       .map(({ word, sources }) => {
-        const def = sources["wordsapi"]?.definition || ""
+        const sourceKey = defaultExportSource || sourceOrder.find((k) => enabledSources[k])
+        const def = sources[sourceKey]?.definition || ""
         return `${word}\t${def.replace(/\n/g, " ")}`
       })
       .join("\n")
   }
+
+  const toggleSave = (word: string, sources: DefinitionRecord["sources"]) => {
+    if (isSaved(word)) {
+      deleteWord(word)
+    } else {
+      saveWord(word, sources)
+    }
+  }
+
+
 
   return {
     history,
@@ -82,6 +111,11 @@ export function useHistory() {
     saveWord,
     deleteWord,
     clearHistory,
-    exportAsTSV
+    exportAsTSV,
+    isSaved,
+    toggleSave,
+    autoAddToHistory,
+    setAutoAdd, 
+    settingsLoading: loading
   }
 }
