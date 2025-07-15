@@ -11,19 +11,19 @@ export function useSourceSettings() {
   const [enabledSources, setEnabledSources] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
 
-  const [defaultExportSource, setDefaultExportSource] = useState<string>("wordsapi")
+  const [defaultExportSource, setDefaultExportSource] = useState<string>("wordnik")
 
   // Load persisted settings on mount
   useEffect(() => {
     chrome.storage.local.get(SOURCE_SETTINGS_KEY, (result) => {
       const settings = result[SOURCE_SETTINGS_KEY] || {}
       const allKeys = Object.keys(definitionSources)
-      const persistedOrderRaw = settings.order || Object.keys(definitionSources);
+      const persistedOrderRaw = Object.keys(definitionSources);
       console.log("pulling settings from local storage", settings);
       console.log("allKeys", allKeys);
       console.log("persistedOrderRaw", persistedOrderRaw);
 
-      const persistedOrder = persistedOrderRaw.map((item) => {
+      const cleanedOrder = persistedOrderRaw.map((item) => {
         if (typeof item === "string") return item
       
         return Object.keys(item)
@@ -33,11 +33,17 @@ export function useSourceSettings() {
           .join("")
       })
 
+      const persistedOrder = [
+        ...cleanedOrder,
+        ...allKeys.filter((key) => !cleanedOrder.includes(key))
+      ]
+      
       console.log("persisted order after remapping", persistedOrder)
   
-      const fixedEnabled =
-        settings.enabled ||
-        Object.fromEntries(allKeys.map((key) => [key, true]))
+      const fixedEnabled = {
+        ...Object.fromEntries(allKeys.map((key) => [key, true])), // default all to true
+        ...settings.enabled // override with saved user settings if present
+      }
   
       setSourceOrder(persistedOrder)
       setEnabledSources(fixedEnabled)
@@ -71,7 +77,7 @@ export function useSourceSettings() {
     await chrome.storage.local.set({
       [SOURCE_SETTINGS_KEY]: { order, enabled }
     })
-    console.log("✅ Saved settings:", { order, enabled })
+    console.log("Saved settings:", { order, enabled })
   }
 
 

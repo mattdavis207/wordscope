@@ -1,0 +1,75 @@
+:root {
+    --background: #01122B;
+    --text: #BBE1FA;
+    --main-body: #072141;
+    --dull-box: #1c2f47;
+    --hover-icon: #FFFFFF;
+    --hover-square:#1c2f47;
+    --data-text: #FFFFFF;
+    --other-text: #9CA3AF;
+    --border: #374151;
+    --tab-active-bg: #2A4E75;
+    --ai-chat-bubble: #2563EB;
+    --user-chat-bubble: #374151;
+  }
+
+  .theme-dark {
+    --background: #01122B;
+    --text: #BBE1FA;
+    --main-body: #072141;
+    --dull-box: #1c2f47;
+    --hover-icon: #FFFFFF;
+    --hover-square:#1c2f47;
+    --data-text: #FFFFFF;
+    --other-text: #9CA3AF;
+    --border: #374151;
+    --tab-active-bg: #2A4E75;
+    --ai-chat-bubble: #2563EB;
+    --user-chat-bubble: #374151;
+  }
+  
+  .theme-light {
+    --background: #FFFFFF;
+    --text: #1F2937;
+    --main-body: #F3F4F6;
+    --dull-box: #E5E7EB;
+    --hover-icon: #1F2937;
+    --hover-square: #1c2f47;
+    --data-text: #1F2937;
+    --other-text: #4B5563;
+    --border: #D1D5DB;
+    --tab-active-bg:#E5E7EB;
+    --ai-chat-bubble: #2563EB;
+    --user-chat-bubble: #374151;
+  }
+
+  .theme-solar {
+    --background: #FFF8F0;
+    --text: #3B3B3B;
+    --main-body: #FFEFD6;
+    --dull-box: #FCD5B5;
+    --hover-icon: #B45309;
+    --hover-square: #FCD5B5;
+    --data-text: #3B3B3B;
+    --other-text: #7C6F64;
+    --border: #E5B299;
+    --tab-active-bg: #E5B299;
+    --ai-chat-bubble: #D97706;
+    --user-chat-bubble: #C2410C;
+  }
+
+  .theme-pastel {
+    --background: #FDF6F9;
+    --text: #4B5563;
+    --main-body: #FFE4E6;
+    --dull-box: #FBCFE8;
+    --hover-icon: #9D174D;
+    --hover-square: #FBCFE8;
+    --data-text: #4B5563;
+    --other-text: #6B7280;
+    --border: #F9A8D4;
+    --tab-active-bg: #F9A8D4;
+    --ai-chat-bubble: #EC4899;
+    --user-chat-bubble: #E879F9;
+  }
+ 

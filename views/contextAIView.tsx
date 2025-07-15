@@ -3,10 +3,26 @@ import { fetchContextAIResponse } from "../context/gpt_handler"
 import ChatBubble from "../components/ChatBubble"
 import ChatInput from "../components/ChatInput"
 
+import "~/styles/tailwind.css"
+import "../styles/globals.css";
+import { injectSavedThemes } from "../hooks/injectThemes";
+import type { Theme } from "../hooks/injectThemes"
+
 const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSnippet: string, url: string }) => {
   const [messages, setMessages] = useState<{ sender: "user" | "ai", text: string }[]>([])
   const [loading, setLoading] = useState(false)
   const chatRef = useRef<HTMLDivElement>(null)
+
+  const [themes, setThemes] = useState<Theme[]>([]);
+
+  const [appliedTheme, setAppliedTheme] = useState<string>("");
+
+  useEffect(() => {
+    const loadThemes = async () => {
+      await injectSavedThemes(setThemes, setAppliedTheme);
+    };
+    loadThemes();
+  }, []);
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -47,20 +63,25 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
   }
 
   return (
-    <div className="relative flex flex-col h-full w-full bg-[#01122B] text-white rounded-xl shadow-lg">
+    <div className="relative flex flex-col h-full w-full bg-background shadow-lg">
       {/* Header */}
-      <div className="flex justify-between items-center p-3 bg-[#072141] rounded-t-xl">
-        <h2 className="text-lg font-semibold text-[#BBE1FA]">Context AI</h2>
+      <div className="flex h-12 justify-between items-center px-3 bg-mainBody">
+        <h2 className="flex items-center justify-center text-base font-semibold text-text leading-tight h-full">Context AI</h2>
         <button
           onClick={clearChat}
-          className="px-2 py-1 text-sm bg-red-500 rounded hover:bg-red-600"
+          className="px-2 text-sm text-dataText bg-red-500 rounded hover:bg-red-600"
         >
           Clear Chat
         </button>
       </div>
 
+      <div>
+        {/* Input Bar - Fixed at bottom */}
+        <ChatInput onSend={sendMessage} disabled={loading} />
+      </div>
+
       {/* Chat Area */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ paddingBottom: "4rem" }}>
+      <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ paddingBottom: "4rem", scrollbarWidth: "none" }}>
         {messages.map((msg, idx) => (
           <ChatBubble key={idx} sender={msg.sender} text={msg.text} />
         ))}
@@ -68,9 +89,7 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
           <ChatBubble sender="ai" text="Thinking..." />
         )}
       </div>
-
-      {/* Input Bar - Fixed at bottom */}
-      <ChatInput onSend={sendMessage} disabled={loading} />
+      
     </div>
   )
 }

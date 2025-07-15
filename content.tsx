@@ -2,14 +2,17 @@
 import React, { useEffect, useState, useRef } from "react"
 import { IoVolumeMediumSharp, IoTimeOutline, IoSearch, IoBook, IoSettings, IoTrashSharp, IoTrashOutline } from "react-icons/io5"
 import { BiSolidDockRight } from "react-icons/bi"
-import { IoMdArrowDropdown, IoMdArrowDropup, IoMdMagnet } from "react-icons/io";
-import { HiOutlineSparkles } from "react-icons/hi2" 
-import { GiArtificialIntelligence } from "react-icons/gi" 
+import { IoMdArrowDropdown, IoMdArrowDropup, IoMdMagnet, IoMdLock, IoMdUnlock} from "react-icons/io";
+import { HiOutlineSparkles, HiOutlineTrash, HiOutlineArrowDownTray, HiOutlineXMark} from "react-icons/hi2" 
 import { BsPinAngleFill } from "react-icons/bs";
 import { GoHeart, GoHeartFill } from "react-icons/go"
 
 import { createRoot } from "react-dom/client"
-import "./styles/tailwind.css"
+
+import "~/styles/tailwind.css"
+import "./styles/globals.css";
+import { injectSavedThemes } from "./hooks/injectThemes";
+import type { Theme } from "./hooks/injectThemes"
 
 //Dependency imports
 import { definitionSources } from "./sources/definitionSources"
@@ -21,6 +24,13 @@ import { MiniDefinitionView } from "./views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
 import { extractContext } from "./context/contextExtractor"
 
+declare global {
+  interface Window {
+    overscroll: any
+  }
+}
+
+const HISTORY_KEY = "history"
 
 // Constant track right click for consistent bubble rendering
 let lastRightClickPos = { x: 0, y: 0 }
@@ -38,7 +48,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const Bubble = () => {
 
   // History hook useStates
-  const { saveWord, history, deleteWord, clearHistory, isSaved, toggleSave, autoAddToHistory } = useHistory()
+  const { saveWord, history, setHistory, deleteWord, clearHistory, isSaved, toggleSave, autoAddToHistory, exportAsTSV, exportAsCSV, exportAsJSON, exportAsPDF } = useHistory()
 
   const {
     text,
@@ -61,11 +71,17 @@ const Bubble = () => {
   //Track pressed keys for keycombo trigger
   const pressedKeysRef = useRef<Set<string>>(new Set())
   
+  // Theme useStates
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [appliedTheme, setAppliedTheme] = useState<string>("");
+  
 
   // Source Settings
   const {
     sourceOrder,
     enabledSources,
+    defaultExportSource,
+    updateDefaultExportSource
   } = useSourceSettings()
 
 
@@ -84,6 +100,14 @@ const Bubble = () => {
   const [searchInput, setSearchInput] = useState("")
   const [expandedWord, setExpandedWord] = useState<string | null>(null)
   const [hoverTrash, setHoverTrash] = useState(false)
+
+  // Export flags and state variables
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFileType, setExportFileType] = useState<"tsv" | "csv" | "json">("tsv");
+  const [exportSource, setExportSource] = useState(defaultExportSource || "");
+  const [includeAllWords, setIncludeAllWords] = useState(true);
+  const [selectedWords, setSelectedWords] = useState<string[]>([]);
+
 
   //Selection coords
   const [rectLeft, setRectLeft] = useState(0);
@@ -105,9 +129,19 @@ const Bubble = () => {
   const [bubblePosition, setBubblePosition] = useState({ x: 0, y: 0 })
   const [targetPosition, setTargetPosition] = useState({ x: 0, y: 0 }) // for animation
   const [anchorPosition, setAnchorPosition] = useState({ x: 0, y: 0 }) // word location
+  const [isLocked, setIsLocked] = useState(false);
 
   // Docking state
   const [isDetached, setIsDetached] = useState(false)
+
+
+  //useEffect for getting saved themes and injecting applied theme
+  useEffect(() => {
+    const loadThemes = async () => {
+      await injectSavedThemes(setThemes, setAppliedTheme);
+    };
+    loadThemes();
+  }, []);
   
 
   // useEffect for syncing with settings
@@ -117,6 +151,7 @@ const Bubble = () => {
       setPopupHeight(bubbleSize.height)
     }
   }, [bubbleSize])
+
 
   useEffect(() => {
     chrome.storage.local.get("triggerSettings", (res) => {
@@ -146,7 +181,7 @@ const Bubble = () => {
   }, [])
 
 
-  
+  // UseEffect for listening for key combos
   useEffect(() => {
     const downHandler = (e: KeyboardEvent) => {
       pressedKeysRef.current.add(e.key)
@@ -178,140 +213,137 @@ const Bubble = () => {
   }, [])
 
 
-
+  // useEffect for calculating bubble coords and rendering on click
   useEffect(() => {
     const checkAndShowBubble = (e?: MouseEvent | Event, forcedText?: string, forcedMousePos?: { x: number; y: number }) => {
-      console.log("📦 click detected", e);
-      console.log("definition sources", definitionSources)
+    console.log("📦 click detected", e);
+    console.log("definition sources", definitionSources)
 
-      // 2. Apply logic based on selected trigger
-      if (e instanceof MouseEvent) {
-        if (!triggerSettings) return
-        console.log("inside if");
+    // 2. Apply logic based on selected trigger
+    if (e instanceof MouseEvent) {
+      if (!triggerSettings) return
+      console.log("inside if");
+    
+      const { triggerMethod, modifierCombo, customKeyCombo } = triggerSettings
+    
+      if (triggerMethod === "doubleClick") {
+        if (e.detail !== 2) return
+      } else if (triggerMethod === "modifierClick") {
+        const matched =
+          (modifierCombo === "cmdClick" && e.metaKey) ||
+          (modifierCombo === "altClick" && e.altKey)
+        if (!matched) return
+      } else if (triggerMethod === "keyCombo") {
+        if (!customKeyCombo || customKeyCombo.length === 0) return
+
+        console.log("inside keycombo with these keys pressed: ", pressedKeysRef);
       
-        const { triggerMethod, modifierCombo, customKeyCombo } = triggerSettings
-      
-        if (triggerMethod === "doubleClick") {
-          if (e.detail !== 2) return
-        } else if (triggerMethod === "modifierClick") {
-          const matched =
-            (modifierCombo === "cmdClick" && e.metaKey) ||
-            (modifierCombo === "altClick" && e.altKey)
-          if (!matched) return
-        } else if (triggerMethod === "keyCombo") {
-          if (!customKeyCombo || customKeyCombo.length === 0) return
-
-          console.log("inside keycombo with these keys pressed: ", pressedKeysRef);
-        
-          const allMatch = customKeyCombo.every((key) => pressedKeysRef.current.has(key))
-          if (!allMatch) return
-        } else {
-          return
-        }
-      }
-
-      const selection = forcedText || window.getSelection()?.toString().trim();
-      if (!selection) return
-
-      let rect
-
-      // If a forced selection was passed from contextMenu, we approximate position
-      if (forcedText) {
-        rect = {
-          left: forcedMousePos.x,
-          top: forcedMousePos.y,
-          right: forcedMousePos.x,
-          bottom: forcedMousePos.y,
-          width: 0,
-          height: 0
-        }
+        const allMatch = customKeyCombo.every((key) => pressedKeysRef.current.has(key))
+        if (!allMatch) return
       } else {
-        const range = window.getSelection()
-        if (range?.rangeCount) {
-          rangeRef.current = range.getRangeAt(0).cloneRange()
-        }
-        const rects = range?.getRangeAt(0)?.getClientRects()
-        rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+        return
       }
+    }
 
-      if (!rect) return
+    const selection = forcedText || window.getSelection()?.toString().trim();
+    if (!selection) return
 
-      const selectedText = selection?.toString().trim()
-      if (!selectedText) return
+    let rect
 
-      // Smart position setting based on clientRects and bounding boxes
-      const scrollX = window.scrollX
-      const scrollY = window.scrollY
-      const vw = window.innerWidth
-      const vh = window.innerHeight
+    // If a forced selection was passed from contextMenu, we approximate position
+    if (forcedText) {
+      const range = window.getSelection()
+      if (range?.rangeCount) {
+        rangeRef.current = range.getRangeAt(0).cloneRange()
+      }
+      const rects = range?.getRangeAt(0)?.getClientRects()
+      rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+    } else {
+      const range = window.getSelection()
+      if (range?.rangeCount) {
+        rangeRef.current = range.getRangeAt(0).cloneRange()
+      }
+      const rects = range?.getRangeAt(0)?.getClientRects()
+      rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+    }
 
-      console.log("Rect dimensions", rect.width, rect.height);
+    if (!rect) return
 
-      console.log("Rect top and bottom", rect.top, rect.bottom);
+    const selectedText = selection?.toString().trim()
+    if (!selectedText) return
 
+    // Smart position setting based on clientRects and bounding boxes
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const vw = window.innerWidth
+    const vh = window.innerHeight
 
-      console.log("popupWidth", popupWidth);
-      console.log("popupHeight", popupHeight);
+    console.log("Rect dimensions", rect.width, rect.height);
 
-      const offset = 12
-
-      // Define all possible directions with their coordinates
-      const candidates = [
-        {
-          direction: "right",
-          fits: vw - rect.right >= popupWidth + offset,
-          x: rect.right + scrollX + offset,
-          y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
-        },
-        {
-          direction: "bottom",
-          fits: vh - rect.bottom >= popupHeight + offset,
-          x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
-          y: rect.bottom + scrollY + offset,
-        },
-        {
-          direction: "left",
-          fits: rect.left >= popupWidth + offset,
-          x: rect.left + scrollX - popupWidth - offset,
-          y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
-        },
-        {
-          direction: "top",
-          fits: rect.top >= popupHeight + offset,
-          x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
-          y: rect.top + scrollY - popupHeight - offset,
-        },
-
-      ]
-
-      const bestFit = candidates.find((c) => c.fits) || candidates[0] // default to bottom
-      console.log("bestfit", bestFit.direction)
-
-      const clampedX = Math.max(scrollX, Math.min(bestFit.x, scrollX + vw - popupWidth))
-      const clampedY = Math.max(scrollY, Math.min(bestFit.y, scrollY + vh - popupHeight))
-
-      setBubblePosition({ x: clampedX, y: clampedY })
-      setAnchorPosition({ x: clampedX, y: clampedY })
-      
-
-      setRectLeft(rect.left)
-      setRectRight(rect.right)
-      setRectTop(rect.top)
-      setRectBottom(rect.bottom)
-      setRectWidth(rect.width)
-      setRectHeight(rect.height)
-
-      setArrowDirection(bestFit.direction as "top" | "bottom" | "left" | "right")
-
-      setText(selectedText)
-      lastSelectedWord.current = selectedText
+    console.log("Rect top and bottom", rect.top, rect.bottom);
 
 
-      // Trigger reflow for animation
-      requestAnimationFrame(() => {
-        setShow(true)
-      })
+    console.log("popupWidth", popupWidth);
+    console.log("popupHeight", popupHeight);
 
+    const offset = 12
+
+    // Define all possible directions with their coordinates
+    const candidates = [
+      {
+        direction: "right",
+        fits: vw - rect.right >= popupWidth + offset,
+        x: rect.right + scrollX + offset,
+        y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
+      },
+      {
+        direction: "bottom",
+        fits: vh - rect.bottom >= popupHeight + offset,
+        x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
+        y: rect.bottom + scrollY + offset,
+      },
+      {
+        direction: "left",
+        fits: rect.left >= popupWidth + offset,
+        x: rect.left + scrollX - popupWidth - offset,
+        y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
+      },
+      {
+        direction: "top",
+        fits: rect.top >= popupHeight + offset,
+        x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
+        y: rect.top + scrollY - popupHeight - offset,
+      },
+
+    ]
+
+    const bestFit = candidates.find((c) => c.fits) || candidates[0] // default to bottom
+    console.log("bestfit", bestFit.direction)
+
+    const clampedX = Math.max(scrollX, Math.min(bestFit.x, scrollX + vw - popupWidth))
+    const clampedY = Math.max(scrollY, Math.min(bestFit.y, scrollY + vh - popupHeight))
+
+    setBubblePosition({ x: clampedX, y: clampedY })
+    setAnchorPosition({ x: clampedX, y: clampedY })
+    
+
+    setRectLeft(rect.left)
+    setRectRight(rect.right)
+    setRectTop(rect.top)
+    setRectBottom(rect.bottom)
+    setRectWidth(rect.width)
+    setRectHeight(rect.height)
+
+    setArrowDirection(bestFit.direction as "top" | "bottom" | "left" | "right")
+
+    setText(selectedText)
+    lastSelectedWord.current = selectedText
+
+
+    // Trigger reflow for animation
+    requestAnimationFrame(() => {
+      setShow(true)
+    })
     }
 
     const observer = new MutationObserver(() => {
@@ -332,8 +364,6 @@ const Bubble = () => {
       document.removeEventListener("click", checkAndShowBubble)
     }
   }, [triggerSettings])
-
-
 
 
   // Handle Bubble Resize
@@ -480,10 +510,10 @@ const Bubble = () => {
   }, [targetPosition, targetRect])
 
 
-
-
   // Handle event click anywhere else on screen
   useEffect(() => {
+    if (isLocked) return;
+
     const handleClickOutside = (e: MouseEvent) => {
       const box = bubbleRef.current?.getBoundingClientRect()
       console.log(box);
@@ -505,9 +535,7 @@ const Bubble = () => {
     // Delay adding the listener to avoid triggering it on the same event
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, []);
-
-
+  }, [isLocked]);
 
   
   // Drag handler functions
@@ -538,21 +566,40 @@ const Bubble = () => {
     document.removeEventListener("mouseup", handleDragEnd)
   }
 
-
-
-
   // Toggle for minidefinition view for saved word
   const toggleExpanded = (word: string) => {
     setExpandedWord((prev) => (prev === word ? null : word))
   }
 
-
   // useEffect for saving word to history records
   useEffect(() => {
-    if (text && Object.keys(definitions).length > 0 && autoAddToHistory && !isSaved(text)){
-      saveWord(text, definitions)
-    }
+    if (!text) return;
+
+    const currentWord = text; // Capture the current word
+    const allSourcesReady = sourceOrder.every(
+      (source) => !enabledSources[source] || definitions[source]
+    );
+
+    const timer = setTimeout(() => {
+      if (allSourcesReady && autoAddToHistory && !isSaved(currentWord)) {
+        console.log("[SAVE DEBUG] Debounced save for word:", currentWord);
+        saveWord(text, definitions, window.location.href);
+      }
+    }, 300); // Wait 300ms after last change
+    
+    return () => clearTimeout(timer);
   }, [text, definitions, autoAddToHistory])
+
+  useEffect(() => {
+    const listener = (changes, areaName) => {
+      if (areaName === "local" && changes[HISTORY_KEY]) {
+        setHistory(changes[HISTORY_KEY].newValue || []);
+      }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+  
 
 
   // Trigger side panel
@@ -613,6 +660,35 @@ const Bubble = () => {
   }, [])
 
 
+  // Fallback if defaultExportSource is not set to firstEnabled source
+  useEffect(() => {
+    if (!defaultExportSource && sourceOrder.length > 0) {
+      const firstEnabled = sourceOrder.find((src) => enabledSources[src]);
+      setExportSource(firstEnabled || "");
+    }
+  }, [defaultExportSource, sourceOrder, enabledSources]);
+
+  const handleExport = () => {
+    let data = "";
+    if (exportFileType === "tsv") {
+      data = exportAsTSV(exportSource, includeAllWords, selectedWords);
+    } else if (exportFileType === "csv") {
+      data = exportAsCSV(exportSource, includeAllWords, selectedWords);
+    } else if (exportFileType === "json") {
+      data = exportAsJSON(exportSource, includeAllWords, selectedWords);
+    } else if (exportFileType === "pdf") {
+      exportAsPDF(exportSource, includeAllWords, selectedWords);
+    }
+  
+    const blob = new Blob([data], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dictionary_history.${exportFileType}`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setShowExportModal(false);
+  };
   
 
 
@@ -638,7 +714,7 @@ const Bubble = () => {
             height: 0,
             borderLeft: "9px solid transparent",
             borderRight: "9px solid transparent",
-            borderTop: "9px solid #01122B" // triangle points down into the bubble
+            borderTop: "9px solid var(--background)" // triangle points down into the bubble
           }}
         />
       )}
@@ -653,7 +729,7 @@ const Bubble = () => {
             height: 0,
             borderLeft: "9px solid transparent",
             borderRight: "9px solid transparent",
-            borderBottom: "9px solid #01122B" // triangle points down into the bubble
+            borderBottom: "9px solid var(--background)" // triangle points down into the bubble
           }}
         />
       )}
@@ -668,7 +744,7 @@ const Bubble = () => {
             height: 0,
             borderTop: "9px solid transparent",
             borderBottom: "9px solid transparent",
-            borderLeft: "9px solid #01122B" // triangle points down into the bubble
+            borderLeft: "9px solid var(--background)" // triangle points down into the bubble
 
           }}
         />
@@ -684,7 +760,7 @@ const Bubble = () => {
             height: 0,
             borderTop: "9px solid transparent",
             borderBottom: "9px solid transparent",
-            borderRight: "9px solid #01122B" // triangle points down into the bubble
+            borderRight: "9px solid var(--background)" // triangle points down into the bubble
           }}
         />
       )}
@@ -702,7 +778,7 @@ const Bubble = () => {
           boxShadow: "0px 2px 8px rgba(0,0,0,0.2)",
           height: `${popupHeight}px`,
           width: `${popupWidth}px`,
-          backgroundColor: '#01122B',
+          backgroundColor: 'var(--background)',
 
           // Resize limits
           minWidth: "200px",
@@ -715,16 +791,15 @@ const Bubble = () => {
 
         {/* Drag Handle */}
         <div
-          className="mx-auto top-0 cursor-move px-3 py-1 rounded-md select-none w-3/4 mb-3"
+          className="mx-auto top-0 cursor-move px-3 py-1 rounded-md select-none w-3/4 mb-3 bg-dullBox"
           onMouseDown={handleDragStart}
-          style={{ backgroundColor: '#112844' }}
         >
 
         </div>
 
 
         {/* Utility Buttons Row */}
-        <div className="flex items-center justify-between px-2 py-1 mb-1 bg-[#072141] rounded-md text-[#9DAFC8]">
+        <div className="flex items-center justify-between px-2 py-1 mb-1 bg-mainBody rounded-md text-[#9DAFC8]">
           {/* Left Side */}
           <div className="flex items-center space-x-2 w-[50%]">
 
@@ -746,12 +821,12 @@ const Bubble = () => {
                   setSearchInput("")
                 }
               }}
-              className="px-2 py-1 text-sm bg-[#112844] text-white rounded placeholder:text-gray-400 outline-none w-[100%]"
+              className="px-2 py-1 text-sm bg-dullBox text-dataText rounded placeholder:text-otherText outline-none w-[100%]"
             />
 
             <button
               title="Search"
-              className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]"
+              className="p-1 rounded text-text hover:bg-dullBox"
               onClick={(e) => {
                 // Reset active tab to first enabled
                 const firstEnabled = sourceOrder.find((key) => enabledSources[key])
@@ -774,7 +849,7 @@ const Bubble = () => {
             {/* Context AI Button */}
             <button
               title="Context AI (Pro)"
-              className="p-1 flex items-center gap-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47] transition-colors duration-200"
+              className="p-1 flex items-center gap-1 rounded text-text hover:bg-dullBox transition-colors duration-200"
               onClick={() => {
                 const selection = window.getSelection()?.toString().trim()
                 if (!selection) {
@@ -793,7 +868,7 @@ const Bubble = () => {
             {/* Pin */}
             <button 
               title={!isDetached ? "Undock bubble" : "Dock to word"}
-              className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]"
+              className="p-1 rounded text-text hover:bg-dullBox"
               onClick={() => {
                 if (!isDetached) {
                   // Detach and center
@@ -810,13 +885,22 @@ const Bubble = () => {
               {isDetached ? <IoMdMagnet size= {16} /> : <BsPinAngleFill size= {16}/>}
             </button>
 
+            {/* Lock */}
+            <button
+              title={isLocked ? "Unlock bubble" : "Lock bubble"}
+              className="p-1 rounded text-text hover:bg-dullBox"
+              onClick={() => setIsLocked(!isLocked)}
+            >
+              {isLocked ? <IoMdLock size={16} /> : <IoMdUnlock size={16} />}
+            </button>
+
             {/* History */}
-            <button title="History" className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]" onClick={() => setShowHistory((prev) => !prev)}>
+            <button title="History" className="p-1 rounded text-text hover:bg-dullBox" onClick={() => setShowHistory((prev) => !prev)}>
               <IoBook size={16} />
             </button>
 
             {/* SidePanel */}
-            <button onClick={openPanel} className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]">
+            <button onClick={openPanel} className="p-1 rounded text-text hover:bg-dullBox">
               <BiSolidDockRight size = {16} />
             </button>
           </div>
@@ -825,19 +909,59 @@ const Bubble = () => {
 
 
         {showContextAI ? (
-          <ContextAIView
-            word={text}
-            contextSnippet={extractContext(text)}
-            url={window.location.href}
-          />
+            <ContextAIView
+              word={text}
+              contextSnippet={extractContext(text)}
+              url={window.location.href}
+            />
         ): showHistory ? (
-          <div className="flex flex-1 flex-col h-[100%] bg-[#072141] border border-gray-700 mt-2 rounded-lg p-2 overflow-y-auto">
-            <h2 className="text-lg font-semibold text-[#BBE1FA] mb-4 flex items-center gap-2">
-              <IoTimeOutline className="text-[#BBE1FA]" /> Recent Dictionary Lookups
-            </h2>
+          <div 
+            className="flex flex-1 flex-col h-[100%] bg-mainBody border border-gray-700 mt-2 rounded-lg p-2 overflow-y-auto"
+            style = {{
+              scrollbarColor: "var(--tab-active-bg) var(--main-body)", 
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch" 
+            }}>
+
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-text flex items-center gap-2">
+                <IoTimeOutline className="text-text" /> Recent Dictionary Lookups
+              </h2>
+
+              <div className="flex gap-2">
+                {/* Export Button */}
+                <button
+                  disabled={history.length === 0}
+                  className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-text ${
+                    history.length === 0
+                      ? "bg-border cursor-not-allowed"
+                      : "bg-mainBody hover:bg-dullBox"
+                  }`}
+                  title="Export History"
+                  onClick={() => {
+                    setShowExportModal(true);
+                    setIsLocked(true)
+                  }}
+                >
+                  <HiOutlineArrowDownTray size={16} />
+                  <span className="text-sm">Export</span>
+                </button>
+
+                {/* Clear All Button */}
+                <button
+                  className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
+                  title="Clear All History"
+                  onClick={clearHistory}
+                >
+                  <HiOutlineTrash size={16} />
+                  <span className="text-sm">Clear</span>
+                </button>
+              </div>
+            </div>
+
 
             {/* Divider between title and words  */}
-            <div className="flex flex-1 flex-col divide-y divide-[#1c2f47]">
+            <div className="flex flex-1 flex-col divide-y divide-dullBox">
               {history.map((entry) => {
                 const isOpen = expandedWord === entry.word
                 const timestamp = new Date(entry.timestamp).toLocaleString(undefined, {
@@ -850,11 +974,11 @@ const Bubble = () => {
                     <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleExpanded(entry.word)}>
                       <div className="flex items-center justify-between w-full">
                         {/* Left side: the word */}
-                        <span className="text-base text-white">{entry.word}</span>
+                        <span className="text-base text-dataText">{entry.word}</span>
 
                         {/* Right side: time, link, etc */}
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                          <span className="text-xs text-gray-400">{timestamp}</span>
+                        <div className="flex items-center gap-2 text-xs text-otherText">
+                          <span className="text-xs text-otherText">{timestamp}</span>
                           {entry.pageUrl && (
                             <a
                               href={entry.pageUrl}
@@ -868,15 +992,31 @@ const Bubble = () => {
                         </div>
                       </div>
 
-                      <button className="text-[#BBE1FA] hover:text-white text-xl ml-2">
-                        {isOpen ? <IoMdArrowDropup /> : <IoMdArrowDropdown />}
+                      {/* Dropdown button  */}
+                      <button
+                        className="text-xl mx-2 transition-colors"
+                        style={{
+                          color: "var(--text)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "var(--hover-icon)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "var(--text)";
+                        }}
+                      >
+                        {isOpen ? (
+                          <IoMdArrowDropup style={{ color: "inherit" }} size={24} />
+                        ) : (
+                          <IoMdArrowDropdown style={{ color: "inherit" }} size={24} />
+                        )}
                       </button>
 
                       {/* Delete Icon */}
                       <button
                         onClick={() => deleteWord(entry.word)}
                         title="Delete this word"
-                        className="text-gray-400 hover:text-red-600 transition"
+                        className="text-otherText hover:text-red-600 transition"
                       >
                         {hoverTrash ? <IoTrashSharp size={16} /> : <IoTrashOutline size={16} />}
                       </button>
@@ -884,8 +1024,8 @@ const Bubble = () => {
                     </div>
 
                     {isOpen && (
-                      <div className="flex flex-1 overflow-hidden flex-col bg-[#072141] rounded-lg">
-                        <MiniDefinitionView word={entry.word} sources={entry.sources} />
+                      <div className="flex flex-1 overflow-hidden flex-col bg-mainBody rounded-lg">
+                        <MiniDefinitionView word={entry.word}/>
                       </div>
                     )}
                   </div>
@@ -899,7 +1039,7 @@ const Bubble = () => {
           <div className="flex-col flex overflow-hidden rounded-b-lg h-[100%]">
 
             {/* Tabs */}
-            <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto" style={{ backgroundColor: '#000a1b', scrollbarWidth: 'thin' }}>  
+            <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background" style={{ scrollbarWidth: 'thin' }}>  
             {sourceOrder
               .filter((key) => enabledSources[key]) // Only enabled
               .map((key) => {
@@ -914,18 +1054,26 @@ const Bubble = () => {
                 return (
                   <div key={key} >
                     <div
-                      className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-[#072141]" : "bg-[#000a1b]"
+                      className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-mainBody" : "bg-background"
                         }`}
                     >
                       <button
                         onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                        className={`w-full h-full flex items-center justify-center text-white text-md transition rounded-md ${isActive
-                            ? "bg-[#2A4E75]"
-                            : "bg-[#072141] hover:bg-[#12233b]"
+                        className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${isActive
+                            ? "bg-tabActiveBg"
+                            : "bg-mainBody hover:bg-dullBox"
                           }`}
                         title={source.name}
                       >
-                        {source.icon}
+                        {typeof source.icon === "string" ? (
+                          <img
+                            src={source.icon}
+                            alt={`${source.name} icon`}
+                            className="w-6 h-6 object-contain"
+                          />
+                        ) : (
+                          <span className="text-lg">{source.icon}</span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -938,10 +1086,10 @@ const Bubble = () => {
             {/* dont nest the main text in two divs, just make two main divs for youglish and the other renders okay, cool thanks */}
             {/* Main Text */}
             {activeSource === "youglish" ? (
-              <div className="flex flex-1 flex-col items-center justify-center mb-2 rounded-b-lg p-2 text-white" style={{ backgroundColor: '#072141' }}>
-                <h2 className="text-lg font-semibold mb-4">YouGlish Pronunciation</h2>
+              <div className="flex flex-1 flex-col items-center justify-center mb-2 rounded-b-lg p-2 text-dataText bg-mainBody">
+                <h2 className="text-lg text-dataText font-semibold mb-4">YouGlish Pronunciation</h2>
 
-                <p className="text-sm text-gray-300 mb-2 text-center">
+                <p className="text-sm text-otherText mb-2 text-center">
                   Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
                 </p>
 
@@ -949,23 +1097,29 @@ const Bubble = () => {
                   href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
+                  className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
                 >
                   🔊 Open YouGlish
                 </a>
               </div>
             ) : (
-              <div className="flex-1 flex-col overflow-y-auto space-y-2 mb-2 rounded-b-lg p-2" style={{ backgroundColor: '#072141' }}>
+              <div 
+                className="flex-1 flex-col overflow-y-auto space-y-2 mb-2 rounded-b-lg p-2 bg-mainBody" 
+                style = {{
+                  scrollbarColor: "var(--tab-active-bg) var(--main-body)", // thumb, track (Firefox)
+                  overscrollBehavior: "contain",
+                  WebkitOverflowScrolling: "touch" 
+                }}>
                 {/* Word and Phonetic Text */}
                 <div className="flex items-center justify-between">
 
                   {/* Left side */}
                   <div className="flex items-center flex-1">
-                    <h2 className="font-semibold text-white text-lg mr-2">{text}</h2>
-                    <h2 className="text-sm text-gray-50">{definitions['freedictionaryapi']?.phoneticText}</h2>
+                    <h2 className="font-semibold text-dataText text-lg mr-2">{text}</h2>
+                    <h2 className="text-sm text-otherText">{definitions['freedictionaryapi']?.phoneticText}</h2>
                     <button
                       title="Play Pronunciation"
-                      className="ml-1 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
+                      className="ml-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
                       onClick={() => {
                         const rawUrl = definitions['freedictionaryapi']?.pronunciationAudio
                         // Use speech synthesis if no audio from freedictionaryapi
@@ -990,7 +1144,7 @@ const Bubble = () => {
 
                     <button
                       title="Lingua Robot Audio"
-                      className="ml-1 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
+                      className="ml-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
                       onClick={() => {
                         const audioUrl = definitions['linguarobotapi']?.pronunciationAudio
 
@@ -1008,14 +1162,14 @@ const Bubble = () => {
                       {isSaved(text) ? (
                         <GoHeartFill size = {20} className="text-pink-400" />
                       ) : (
-                        <GoHeart size = {20} className="text-gray-400 hover:text-pink-400" />
+                        <GoHeart size = {20} className="text-otherText hover:text-pink-400" />
                       )}
                     </button>
                   )}
 
                 </div>
 
-                <p className="text-xs text-gray-300">Definition for:</p>
+                <p className="text-xs text-otherText">Definition for:</p>
 
                 {/* Definitions */}
                 <div className="space-y-3">
@@ -1025,13 +1179,13 @@ const Bubble = () => {
                         <div
                           key={idx}
                           className={`pb-3 ${
-                            idx === arr.length - 1 && activeSource === "duckduckgo" ? "" : "border-b border-gray-600"
+                            idx === arr.length - 1 && activeSource === "duckduckgo" ? "" : "border-b border-border"
                           }`}
                         >
-                          <p className="text-sm text-white italic">{line}</p>
+                          <p className="text-sm text-dataText italic">{line}</p>
                         </div>
                       )) ?? (
-                        <p className="text-sm text-white italic">Loading...</p>
+                        <p className="text-sm text-dataText italic">Loading...</p>
                       )}
                 </div>
                 
@@ -1047,7 +1201,7 @@ const Bubble = () => {
                     <>
                       {definitions[activeSource]?.synonyms?.length > 0 && (
                         <div className="mt-2">
-                          <strong className="block text-xs text-white mb-1">Synonyms:</strong>
+                          <strong className="block text-xs text-dataText mb-1">Synonyms:</strong>
                           <div className="flex flex-wrap gap-1">
                             {definitions[activeSource].synonyms.map((syn, i) => (
                               <span
@@ -1063,7 +1217,7 @@ const Bubble = () => {
 
                       {definitions[activeSource]?.antonyms?.length > 0 && (
                         <div className="mt-2">
-                          <strong className="block text-xs text-white mb-1">Antonyms:</strong>
+                          <strong className="block text-xs text-dataText mb-1">Antonyms:</strong>
                           <div className="flex flex-wrap gap-1">
                             {definitions[activeSource].antonyms.map((ant, i) => (
                               <span
@@ -1085,6 +1239,126 @@ const Bubble = () => {
             
 
           </div> //Main box (aside from history rendering)
+        )}
+
+
+        {showExportModal && (
+          <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-background text-text rounded-lg shadow-lg w-96 p-6">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Export History</h3>
+                <button
+                  className="text-text hover:text-red-400"
+                  onClick={() => {
+                    setShowExportModal(false)
+                    setIsLocked(false)
+                  }}
+                >
+                  <HiOutlineXMark size={20} />
+                </button>
+              </div>
+
+              {/* Export Options */}
+              <div className="space-y-3">
+                {/* File Type */}
+                <div className="flex items-center justify-between">
+                  <span>File Type</span>
+                  <select
+                    className="bg-mainBody text-text rounded px-2 py-1"
+                    value={exportFileType}
+                    onChange={(e) => setExportFileType(e.target.value as "tsv" | "csv" | "json")}
+                  >
+                    <option value="tsv">TSV (.tsv)</option>
+                    <option value="csv">CSV (.csv)</option>
+                    <option value="json">JSON (.json)</option>
+                    <option value="pdf">PDF (.pdf)</option>
+                  </select>
+                </div>
+
+                {/* Source */}
+                <div className="flex items-center justify-between">
+                  <span>Export Source</span>
+                  <select
+                    className="bg-mainBody text-text rounded px-2 py-1"
+                    value={exportSource}
+                    onChange={(e) => setExportSource(e.target.value)}
+                  >
+                    {Object.keys(enabledSources).map((source) => (
+                      <option key={source} value={source}>
+                        {source}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Include All Words or Selected */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="allWords"
+                    checked={includeAllWords}
+                    onChange={(e) => setIncludeAllWords(e.target.checked)}
+                  />
+                  <label htmlFor="allWords">Include All Words</label>
+                </div>
+
+                {/* Word Selection (if Include All is false) */}
+                {!includeAllWords && (
+                  <div className="bg-mainBody rounded p-3">
+                    <p className="font-medium mb-2">Select Words to Export</p>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {history.map(({ word }) => (
+                        <div key={word} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`word-${word}`}
+                            checked={selectedWords.includes(word)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedWords((prev) => [...prev, word]);
+                              } else {
+                                setSelectedWords((prev) => prev.filter((w) => w !== word));
+                              }
+                            }}
+                          />
+                          <label htmlFor={`word-${word}`} className="truncate">
+                            {word}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-2 mt-5">
+                <button
+                  className="px-3 py-1 bg-mainBody rounded hover:bg-dullBox"
+                  onClick={() => {
+                    setShowExportModal(false)
+                    setIsLocked(false)
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`px-3 py-1 rounded ${
+                    (!includeAllWords && selectedWords.length === 0)
+                      ? "bg-border cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
+                  disabled={!includeAllWords && selectedWords.length === 0}
+                  title={!includeAllWords && selectedWords.length === 0 ? "Select at least one word" : ""}
+                  onClick={handleExport}
+                >
+                  Export
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>

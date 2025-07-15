@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react"
 import { IoVolumeMediumSharp, IoTimeOutline, IoSearch, IoPin, IoBook, IoSettings, IoTrashSharp, IoTrashOutline } from "react-icons/io5"
 import { IoMdArrowDropdown, IoMdArrowDropup } from "react-icons/io";
-import { HiMiniChatBubbleBottomCenterText, HiOutlineSparkles } from "react-icons/hi2";
+import { HiMiniChatBubbleBottomCenterText, HiOutlineSparkles, HiOutlineTrash, HiOutlineArrowDownTray, HiOutlineXMark } from "react-icons/hi2";
 import { GoHeart, GoHeartFill } from "react-icons/go"
 import React from "react"
 import "~/styles/tailwind.css"
 
-
+import "~/styles/tailwind.css"
+import "../styles/globals.css";
+import { injectSavedThemes } from "../hooks/injectThemes";
+import type { Theme } from "../hooks/injectThemes"
 
 //Dependency imports
 import { definitionSources } from "~sources/definitionSources"
@@ -17,10 +20,17 @@ import ContextAIView from "../views/contextAIView"
 import { extractContext } from "../context/contextExtractor"
 import { MiniDefinitionView } from "~views/tabDefinitionView"
 
+declare global {
+    interface Window {
+      overscroll: any
+    }
+  }
+
+const HISTORY_KEY = "history"
 
 const SidePanel = () => {
     // History hook useStates
-    const { saveWord, history, deleteWord, clearHistory, isSaved, autoAddToHistory, toggleSave} = useHistory()
+    const { saveWord, history, setHistory, deleteWord, clearHistory, isSaved, autoAddToHistory, toggleSave, exportAsTSV, exportAsCSV, exportAsJSON, exportAsPDF,} = useHistory()
 
     const {
     text,
@@ -36,6 +46,8 @@ const SidePanel = () => {
     const {
     sourceOrder,
     enabledSources,
+    defaultExportSource, 
+    updateDefaultExportSource
     } = useSourceSettings()
 
     const [expandedWord, setExpandedWord] = useState<string | null>(null)
@@ -43,19 +55,69 @@ const SidePanel = () => {
     const [showHistory, setShowHistory] = useState(false)
     const [showContextAI, setShowContextAI] = useState(false)
     const [hoverTrash, setHoverTrash] = useState(false)
+
+    // Theme useStates
+    const [themes, setThemes] = useState<Theme[]>([]);
+    const [appliedTheme, setAppliedTheme] = useState<string>("");
+
+    // Export flags and state variables
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportFileType, setExportFileType] = useState<"tsv" | "csv" | "json">("tsv");
+    const [exportSource, setExportSource] = useState(defaultExportSource || "");
+    const [includeAllWords, setIncludeAllWords] = useState(true);
+    const [selectedWords, setSelectedWords] = useState<string[]>([]);
     
+
+
+    //useEffect for getting saved themes and injecting applied theme
+    useEffect(() => {
+    const loadThemes = async () => {
+        await injectSavedThemes(setThemes, setAppliedTheme);
+    };
+    loadThemes();
+    }, []);
+
 
     // Toggle for minidefinition view for saved word
     const toggleExpanded = (word: string) => {
     setExpandedWord((prev) => (prev === word ? null : word))
     }
 
+
     // useEffect for saving word to history records
     useEffect(() => {
-    if (text && Object.keys(definitions).length > 0 && autoAddToHistory && !isSaved(text)){
-        saveWord(text, definitions)
-    }
+        if (!text) return;
+
+        const currentWord = text; // Capture the current word
+        const allSourcesReady = sourceOrder.every(
+            (source) => !enabledSources[source] || definitions[source]
+        );
+
+        const timer = setTimeout(() => {
+            if (allSourcesReady && autoAddToHistory && !isSaved(currentWord)) {
+            console.log("[SAVE DEBUG] Debounced save for word:", currentWord);
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const activeTabUrl = tabs[0]?.url;
+                const safeUrl = activeTabUrl?.startsWith("http")
+                    ? activeTabUrl
+                    : null; // fallback if it's chrome:// or extension://
+                saveWord(text, definitions, safeUrl);
+            })
+            }
+        }, 300); // Wait 300ms after last change
+        
+        return () => clearTimeout(timer);
     }, [text, definitions, autoAddToHistory])
+
+    useEffect(() => {
+        const listener = (changes, areaName) => {
+          if (areaName === "local" && changes[HISTORY_KEY]) {
+            setHistory(changes[HISTORY_KEY].newValue || []);
+          }
+        };
+        chrome.storage.onChanged.addListener(listener);
+        return () => chrome.storage.onChanged.removeListener(listener);
+    }, []);
 
 
     // useEffect for transferring word from bubble
@@ -80,14 +142,44 @@ const SidePanel = () => {
     }, [])
 
 
+    // Fallback if defaultExportSource is not set to firstEnabled source
+      useEffect(() => {
+        if (!defaultExportSource && sourceOrder.length > 0) {
+          const firstEnabled = sourceOrder.find((src) => enabledSources[src]);
+          setExportSource(firstEnabled || "");
+        }
+      }, [defaultExportSource, sourceOrder, enabledSources]);
+    
+      const handleExport = () => {
+        let data = "";
+        if (exportFileType === "tsv") {
+          data = exportAsTSV(exportSource, includeAllWords, selectedWords);
+        } else if (exportFileType === "csv") {
+          data = exportAsCSV(exportSource, includeAllWords, selectedWords);
+        } else if (exportFileType === "json") {
+          data = exportAsJSON(exportSource, includeAllWords, selectedWords);
+        } else if (exportFileType === "pdf") {
+          exportAsPDF(exportSource, includeAllWords, selectedWords);
+        }
+      
+        const blob = new Blob([data], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `dictionary_history.${exportFileType}`;
+        link.click();
+        URL.revokeObjectURL(url);
+        setShowExportModal(false);
+      };
+
+
   return (
     <div 
-        className= "h-[100%] flex flex-col overflow-y-auto text-sm text-gray-800 shadow-lg px-4 pb-4 pt-2" 
-        style={{ color: "#fff", background: "#01122B" }
-    }>
+        className= "h-[100%] flex flex-col overflow-y-auto text-sm shadow-lg px-4 pb-4 pt-2 bg-background" 
+    >
         
         {/* Search and Utility Buttons Row */}
-        <div className="flex items-center justify-between px-2 py-1 mb-2 bg-[#072141] rounded-md text-[#9DAFC8]">
+        <div className="flex items-center justify-between px-2 py-1 mb-2 bg-mainBody rounded-md text-text">
             {/* Left Side */}
             <div className="flex items-center space-x-2">
 
@@ -109,12 +201,12 @@ const SidePanel = () => {
                         setSearchInput("")
                     }
                 }}
-                className="px-2 py-1 text-sm bg-[#112844] text-white rounded placeholder:text-gray-400 outline-none w-[150px]"
+                className="px-2 py-1 text-sm bg-dullBox text-dataText rounded placeholder:text-otherText outline-none w-[150px]"
                 />
                 
                 <button
                 title="Search"
-                className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]"
+                className="p-1 rounded text-text hover:bg-dullBox"
                 onClick={(e) => {
                     // Reset active tab to first enabled
                     const firstEnabled = sourceOrder.find((key) => enabledSources[key])
@@ -137,7 +229,7 @@ const SidePanel = () => {
                 {/* Context AI Button */}
                 <button
                     title="Context AI (Pro)"
-                    className="p-1 flex items-center gap-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47] transition-colors duration-200"
+                    className="p-1 flex items-center gap-1 rounded text-text hover:bg-dullBox transition-colors duration-200"
                     onClick={() => {
                     const selection = window.getSelection()?.toString().trim()
                     if (!selection && !text) {
@@ -154,7 +246,7 @@ const SidePanel = () => {
                 </button>
 
                 {/* History */}
-                <button title="History" className="p-1 rounded text-[#BBE1FA] hover:bg-[#1c2f47]" onClick = {() => setShowHistory((prev) => !prev)}>
+                <button title="History" className="p-1 rounded text-text hover:bg-dullBox" onClick = {() => setShowHistory((prev) => !prev)}>
                 <IoBook size={16} />
                 </button>
 
@@ -163,7 +255,7 @@ const SidePanel = () => {
 
         {/* Return to Bubble Button  */}
         <button 
-            className="flex items-center justify-center gap-2 px-2 py-2 mb-2 bg-[#072141] rounded text-[#BBE1FA] hover:bg-[#1c2f47]"
+            className="flex items-center justify-center gap-2 px-2 py-2 mb-2 bg-mainBody rounded text-text hover:bg-dullBox"
             title = "Reeturn to Bubble"
             onClick={async () => {
                 await chrome.storage.local.set({ fromSidePanel: { word: text } })
@@ -184,74 +276,127 @@ const SidePanel = () => {
             url={window.location.href}
           />
         ): showHistory ? (
-            <div className="flex-1 bg-[#072141] border border-gray-700 mt-2 rounded-lg p-2 overflow-y-auto">
-            <h2 className="text-lg font-semibold text-[#BBE1FA] mb-4 flex items-center gap-2">
-                <IoTimeOutline className="text-[#BBE1FA]" /> Recent Dictionary Lookups
-            </h2>
+            <div 
+                className="flex-1 bg-mainBody border border-gray-700 mt-2 rounded-lg p-2 overflow-y-auto"
+                style = {{
+                    scrollbarColor: "var(--tab-active-bg) var(--main-body)", 
+                    overscrollBehavior: "contain",
+                    WebkitOverflowScrolling: "touch" 
+                }}>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold text-text flex items-center gap-2">
+                    <IoTimeOutline className="text-text" /> Recent Dictionary Lookups
+                    </h2>
 
-            {/* Divider between title and words  */}
-            <div className="divide-y divide-[#1c2f47]">
-                {history.map((entry) => {
-                const isOpen = expandedWord === entry.word
-                const timestamp = new Date(entry.timestamp).toLocaleString(undefined, {
-                    dateStyle: "medium",
-                    timeStyle: "short"
-                })
+                    <div className="flex flex-col gap-2">
+                        {/* Export Button */}
+                        <button
+                            disabled={history.length === 0}
+                            className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-text ${
+                              history.length === 0
+                                ? "bg-gray-600 cursor-not-allowed"
+                                : "bg-mainBody hover:bg-dullBox"
+                            }`}
+                            title="Export History"
+                            onClick={() => {
+                                setShowExportModal(true);
+                            }}
+                        >
+                            <HiOutlineArrowDownTray size={16} />
+                            <span className="text-sm">Export</span>
+                        </button>
 
-                return(
-                <div key={entry.word} className="py-3 mr-2">
-                    <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleExpanded(entry.word)}>
-                    <div className="flex items-center justify-between w-full">
-                        {/* Left side: the word */}
-                        <span className="text-base text-white">{entry.word}</span>
-
-                        {/* Right side: time, link, etc */}
-                        <div className="flex flex-col text-xs text-gray-400 space-y-2">
-                            <span className="text-xs text-gray-400">{timestamp}</span>
-                            {entry.pageUrl && (
-                                <a
-                                    href={entry.pageUrl}
-                                    className="text-xs text-blue-400 underline"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    {new URL(entry.pageUrl).hostname}
-                                </a>
-                            )}
-                        </div>
+                        {/* Clear All Button */}
+                        <button
+                            className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
+                            title="Clear All History"
+                            onClick={clearHistory}
+                        >
+                            <HiOutlineTrash size={16} />
+                            <span className="text-sm">Clear</span>
+                        </button>
                     </div>
-
-                    <button className="text-[#BBE1FA] hover:text-white text-xl ml-2">
-                        {isOpen ? <IoMdArrowDropup/> : <IoMdArrowDropdown/>}
-                    </button>
-
-                    {/* Delete Icon */}
-                    <button
-                        onClick={() => deleteWord(entry.word)}
-                        title="Delete this word"
-                        className="text-gray-400 hover:text-red-600 transition"
-                    >
-                        {hoverTrash ? <IoTrashSharp size={16} /> : <IoTrashOutline size={16} />}
-                    </button>
-
-                    </div>
-
-                    {isOpen && (
-                    <div className="bg-[#072141] rounded-lg">
-                        <MiniDefinitionView word={entry.word} sources={entry.sources} />
-                    </div>
-                    )}
                 </div>
-                )
-            })}
-            </div>
+
+                {/* Divider between title and words  */}
+                <div className="divide-y divide-dullBox">
+                    {history.map((entry) => {
+                        const isOpen = expandedWord === entry.word
+                        const timestamp = new Date(entry.timestamp).toLocaleString(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short"
+                        })
+
+                        return(
+                            <div key={entry.word} className="py-3 mr-2">
+                                <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleExpanded(entry.word)}>
+                                <div className="flex items-center justify-between w-full">
+                                    {/* Left side: the word */}
+                                    <span className="text-base text-dataText">{entry.word}</span>
+
+                                    {/* Right side: time, link, etc */}
+                                    <div className="flex flex-col text-xs text-otherText space-y-2">
+                                        <span className="text-xs text-otherText">{timestamp}</span>
+                                        {entry.pageUrl && (
+                                            <a
+                                                href={entry.pageUrl}
+                                                className="text-xs text-blue-400 underline"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {new URL(entry.pageUrl).hostname}
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+
+                               {/* Dropdown button*/}
+                                <button
+                                className="text-xl mx-2 transition-colors"
+                                style={{
+                                    color: "var(--text)",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = "var(--hover-icon)";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = "var(--text)";
+                                }}
+                                >
+                                {isOpen ? (
+                                    <IoMdArrowDropup style={{ color: "inherit" }} size={24} />
+                                ) : (
+                                    <IoMdArrowDropdown style={{ color: "inherit" }} size={24} />
+                                )}
+                                </button>
+
+                                {/* Delete Icon */}
+                                <button
+                                    onClick={() => deleteWord(entry.word)}
+                                    title="Delete this word"
+                                    className="text-otherText hover:text-red-600 transition"
+                                >
+                                    {hoverTrash ? <IoTrashSharp size={16} /> : <IoTrashOutline size={16} />}
+                                </button>
+
+                                </div>
+
+                                {isOpen && (
+                                <div className="bg-mainBody rounded-lg">
+                                    <MiniDefinitionView word={entry.word}/>
+                                </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
             </div>
         ) : (
             
             
             <div className = "overflow-hidden rounded-b-lg h-[100%]">
             {/* Tabs */}
-                <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto" style = {{backgroundColor: '#000a1b', scrollbarWidth: 'none'}}>
+                <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background" style = {{scrollbarWidth: 'none'}}>
                 {sourceOrder
                 .filter((key) => enabledSources[key]) // Only enabled
                 .map((key) => {
@@ -262,19 +407,27 @@ const SidePanel = () => {
                 <div key={key} >
                     <div
                     className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${
-                        isActive ? "bg-[#072141]" : "bg-[#000a1b]"
+                        isActive ? "bg-mainBody" : "bg-background"
                     }`}
                     >
                     <button
                         onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                        className={`w-full h-full flex items-center justify-center text-white text-md transition rounded-md ${
+                        className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
                         isActive
-                            ? "bg-[#2A4E75]"
-                            : "bg-[#072141] hover:bg-[#12233b]"
+                            ? "bg-tabActiveBg"
+                            : "bg-mainBody hover:bg-dullBox"
                         }`}
                         title={source.name}
                     >
-                        {source.icon}
+                        {typeof source.icon === "string" ? (
+                          <img
+                            src={source.icon}
+                            alt={`${source.name} icon`}
+                            className="w-6 h-6 object-contain"
+                          />
+                        ) : (
+                          <span className="text-lg">{source.icon}</span>
+                        )}
                     </button>
                     </div>
                 </div>
@@ -286,12 +439,12 @@ const SidePanel = () => {
 
 
             {/* Main Text */}
-            <div className="flex-1 mb-2 rounded-b-lg p-2 h-[100%]" style={{ backgroundColor: '#072141' }}>
+            <div className="flex-1 mb-2 rounded-b-lg p-2 h-[100%] bg-mainBody">
                 {activeSource === "youglish" ? (
-                <div className="flex flex-col items-center h-full text-white">
+                <div className="flex flex-col items-center h-full text-dataText">
                     <h2 className="text-lg font-semibold mb-4">YouGlish Pronunciation</h2>
                     
-                    <p className="text-sm text-gray-300 mb-2 text-center">
+                    <p className="text-sm text-otherText mb-2 text-center">
                     Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
                     </p>
                     
@@ -299,23 +452,29 @@ const SidePanel = () => {
                     href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
+                    className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
                     >
                     🔊 Open YouGlish
                     </a>
                 </div>
             ) : (
-                <div className = "flex flex-col overflow-y-auto h-full space-y-2">
+                <div 
+                    className = "flex flex-col overflow-y-auto h-full space-y-2"
+                    style = {{
+                        scrollbarColor: "var(--tab-active-bg) var(--main-body)", 
+                        overscrollBehavior: "contain",
+                        WebkitOverflowScrolling: "touch" 
+                    }}>
                 {/* Word and Phonetic Text */}
                 <div className="flex items-center">
 
                     {/* Left side  */}
                     <div className="flex items-center flex-1">
-                        <h2 className="font-semibold text-white text-lg mr-2">{text}</h2>
-                        <h2 className="text-sm text-gray-50">{definitions['freedictionaryapi']?.phoneticText}</h2>
+                        <h2 className="font-semibold text-dataText text-lg mr-2">{text}</h2>
+                        <h2 className="text-sm text-otherText">{definitions['freedictionaryapi']?.phoneticText}</h2>
                         <button
                         title="Play Pronunciation"
-                        className="ml-2 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
+                        className="ml-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
                         onClick={() => {
                             const rawUrl = definitions['freedictionaryapi']?.pronunciationAudio
                             // Use speech synthesis if no audio from freedictionaryapi
@@ -338,7 +497,7 @@ const SidePanel = () => {
 
                     <button
                     title="Lingua Robot Audio"
-                    className="ml-1 rounded-full hover:bg-gray-300 text-[#BBE1FA] hover:text-[#1c2f47]"
+                    className="ml-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
                     onClick={() => {
                         const audioUrl = definitions['linguarobotapi']?.pronunciationAudio
                     
@@ -363,7 +522,7 @@ const SidePanel = () => {
 
                 </div>
 
-                <p className="text-xs text-gray-300">Definition for:</p>
+                <p className="text-xs text-otherText">Definition for:</p>
 
                 {/* Definitions */}
                 <div className="space-y-3">
@@ -376,10 +535,10 @@ const SidePanel = () => {
                             idx === arr.length - 1 && activeSource === "duckduckgo" ? "" : "border-b border-gray-600"
                           }`}
                         >
-                          <p className="text-sm text-white italic">{line}</p>
+                          <p className="text-sm text-dataText italic">{line}</p>
                         </div>
                       )) ?? (
-                        <p className="text-sm text-white italic">Loading...</p>
+                        <p className="text-sm text-dataText italic">Loading...</p>
                     )}
                 </div>
 
@@ -394,7 +553,7 @@ const SidePanel = () => {
                             <>
                             {definitions[activeSource]?.synonyms?.length > 0 && (
                                 <div className="mt-2">
-                                <strong className="block text-xs text-white mb-1">Synonyms:</strong>
+                                <strong className="block text-xs text-dataText mb-1">Synonyms:</strong>
                                 <div className="flex flex-wrap gap-1">
                                     {definitions[activeSource].synonyms.map((syn, i) => (
                                     <span
@@ -410,7 +569,7 @@ const SidePanel = () => {
 
                             {definitions[activeSource]?.antonyms?.length > 0 && (
                                 <div className="mt-2">
-                                <strong className="block text-xs text-white mb-1">Antonyms:</strong>
+                                <strong className="block text-xs text-dataText mb-1">Antonyms:</strong>
                                 <div className="flex flex-wrap gap-1">
                                     {definitions[activeSource].antonyms.map((ant, i) => (
                                     <span
@@ -434,6 +593,123 @@ const SidePanel = () => {
             </div>  {/* main text div */}
             
         </div> //Main box (aside from history rendering)
+        )}
+
+        {showExportModal && (
+            <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-background text-text rounded-lg shadow-lg w-96 p-6">
+                {/* Modal Header */}
+                <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Export History</h3>
+                <button
+                    className="text-text hover:text-red-400"
+                    onClick={() => {
+                    setShowExportModal(false)
+                    }}
+                >
+                    <HiOutlineXMark size={20} />
+                </button>
+                </div>
+
+                {/* Export Options */}
+                <div className="space-y-3">
+                {/* File Type */}
+                <div className="flex items-center justify-between">
+                    <span>File Type</span>
+                    <select
+                    className="bg-mainBody text-text rounded px-2 py-1"
+                    value={exportFileType}
+                    onChange={(e) => setExportFileType(e.target.value as "tsv" | "csv" | "json")}
+                    >
+                    <option value="tsv">TSV (.tsv)</option>
+                    <option value="csv">CSV (.csv)</option>
+                    <option value="json">JSON (.json)</option>
+                    <option value="pdf">PDF (.pdf)</option>
+                    </select>
+                </div>
+
+                {/* Source */}
+                <div className="flex items-center justify-between">
+                    <span>Export Source</span>
+                    <select
+                    className="bg-mainBody text-text rounded px-2 py-1"
+                    value={exportSource}
+                    onChange={(e) => setExportSource(e.target.value)}
+                    >
+                    {Object.keys(enabledSources).map((source) => (
+                        <option key={source} value={source}>
+                        {source}
+                        </option>
+                    ))}
+                    </select>
+                </div>
+
+                {/* Include All Words or Selected */}
+                <div className="flex items-center gap-2">
+                    <input
+                    type="checkbox"
+                    id="allWords"
+                    checked={includeAllWords}
+                    onChange={(e) => setIncludeAllWords(e.target.checked)}
+                    />
+                    <label htmlFor="allWords">Include All Words</label>
+                </div>
+
+                {/* Word Selection (if Include All is false) */}
+                {!includeAllWords && (
+                    <div className="bg-mainBody rounded p-3">
+                    <p className="font-medium mb-2">Select Words to Export</p>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                        {history.map(({ word }) => (
+                        <div key={word} className="flex items-center gap-2">
+                            <input
+                            type="checkbox"
+                            id={`word-${word}`}
+                            checked={selectedWords.includes(word)}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                setSelectedWords((prev) => [...prev, word]);
+                                } else {
+                                setSelectedWords((prev) => prev.filter((w) => w !== word));
+                                }
+                            }}
+                            />
+                            <label htmlFor={`word-${word}`} className="truncate">
+                            {word}
+                            </label>
+                        </div>
+                        ))}
+                    </div>
+                    </div>
+                )}
+                </div>
+
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-2 mt-5">
+                <button
+                    className="px-3 py-1 bg-mainBody rounded hover:bg-dullBox"
+                    onClick={() => {
+                    setShowExportModal(false)
+                    }}
+                >
+                    Cancel
+                </button>
+                <button
+                    className={`px-3 py-1 rounded ${
+                        (!includeAllWords && selectedWords.length === 0)
+                          ? "bg-gray-600 cursor-not-allowed"
+                          : "bg-green-600 hover:bg-green-700"
+                      }`}
+                    disabled={!includeAllWords && selectedWords.length === 0}
+                    title={!includeAllWords && selectedWords.length === 0 ? "Select at least one word" : ""}
+                    onClick={handleExport}
+                >
+                    Export
+                </button>
+                </div>
+            </div>
+            </div>
         )}
 
     </div>

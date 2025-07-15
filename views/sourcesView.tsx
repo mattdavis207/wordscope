@@ -1,7 +1,13 @@
+import { useEffect, useState } from "react"
 import { definitionSources } from "../sources/definitionSources"
 import { RxDragHandleDots2 } from "react-icons/rx"
 import { ReactSortable as Sortable } from "react-sortablejs"
 import { useSourceSettings } from "../hooks/useSourceSettings"
+
+import "~/styles/tailwind.css"
+import "../styles/globals.css";
+import { injectSavedThemes } from "../hooks/injectThemes";
+import type { Theme } from "../hooks/injectThemes"
 
 console.log("definitionSources keys:", Object.keys(definitionSources))
 
@@ -18,12 +24,24 @@ export function SourcesTab() {
     setEnabledSources
   } = useSourceSettings()
 
+  const [themes, setThemes] = useState<Theme[]>([]);
+
+  const [appliedTheme, setAppliedTheme] = useState<string>("");
+
+  useEffect(() => {
+    const loadThemes = async () => {
+      await injectSavedThemes(setThemes, setAppliedTheme);
+    };
+    loadThemes();
+  }, []);
+
+
   // Render this if still loading
   if (loading || sourceOrder.length === 0) return null
 
   return (
     <div className="flex flex-1 flex-col p-4 space-y-4 overflow-y-auto" style = {{scrollbarWidth: 'none'}}>
-      <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
+      <h2 className="text-lg font-semibold text-text flex items-center gap-2 mb-3">
         <RxDragHandleDots2 size={20} /> Content Sources
       </h2>
 
@@ -45,7 +63,6 @@ export function SourcesTab() {
             return ""
           }).filter(Boolean)
         
-          console.log("🧼 Cleaned drag result:", cleanedOrder)
           setSourceOrder(newOrder)
           saveSettings(newOrder, enabledSources)
         }}
@@ -55,20 +72,28 @@ export function SourcesTab() {
           return (
             <div
               key={key}
-              className="flex items-start bg-[#01122B] rounded-lg p-3 shadow border border-gray-700 mb-2"
+              className="flex items-start bg-background rounded-lg p-3 shadow border border-gray-700 mb-2"
             >
               {/* Drag Handle */}
-              <div className="flex items-center mr-3 text-gray-400 cursor-grab">
+              <div className="flex items-center mr-3 text-otherText cursor-grab">
                 <RxDragHandleDots2 size={20} />
               </div>
 
               {/* Source Info */}
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{source.icon}</span>
-                  <span className="font-medium text-white">{source.name}</span>
+                  {typeof source.icon === "string" ? (
+                    <img
+                      src={source.icon}
+                      alt={`${source.name} icon`}
+                      className="w-6 h-6 object-contain"
+                    />
+                  ) : (
+                    <span className="text-lg">{source.icon}</span>
+                  )}
+                  <span className="font-medium text-dataText">{source.name}</span>
                 </div>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-otherText mt-1">
                   A dictionary source providing definitions and examples.
                 </p>
               </div>
