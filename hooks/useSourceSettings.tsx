@@ -45,7 +45,7 @@ export function useSourceSettings() {
         ...settings.enabled // override with saved user settings if present
       }
   
-      setSourceOrder(persistedOrder)
+      setSourceOrder(persistedOrderRaw)
       setEnabledSources(fixedEnabled)
       setLoading(false)
     })

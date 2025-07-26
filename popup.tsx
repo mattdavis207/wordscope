@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import ReactDOM from "react-dom";
 import { IoClose, IoSearch, IoSettings, IoVolumeMediumSharp, IoSettingsOutline, IoTimeOutline, IoTrashSharp, IoTrashOutline, IoColorPaletteSharp } from "react-icons/io5"
 import { HiOutlineClock, HiOutlineEyeDropper, HiOutlineChatBubbleBottomCenterText, HiOutlineDocumentArrowDown, HiOutlineSparkles, HiOutlineArrowDownTray, HiOutlineXMark, 
-         HiOutlineTrash, HiOutlineCheck, HiOutlinePlus} from "react-icons/hi2"
+         HiOutlineTrash, HiOutlineCheck, HiOutlinePlus, HiOutlineExclamationCircle, HiOutlineUserCircle} from "react-icons/hi2"
 import { FaRegPlusSquare, FaChevronLeft, FaChevronRight, FaEthereum, FaBitcoin,
-  FaBookOpen, FaStar, FaTwitter, FaRedditAlien, FaHeart, FaRegCopy, FaCheck} from "react-icons/fa";
+  FaBookOpen, FaStar, FaTwitter, FaRedditAlien, FaHeart, FaRegCopy, FaCheck, FaCrown} from "react-icons/fa";
 import { AiOutlineInfoCircle } from "react-icons/ai"
 import { IoMdArrowDropdown, IoMdArrowDropup} from "react-icons/io";
 import { GoHeart, GoHeartFill } from "react-icons/go"
@@ -23,10 +23,13 @@ import { useSourceSettings } from "~hooks/useSourceSettings";
 import { MiniDefinitionView } from "~views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
 import { SourcesTab } from "./views/sourcesView"
-import { extractContext } from "./context/contextExtractor"
+import { extractContext } from "./backend/contextExtractor"
 import { TutorialModal } from "./components/TutorialModal"
 import { Tooltip } from "~components/Tooltip";
+import PortalTooltip from "~components/PortalTooltip";
 import { useClickOutside } from "~hooks/useClickOutside";
+import { ModalContainer } from "~components/ModalContainer";
+import { SignInModal } from "~components/SignInModal";
 
 // Source imports
 import { definitionSources } from "~sources/definitionSources"
@@ -51,6 +54,7 @@ function IndexPopup() {
     activeSource,
     setActiveSource,
     showExtras,
+    setShowExtras,
     handleSynonymAntonyms
   } = useDictionary<typeof definitionSources>(definitionSources)
 
@@ -80,9 +84,12 @@ function IndexPopup() {
   const [expandedWord, setExpandedWord] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState("")
   const [activeTab, setActiveTab] = useState("definitions")
+  const [hasAvailableExtras, setHasAvailableExtras] = useState(false);
+  const [prevSource, setPrevSource] = useState(activeSource)
   const [hoverTrash, setHoverTrash] = useState(false)
   const [showSettings, setShowSettings] = useState(false);
   const [showContextAI, setShowContextAI] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
 
   const { bubbleSize, updateBubbleSize } = useBubbleSize();
 
@@ -149,7 +156,6 @@ function IndexPopup() {
     },
   ]);
 
-
   //Info Box Stuff
   const [infoOpen, setInfoOpen] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -158,17 +164,96 @@ function IndexPopup() {
 
   // Modal Outside Clicks
   const infoRef = useRef<HTMLDivElement>(null)
-  const exportRef = useRef<HTMLDivElement>(null)
-  const customRef = useRef<HTMLDivElement>(null)
-  const tutorialRef = useRef<HTMLDivElement>(null)
-  const donateRef = useRef<HTMLDivElement>(null)
+  useClickOutside(infoRef, () => setInfoOpen(false))
 
-  useClickOutside(infoRef, () => setInfoOpen(false), infoOpen)
-  useClickOutside(exportRef, () => setShowExportModal(false), showExportModal)
-  useClickOutside(customRef, () => setShowCustomModal(false), showCustomModal)
-  useClickOutside(tutorialRef, () => setShowTutorial(false), showTutorial)
-  useClickOutside(donateRef, () => setShowDonate(false), showDonate)
+  // Pro flag and sign in states
+  const [isPro, setIsPro] = useState(false)
+  const [showSignInModal, setShowSignInModal] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    const email = localStorage.getItem("userEmail")
+    if (!email) return
+    
+    fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
+      .then((res) => res.json())
+      .then((data) => setIsPro(data.isPro))
+      .catch((err) => console.error("Error checking Pro:", err))
+  }, [])
+
+  //Sign in Logic 
+  useEffect(() => {
+    const email = localStorage.getItem("userEmail")
+    setUserEmail(email)
+  }, [])
+
+  const handleSignOut = () => {
+    setShowSignInModal(false)
+    localStorage.removeItem("userEmail")
+    setUserEmail(null)
+    window.location.reload()
+  }
+
+
+  const handleUpgrade = async () => {
+    const email = localStorage.getItem("userEmail")
+    console.log("email", email);
+    console.log("Synonyms: ", definitions[activeSource]?.synonyms?.length > 0, "and antoynms: ", definitions[activeSource]?.antonyms?.length > 0)
+    if (!email){
+      setShowSettings(true) // Open Settings screen
+        setTimeout(() => {
+          const sectionEl = document.getElementById("account-section")
+          sectionEl?.scrollIntoView({ behavior: "smooth" })
+        }, 100) // Give settings time to render
+      return 
+    }
+
+    if (isPro) {
+      alert("🎉 You already have an active Pro subscription!")
+      return
+    }
   
+    const res = await fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+  
+    const data = await res.json()
+    if (data.url) {
+      window.open(data.url, "_blank")
+    } else {
+      alert("Failed to create checkout session.")
+    }
+  }
+
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === "OPEN_SETTINGS") {
+        setShowSettings(true) // Open Settings screen
+        setTimeout(() => {
+          const sectionEl = document.getElementById(`${message.section}-section`)
+          sectionEl?.scrollIntoView({ behavior: "smooth" })
+        }, 100) // Give settings time to render
+      }
+    })
+  }, [])
+
+  // For tracking animation between tabs and synonyms/antonyms
+  useEffect(() => {
+    handleSynonymAntonyms()
+    const data = definitions?.[activeSource];
+
+    const hasSynonyms = Array.isArray(data?.synonyms) && data.synonyms.length > 0;
+    const hasAntonyms = Array.isArray(data?.antonyms) && data.antonyms.length > 0;
+
+    const hasExtras = hasSynonyms || hasAntonyms;
+    setHasAvailableExtras(hasExtras); // <- this is a new state variable you can use
+    setShowExtras(false)
+    if (activeSource !== prevSource) {
+      setPrevSource(activeSource)
+    }
+  }, [activeSource, definitions])
 
   // Update by pulling themes from storage every mount
   useEffect(() => {
@@ -396,43 +481,74 @@ function IndexPopup() {
       {/* Header */}
       <div className="flex justify-between items-center bg-background p-3 h-70">
         <div className="flex items-center">
-          <div className="bg-[#3282B8] text-[#000a1b] font-bold rounded-full w-7 h-7 flex items-center justify-center mr-2">
+          <div className="bg-[#3282B8] text-[#000a1b] font-bold rounded-full w-7 h-7 flex items-center justify-center">
             W
           </div>
           <span className="text-text text-base font-medium lowercase">wordscope</span>
         </div>
-        <div className="flex space-x-2">
-          {/* Context AI Button */}
-          <button
-            title="Context AI (Pro)"
-            className="text-sm transition-colors"
-            style={{
-              color: "var(--text)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--hover-icon)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--text)";
-            }}
-            onClick={() => {
-              const selection = window.getSelection()?.toString().trim();
-              if (!selection && !text) {
-                alert("Please select a word first!");
-                return;
-              }
-              setShowContextAI((prev) => !prev);
-              setShowSettings(false);
-            }}
-          >
-            <HiOutlineSparkles style={{ color: "inherit" }} size={20} />
-            <span className="hidden lg:inline text-sm font-medium ml-1">Context AI</span>
+        <div className="flex">
+          {/* Upgrade Button and Context AI Button */}
+          {!isPro ? (
+            <button
+              title="Upgrade to Pro"
+              className="text-sm transition-colors flex items-center"
+              style={{
+                color: "var(--text)",
+                border: "1px solid var(--border)",
+                backgroundColor: "var(--main-body)",
+                padding: "6px 10px",
+                borderRadius: "9999px", // pill-shaped
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--hover-icon)"
+                e.currentTarget.style.backgroundColor = "var(--hover-square)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text)"
+                e.currentTarget.style.backgroundColor = "var(--main-body)"
+              }}
+              onClick={handleUpgrade}
+              disabled={loading}
+            >
+              <FaCrown style={{ color: "inherit" }} size={16} /> {/* Small icon */}
+              <span className="hidden lg:inline text-sm font-medium">
+                {loading ? "Redirecting..." : "Upgrade"}
+              </span>
           </button>
+           ) : (
+            <button
+              title="Context AI (Pro)"
+              className="text-sm transition-colors mr-1"
+              style={{
+                color: "var(--text)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--hover-icon)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text)";
+              }}
+              onClick={() => {
+                const selection = window.getSelection()?.toString().trim();
+                if (!selection && !text) {
+                  alert("Please select a word first!");
+                  return;
+                }
+                setShowContextAI((prev) => !prev);
+                setShowSettings(false);
+              }}
+            >
+              <HiOutlineSparkles style={{ color: "inherit" }} size={20} />
+            </button>
+          )}
 
           <div className="relative">
             {/* Info Button */}
             <button
-              onClick={() => setInfoOpen(!infoOpen)}
+              onClick={(e) => {
+                e.stopPropagation() 
+                setInfoOpen(!infoOpen)
+              }}
               className="p-2 rounded-full transition-colors"
               title="Info"
               style={{
@@ -449,8 +565,8 @@ function IndexPopup() {
             </button>
 
             {/* Dropdown Menu */}
-            {infoOpen && (
-              <div ref={infoRef} className="absolute right-0 mt-2 w-52 bg-mainBody rounded-2xl shadow-2xl shadow-black/50 p-2 space-y-2">
+            <ModalContainer isOpen={infoOpen} onClose={() => setInfoOpen(false)} type= "dropdown">
+              <div ref={infoRef} className="absolute right-0 w-52 bg-mainBody rounded-2xl shadow-2xl shadow-black/50 p-2 space-y-2 z-50">
                 {/* Tutorial */}
                 <button
                   className="w-full flex items-center space-x-2 text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
@@ -498,13 +614,13 @@ function IndexPopup() {
                   <span>Leave a Review</span>
                 </a>
               </div>
-            )}
+            </ModalContainer>
           </div>
 
 
           {/* Settings Button  */}
           <button
-            className="text-sm transition-colors"
+            className="text-sm transition-colors ml-1"
             style={{
               color: "var(--text)",
             }}
@@ -525,7 +641,7 @@ function IndexPopup() {
 
           {/* Close Button  */}
           <button
-            className="text-sm transition-colors"
+            className="text-sm transition-colors ml-2"
             style={{
               color: "var(--text)",
             }}
@@ -564,7 +680,6 @@ function IndexPopup() {
               <h2>General Settings</h2>
             </div>
           </section>
-
 
           {/* History */}
           <section className="p-4 bg-background rounded-lg">
@@ -876,6 +991,121 @@ function IndexPopup() {
               </div>
             )}
           </section>
+
+          {/* Account Management Setting */}
+          <section id="account-section" className="p-4 bg-background rounded-lg mt-4">
+            <div className="flex items-center mb-2 space-x-2 text-lg font-semibold text-text">
+              <HiOutlineUserCircle size={20} className="text-blue-500" />
+              <h2>Account</h2>
+            </div>
+
+            {userEmail ? (
+              <>
+                <p className="text-sm text-otherText mb-3">
+                  Signed in as <span className="font-medium">{userEmail}</span>.
+                </p>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-otherText mb-3">
+                  Sign in to sync your Pro status across devices and components and manage your subscription.
+                </p>
+                <button
+                  onClick={() => setShowSignInModal(true)}
+                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Sign In
+                </button>
+              </>
+            )}
+
+            {showSignInModal && (
+              <SignInModal
+                onClose={() => setShowSignInModal(false)}
+                onSignIn={(email) => {
+                  setUserEmail(email)
+                  window.location.reload()
+                }}
+              />
+            )}
+          </section>
+
+          {/* Cancel Subscription Setting */}
+          <section className="p-4 bg-background rounded-lg mt-4">
+            <div className="flex items-center mb-2 space-x-2 text-lg font-semibold text-text">
+              <HiOutlineExclamationCircle size={20} className="text-red-500" />
+              <h2>Manage Subscription</h2>
+            </div>
+            <p className="text-sm text-otherText mb-3">
+              Cancel your Pro subscription at any time. Your Pro features will remain active until the end of your billing cycle.
+            </p>
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Cancel Subscription
+            </button>
+          </section>
+
+          {showCancelModal && (
+            <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-background text-text rounded-lg shadow-lg w-96 p-6">
+                
+                {/* Modal Header */}
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-red-500">Cancel Subscription</h3>
+                  <button
+                    className="text-text hover:text-red-400"
+                    onClick={() => setShowCancelModal(false)}
+                  >
+                    <HiOutlineXMark size={20} />
+                  </button>
+                </div>
+
+                {/* Confirmation Message */}
+                <p className="text-sm text-otherText mb-6">
+                  Are you sure you want to cancel your Pro subscription? You’ll lose access to premium features at the end of your billing period.
+                </p>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="px-3 py-1 bg-mainBody rounded hover:bg-dullBox"
+                    onClick={() => setShowCancelModal(false)}
+                  >
+                    Keep Subscription
+                  </button>
+                  <button
+                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    onClick={async () => {
+                      const email = localStorage.getItem("userEmail")
+                      const res = await fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/cancel-subscription`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email }),
+                      })
+                      if (res.ok) {
+                        alert("Your subscription has been cancelled.")
+                        setIsPro(false)
+                        setShowCancelModal(false)
+                        window.open(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_CLIENT_URL}/cancel`)
+                      } else {
+                        alert("Failed to cancel subscription. Please try again.")
+                      }
+                    }}
+                  >
+                    Confirm Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       
       ): (
@@ -960,7 +1190,6 @@ function IndexPopup() {
       <div className= "flex-1 flex flex-col min-h-0 bg-mainBody overflow-hidden">
 
         {/* Conditionally render tabs */}
-        
         {activeTab === "definitions" && (
           text === "" ? (
             <div className="text-center text-lg text-otherText mt-10 italic">Search a word to get started...</div>
@@ -976,30 +1205,40 @@ function IndexPopup() {
                 const isActive = key === activeSource
 
                 return (
-                  <div key={key}>
-                    <div
-                      className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${
-                        isActive ? "bg-mainBody" : "bg-background"
-                      }`}
-                    >
-                      <button
-                        onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                        className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
-                          isActive ? "bg-tabActiveBg" : "bg-mainBody hover:bg-dullBox"
+                  <div 
+                    key={key} 
+                    className="transition-opacity transition-transform duration-700 ease-in-out"
+                    style={{
+                      opacity: 1,
+                      transform: "translateX(0)",
+                    }}
+                  >
+                      <div
+                        className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${
+                          isActive ? "bg-mainBody" : "bg-background"
                         }`}
-                        title={source.name}
                       >
-                        {typeof source.icon === "string" ? (
-                          <img
-                            src={source.icon}
-                            alt={`${source.name} icon`}
-                            className="w-6 h-6 object-contain"
-                          />
-                        ) : (
-                          <span className="text-lg">{source.icon}</span>
-                        )}
-                      </button>
-                    </div>
+                        <PortalTooltip text={source.name}>
+                          <button
+                            onClick={() => setActiveSource(key as keyof typeof definitionSources)}
+                            className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
+                              isActive ? "bg-tabActiveBg" : "bg-mainBody hover:bg-dullBox"
+                            }`}
+                            title={source.name}
+                          >
+                            {typeof source.icon === "string" ? (
+                              <img
+                                src={source.icon}
+                                alt={`${source.name} icon`}
+                                className="w-6 h-6 object-contain"
+                              />
+                            ) : (
+                              <span className="text-lg">{source.icon}</span>
+                            )}
+                          </button>
+                        </PortalTooltip>
+                      </div>
+                 
                   </div>
                 )
               })}
@@ -1080,11 +1319,12 @@ function IndexPopup() {
                  <div className="space-y-3">
                   {definitions[activeSource]?.definition
                       ?.split("\n")
+                      .filter(line => line.trim() !== "")
                       .map((line, idx, arr) => (
                         <div
                           key={idx}
                           className={`pb-3 ${
-                            idx === arr.length - 1 && activeSource === "duckduckgo" ? "" : "border-b border-gray-600"
+                            idx === arr.length - 1 && (activeSource === "duckduckgo" || !hasAvailableExtras) ? "" : "border-b border-gray-600"
                           }`}
                         >
                           <p className="text-sm text-dataText italic">{line}</p>
@@ -1093,42 +1333,99 @@ function IndexPopup() {
                         <p className="text-sm text-dataText italic">Loading...</p>
                       )}
                 </div>
-
-                {activeSource !== "duckduckgo" && (
+                
+                
+                {activeSource !== "duckduckgo" && hasAvailableExtras && (  
                   <>
-                    <p className="whitespace-pre-wrap text-sm italic text-blue-500" onClick={handleSynonymAntonyms}>
-                    Show Synonyms and Antonyms
-                    </p>
+                    <button
+                      onClick={() => {
+                        handleSynonymAntonyms()
+                        if (!showExtras) {
+                          setTimeout(() => {
+                            document.getElementById("extras-bottom-anchor")?.scrollIntoView({ behavior: "smooth" })
+                          }, 50)
+                        }
+                      }}
+                      className={`mt-3 px-3 py-1 rounded-lg text-sm font-medium transition
+                        ${showExtras
+                          ? "bg-dullBox text-red-500 hover:bg-red-600 hover:text-white"
+                          : "bg-tabActiveBg text-blue-500 hover:bg-blue-600 hover:text-white"}
+                      `}
+                    >
+                      {showExtras ? "Hide Synonyms & Antonyms" : "Show Synonyms & Antonyms"}
+                    </button> 
 
                     {showExtras && (
-                      <>
-                        {definitions[activeSource]?.synonyms?.length > 0 && (
-                          <div className="mt-2">
-                            <strong className="block text-xs text-dataText mb-1">Synonyms:</strong>
-                            <div className="flex flex-wrap gap-1">
-                              {definitions[activeSource].synonyms.map((syn, i) => (
-                                <span key={`syn-${i}`} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                  {syn}
-                                </span>
-                              ))}
+                      <div>
+                        <div className="flex flex-col mt-4 space-y-4">
+                          {definitions[activeSource]?.synonyms?.length > 0 && (
+                            <div>
+                              <strong className="block text-xs text-dataText mb-2">Synonyms:</strong>
+                              <div className="flex flex-wrap gap-2">
+                                {definitions[activeSource].synonyms.map((syn, i) => (
+                                  <span
+                                    key={`syn-${i}`}
+                                    className="px-2 py-1 rounded-full text-xs font-medium"
+                                    style={{
+                                      backgroundColor: "#DBEAFE",
+                                      color: "#1E40AF"
+                                    }}
+                                  >
+                                    {syn}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {definitions[activeSource]?.antonyms?.length > 0 && (
-                          <div className="mt-2">
-                            <strong className="block text-xs text-dataText mb-1">Antonyms:</strong>
-                            <div className="flex flex-wrap gap-1">
-                              {definitions[activeSource].antonyms.map((ant, i) => (
-                                <span key={`ant-${i}`} className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                                  {ant}
-                                </span>
-                              ))}
+                          )}
+
+                          {definitions[activeSource]?.antonyms?.length > 0 && (
+                            <div>
+                              <strong className="block text-xs text-dataText mb-2">Antonyms:</strong>
+                              <div className="flex flex-wrap gap-2">
+                                {definitions[activeSource].antonyms.map((ant, i) => (
+                                  <span
+                                    key={`ant-${i}`}
+                                    className="px-2 py-1 rounded-full text-xs font-medium"
+                                    style={{
+                                      backgroundColor: "#FECACA",
+                                      color: "#B91C1C"
+                                    }}
+                                  >
+                                    {ant}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </>
+                          )}
+                        </div>
+
+                        <div id="extras-bottom-anchor" className="h-1" />
+                      </div>
                     )}
                   </>
+                )}
+
+                {/* More Info Button Aligned Bottom Left */}
+                {definitionSources[activeSource]?.getMoreInfoUrl && (
+                  <div className="flex justify-end self-start">
+                    <a
+                      href={definitionSources[activeSource].getMoreInfoUrl(text)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1 bg-tabActiveBg text-dataText text-lg rounded-2xl hover:bg-dullBox transition"
+                    >
+                      {typeof definitionSources[activeSource].icon === "string" ? (
+                        <img
+                          src={definitionSources[activeSource].icon}
+                          alt={`${definitionSources[activeSource].name} icon`}
+                          className="w-6 h-6 object-contain"
+                        />
+                      ) : (
+                        <span className="text-lg">{definitionSources[activeSource].icon}</span>
+                      )}
+                      More Info
+                    </a>
+                  </div>
                 )}
                 
               </div>)}
@@ -1163,8 +1460,19 @@ function IndexPopup() {
               </h2>
 
               <div className="flex flex-col gap-2 mr-6">
-                {/* Export Button */}
-                <button
+                {/* Upgrade to Premium Button or Export Button  */}
+                {!isPro ? (
+                    <button
+                    className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
+                    title="Upgrade to Pro to unlock exports"
+                    onClick={handleUpgrade}
+                    disabled={loading}
+                  >
+                    <FaCrown size={16} />
+                    <span className="text-sm">{loading ? "Redirecting..." : "Upgrade"}</span>
+                  </button>
+                ) : (
+                  <button
                   disabled={history.length === 0}
                   className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-text ${
                     history.length === 0
@@ -1179,6 +1487,7 @@ function IndexPopup() {
                   <HiOutlineArrowDownTray size={16} />
                   <span className="text-sm">Export</span>
                 </button>
+                )}
 
                 {/* Clear All Button */}
                 <button
@@ -1203,7 +1512,7 @@ function IndexPopup() {
 
                 return(
                 <div key={entry.word} className="py-3 mx-2">
-                  <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleExpanded(entry.word)}>
+                  <div className="flex justify-between items-center cursor-pointer">
                     <div className="flex items-center justify-between w-full">
                       {/* Left side: the word */}
                         <span className="text-base text-dataText">{entry.word}</span>
@@ -1236,6 +1545,7 @@ function IndexPopup() {
                       onMouseLeave={(e) => {
                         e.currentTarget.style.color = "var(--text)";
                       }}
+                      onClick={() => toggleExpanded(entry.word)}
                     >
                       {isOpen ? (
                         <IoMdArrowDropup style={{ color: "inherit" }} size={24} />
@@ -1274,7 +1584,7 @@ function IndexPopup() {
       )}
 
     {showExportModal && (
-      <div ref={exportRef} className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
         <div className="bg-background text-text rounded-lg shadow-lg w-96 p-6">
           {/* Modal Header */}
           <div className="flex justify-between items-center mb-4">
@@ -1391,17 +1701,15 @@ function IndexPopup() {
     )}
 
     {/* Show the custom theme modal conditionally */}
-    {showCustomModal &&
-      ReactDOM.createPortal(
+    <ModalContainer isOpen={showCustomModal} onClose={() => setShowCustomModal(false)}>
         <div 
-          ref={customRef}
-          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center overflow-y-auto" 
+          className="flex items-center justify-center overflow-y-auto" 
           style={{
           scrollbarColor: "var(--tab-active-bg) var(--main-body)", // thumb, track (Firefox)
           overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch" // enables momentum + bounce on iOS
         }}>
-          <div className="bg-background text-text rounded-lg shadow-lg w-[500px] p-6 relative">
+          <div className="bg-background text-text rounded-2xl shadow-2xl shadow-black/50 shadow-lg w-96 p-6 relative">
 
             {/* Modal Header */}
             <div className="flex justify-between items-center my-4">
@@ -1505,21 +1813,21 @@ function IndexPopup() {
               </button>
             </div>
           </div>
-        </div>,
-        document.body
-      )
-    }
+        </div>
+    </ModalContainer>
+    
 
     {/* Tutorial Modal  */}
-    <div ref={tutorialRef}>
-      {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} showDonate={showDonate}
-        setShowDonate={setShowDonate}/>}
-    </div>
-    
-      
+    {showTutorial && (
+      <div>
+      <TutorialModal onClose={() => setShowTutorial(false)} showDonate={showDonate}
+        setShowDonate={setShowDonate}/>
+      </div>
+    )}
+       
     {/* Donate Modal */}
-    {showDonate && (
-      <div ref={donateRef} className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <ModalContainer isOpen={showDonate} onClose={() => setShowDonate(false)}>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
         <div className="bg-mainBody p-4 rounded-2xl shadow-2xl shadow-black/50 w-96">
           {/* Header */}
           <h2 className="text-xl font-bold mb-3 text-text">❤️ Support the Developer</h2>
@@ -1600,10 +1908,10 @@ function IndexPopup() {
           </button>
         </div>
       </div>
-    )}
+    </ModalContainer>
+    
 
 
-      
     </div>
   )
 }

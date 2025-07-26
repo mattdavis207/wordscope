@@ -9,6 +9,7 @@ import "~/styles/tailwind.css"
 import "../styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
+import PortalTooltip from "~components/PortalTooltip"
 
 declare global {
     interface Window {
@@ -34,8 +35,10 @@ export const MiniDefinitionView = ({
         () => history.find((e) => e.word === word),
         [history, word]
       );
-      
+    console.log(`[MiniDefinitionView] word: ${word}, entry:`, entry);
+  
     const sources = entry?.sources || {};
+    console.log("entry.sources:", entry?.sources);
 
     //Theme useStates
     const [themes, setThemes] = useState<Theme[]>([]);
@@ -46,11 +49,8 @@ export const MiniDefinitionView = ({
     const current = activeSource ? sources[activeSource] : null
 
     const [showExtras, setShowExtras] = useState(false)
-
-    const handleSynonymAntonyms = () => {
-        // Already fetched from props.sources
-        setShowExtras((prev) => !prev)
-      }
+    const [hasAvailableExtras, setHasAvailableExtras] = useState(false);
+    const [prevSource, setPrevSource] = useState(activeSource)
 
     // useEffect for updating the active tab on render 
     useEffect(() => {
@@ -84,6 +84,64 @@ export const MiniDefinitionView = ({
     loadThemes();
     }, []);
 
+    // // For tracking animation between tabs and synonyms/antonyms
+    useEffect(() => {
+      handleSynonymAntonyms()
+      const currentData = entry?.sources?.[activeSource];
+      const hasSyns = Array.isArray(currentData?.synonyms) && currentData.synonyms.length > 0;
+      const hasAnts = Array.isArray(currentData?.antonyms) && currentData.antonyms.length > 0;
+    
+      setHasAvailableExtras(hasSyns || hasAnts);
+      setShowExtras(false);
+    
+      if (activeSource !== prevSource) {
+        setPrevSource(activeSource);
+      }
+    }, [activeSource, entry]);
+
+    const handleSynonymAntonyms = async () => {
+      if (!activeSource || !entry) return;
+    
+      const source = definitionSources[activeSource];
+      const currentData = entry.sources[activeSource];
+    
+      if (!currentData) return;
+    
+      // If already fetched, just toggle
+      if (currentData.extrasFetched || !source.fetchExtras) {
+        setShowExtras((prev) => !prev);
+        return;
+      }
+    
+      // Fetch extras from source
+      const extras = await source.fetchExtras?.(word);
+      if (extras) {
+        // Mutate the entry's source with extras (ideally you'd do this immutably)
+        const updatedEntry = {
+          ...entry,
+          sources: {
+            ...entry.sources,
+            [activeSource]: {
+              ...currentData,
+              ...extras,
+              extrasFetched: true,
+            },
+          },
+        };
+    
+        // Replace the matching entry in history
+        const updatedHistory = history.map((e) =>
+          e.word === word ? updatedEntry : e
+        );
+    
+        setHistory(updatedHistory);
+        setShowExtras(true);
+      }
+    };
+    
+    
+
+
     if (!entry) {
         return <div className="text-otherText italic">Loading definition for "{word}"...</div>;
       }
@@ -105,25 +163,27 @@ export const MiniDefinitionView = ({
                         isActive ? "bg-mainBody" : "bg-background"
                     }`}
                     >
-                    <button
-                        onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                        className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
-                        isActive
-                            ? "bg-tabActiveBg"
-                            : "bg-mainBody hover:bg-dullBox"
-                        }`}
-                        title={source.name}
-                    >
-                        {typeof source.icon === "string" ? (
-                          <img
-                            src={source.icon}
-                            alt={`${source.name} icon`}
-                            className="w-6 h-6 object-contain"
-                          />
-                        ) : (
-                          <span className="text-lg">{source.icon}</span>
-                        )}
-                    </button>
+                    <PortalTooltip text={source.name}>
+                      <button
+                          onClick={() => setActiveSource(key as keyof typeof definitionSources)}
+                          className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
+                          isActive
+                              ? "bg-tabActiveBg"
+                              : "bg-mainBody hover:bg-dullBox"
+                          }`}
+                          title={source.name}
+                      >
+                          {typeof source.icon === "string" ? (
+                            <img
+                              src={source.icon}
+                              alt={`${source.name} icon`}
+                              className="w-6 h-6 object-contain"
+                            />
+                          ) : (
+                            <span className="text-lg">{source.icon}</span>
+                          )}
+                      </button>
+                    </PortalTooltip>
                     </div>
                 </div>
                 )  
@@ -208,49 +268,114 @@ export const MiniDefinitionView = ({
 
             {/* Data Box */}
             <div className="overflow-y-auto" style={{ flex: 1 }}>
-                <p className="whitespace-pre-wrap text-sm text-dataText italic">
-                {current?.definition ?? "Loading..."}
-                </p>
-
-                <p className="whitespace-pre-wrap text-sm italic text-blue-500" onClick={handleSynonymAntonyms}>
-                Show Synonyms and Antonyms
-                </p>
-
-                {showExtras && (
-                <>
-                    {current?.synonyms?.length > 0 && (
-                    <div className="mt-2">
-                        <strong className="block text-xs text-dataText mb-1">Synonyms:</strong>
-                        <div className="flex flex-wrap gap-1">
-                        {current.synonyms.map((syn, i) => (
-                            <span
-                            key={`syn-${i}`}
-                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                            >
-                            {syn}
-                            </span>
-                        ))}
+                 {/* Definitions */}
+                 <div className="space-y-3">
+                  {current?.definition
+                      ?.split("\n")
+                      .map((line, idx, arr) => (
+                        <div
+                          key={idx}
+                          className={`pb-3 ${
+                            idx === arr.length - 1 ? "" : "border-b border-gray-600"
+                          }`}
+                        >
+                          <p className="text-sm text-dataText italic">{line}</p>
                         </div>
-                    </div>
-                    )}
+                      )) ?? (
+                        <p className="text-sm text-dataText italic">Loading...</p>
+                      )}
+                </div>
 
-                    {current?.antonyms?.length > 0 && (
-                    <div className="mt-2">
-                        <strong className="block text-xs text-dataText mb-1">Antonyms:</strong>
-                        <div className="flex flex-wrap gap-1">
-                        {current.antonyms.map((ant, i) => (
-                            <span
-                            key={`ant-${i}`}
-                            className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full"
-                            >
-                            {ant}
-                            </span>
-                        ))}
-                        </div>
-                    </div>
-                    )}
-                </>
+                {/* More Info Button Aligned Bottom Left */}
+                {definitionSources[activeSource]?.getMoreInfoUrl && (
+                  <div className="flex justify-end self-start">
+                    <a
+                      href={definitionSources[activeSource].getMoreInfoUrl(word)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1 bg-tabActiveBg text-dataText text-lg rounded-2xl hover:bg-dullBox transition"
+                    >
+                      {typeof definitionSources[activeSource].icon === "string" ? (
+                        <img
+                          src={definitionSources[activeSource].icon}
+                          alt={`${definitionSources[activeSource].name} icon`}
+                          className="w-6 h-6 object-contain"
+                        />
+                      ) : (
+                        <span className="text-lg">{definitionSources[activeSource].icon}</span>
+                      )}
+                      More Info
+                    </a>
+                  </div>
                 )}
+
+                {/* {activeSource !== "duckduckgo" && hasAvailableExtras && (  
+                  <>
+                    <button
+                      onClick={() => {
+                        handleSynonymAntonyms()
+                        // setTimeout(() => {
+                        //   scrollToBottomOfExtras(); // now call the function
+                        // }, 50);
+                      }}
+                      className={`mt-3 px-3 py-1 rounded-lg text-sm font-medium transition
+                        ${showExtras
+                          ? "bg-dullBox text-red-500 hover:bg-red-600 hover:text-white"
+                          : "bg-tabActiveBg text-blue-500 hover:bg-blue-600 hover:text-white"}
+                      `}
+                    >
+                      {showExtras ? "Hide Synonyms & Antonyms" : "Show Synonyms & Antonyms"}
+                    </button> 
+
+                    {showExtras && (
+                      <div>
+                        <div className="mt-4 space-y-4">
+                          {current?.synonyms?.length > 0 && (
+                            <div>
+                              <strong className="block text-xs text-dataText mb-2">Synonyms:</strong>
+                              <div className="flex flex-wrap gap-2">
+                                {current.synonyms.map((syn, i) => (
+                                  <span
+                                    key={`syn-${i}`}
+                                    className="px-2 py-1 rounded-full text-xs font-medium"
+                                    style={{
+                                      backgroundColor: "#DBEAFE",
+                                      color: "#1E40AF"
+                                    }}
+                                  >
+                                    {syn}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {current?.antonyms?.length > 0 && (
+                            <div>
+                              <strong className="block text-xs text-dataText mb-2">Antonyms:</strong>
+                              <div className="flex flex-wrap gap-2">
+                                {current.antonyms.map((ant, i) => (
+                                  <span
+                                    key={`ant-${i}`}
+                                    className="px-2 py-1 rounded-full text-xs font-medium"
+                                    style={{
+                                      backgroundColor: "#FECACA",
+                                      color: "#B91C1C"
+                                    }}
+                                  >
+                                    {ant}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div id="extras-bottom-anchor" className="h-1" />
+                      </div>
+                    )}
+                  </>
+                )} */}
             </div>
             </>
         )}

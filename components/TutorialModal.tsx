@@ -150,13 +150,19 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
   
             {/* Progress */}
             <div className="flex justify-between items-center mt-4">
+                {/* Back Button  */}
                 <button
-                onClick={() => setStep((s) => Math.max(s - 1, 0))}
-                disabled={step === 0}
-                className="px-3 py-1 bg-tabActiveBg text-dataText rounded hover:bg-dullBox disabled:opacity-50"
+                  onClick={() => step > 0 && setStep((s) => s - 1)}
+                  disabled={step === 0}
+                  className={`px-3 py-1 rounded transition-colors
+                    ${step === 0
+                      ? "bg-gray-500 text-gray-400 cursor-not-allowed"
+                      : "bg-tabActiveBg text-dataText hover:bg-dullBox"}
+                  `}
                 >
-                Back
+                  Back
                 </button>
+
                 <span className="text-xs text-otherText">
                 {step + 1} / {steps.length}
                 </span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
-import { fetchContextAIResponse } from "../context/gpt_handler"
+import { fetchContextAIResponse } from "../backend/gpt_handler"
 import ChatBubble from "../components/ChatBubble"
 import ChatInput from "../components/ChatInput"
 

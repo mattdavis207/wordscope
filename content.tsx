@@ -4,6 +4,7 @@ import { IoVolumeMediumSharp, IoTimeOutline, IoSearch, IoBook, IoSettings, IoTra
 import { BiSolidDockRight } from "react-icons/bi"
 import { IoMdArrowDropdown, IoMdArrowDropup, IoMdMagnet, IoMdLock, IoMdUnlock} from "react-icons/io";
 import { HiOutlineSparkles, HiOutlineTrash, HiOutlineArrowDownTray, HiOutlineXMark} from "react-icons/hi2" 
+import { FaCrown } from "~node_modules/react-icons/fa";
 import { BsPinAngleFill } from "react-icons/bs";
 import { GoHeart, GoHeartFill } from "react-icons/go"
 
@@ -22,7 +23,8 @@ import { useBubbleSize } from "./hooks/useBubbleSize";
 import { useSourceSettings } from "./hooks/useSourceSettings"
 import { MiniDefinitionView } from "./views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
-import { extractContext } from "./context/contextExtractor"
+import { extractContext } from "./backend/contextExtractor"
+import PortalTooltip from "~components/PortalTooltip";
 
 declare global {
   interface Window {
@@ -57,6 +59,7 @@ const Bubble = () => {
     activeSource,
     setActiveSource,
     showExtras,
+    setShowExtras,
     handleSynonymAntonyms
   } = useDictionary<typeof definitionSources>(definitionSources)
 
@@ -87,6 +90,7 @@ const Bubble = () => {
 
   // References
   const bubbleRef = useRef<HTMLDivElement | null>(null)
+  const DataContainerRef = useRef<HTMLDivElement>(null);
   const rangeRef = useRef<Range | null>(null)
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
@@ -97,6 +101,8 @@ const Bubble = () => {
   const [showHistory, setShowHistory] = useState(false)
   const [showContextAI, setShowContextAI] = useState(false)
 
+  const [hasAvailableExtras, setHasAvailableExtras] = useState(false);
+  const [prevSource, setPrevSource] = useState(activeSource)
   const [searchInput, setSearchInput] = useState("")
   const [expandedWord, setExpandedWord] = useState<string | null>(null)
   const [hoverTrash, setHoverTrash] = useState(false)
@@ -130,9 +136,55 @@ const Bubble = () => {
   const [targetPosition, setTargetPosition] = useState({ x: 0, y: 0 }) // for animation
   const [anchorPosition, setAnchorPosition] = useState({ x: 0, y: 0 }) // word location
   const [isLocked, setIsLocked] = useState(false);
+  const [isCompactView, setIsCompactView] = useState(false)
+  const [isCompactHistoryView, setIsCompactHistoryView] = useState(false)
 
   // Docking state
   const [isDetached, setIsDetached] = useState(false)
+
+  // Pro flag
+  const [isPro, setIsPro] = useState(false)
+
+  useEffect(() => {
+    const email = localStorage.getItem("userEmail")
+    if (!email) return
+    
+    fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
+      .then((res) => res.json())
+      .then((data) => setIsPro(data.isPro))
+      .catch((err) => console.error("Error checking Pro:", err))
+  }, [])
+  
+
+  const handleUpgrade = async () => {
+    const email = localStorage.getItem("userEmail")
+
+    // Direct user to sign in if no email
+    if (!email){
+      chrome.runtime.sendMessage({ type: "OPEN_POPUP" })
+      setTimeout( () => {
+        chrome.runtime.sendMessage({
+          type: "OPEN_SETTINGS",
+          section: "account" // Or "subscription" for Manage Subscription
+        })
+      }, 2000)
+    }
+    // Start checkout session if email is in storage
+    else{
+      const res = await fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/create-checkout-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+    
+      const data = await res.json()
+      if (data.url) {
+        window.open(data.url, "_blank")
+      } else {
+        alert("Failed to create checkout session.")
+      }
+    }
+  }
 
 
   //useEffect for getting saved themes and injecting applied theme
@@ -391,12 +443,6 @@ const Bubble = () => {
     const rects = range.getClientRects()
     rect = rects?.length ? rects[0] : range.getBoundingClientRect()
 
-    // setRectLeft(rect.left)
-    // setRectRight(rect.right)
-    // setRectTop(rect.top)
-    // setRectBottom(rect.bottom)
-    // setRectWidth(rect.width)
-    // setRectHeight(rect.height)
     targetRect.current = {
       left: rect.left,
       top: rect.top,
@@ -455,6 +501,8 @@ const Bubble = () => {
     if (!el) return;
 
     const resizeObserver = new ResizeObserver(() => {
+      setIsCompactView(popupWidth < 572)
+      setIsCompactHistoryView(popupWidth < 492)
       if (isDetached || isDragging.current) return // Only reposition based on resizing if not detached
       // Update bubble size
       repositionBubble()
@@ -582,7 +630,7 @@ const Bubble = () => {
 
     const timer = setTimeout(() => {
       if (allSourcesReady && autoAddToHistory && !isSaved(currentWord)) {
-        console.log("[SAVE DEBUG] Debounced save for word:", currentWord);
+        console.log("[SAVE DEBUG] Debounced save for word:", currentWord, definitions);
         saveWord(text, definitions, window.location.href);
       }
     }, 300); // Wait 300ms after last change
@@ -590,6 +638,7 @@ const Bubble = () => {
     return () => clearTimeout(timer);
   }, [text, definitions, autoAddToHistory])
 
+  // For updating history to sync
   useEffect(() => {
     const listener = (changes, areaName) => {
       if (areaName === "local" && changes[HISTORY_KEY]) {
@@ -692,6 +741,34 @@ const Bubble = () => {
   
 
 
+  // For tracking animation between tabs and synonyms/antonyms
+  useEffect(() => {
+    handleSynonymAntonyms()
+    const data = definitions?.[activeSource];
+
+    const hasSynonyms = Array.isArray(data?.synonyms) && data.synonyms.length > 0;
+    const hasAntonyms = Array.isArray(data?.antonyms) && data.antonyms.length > 0;
+
+    const hasExtras = hasSynonyms || hasAntonyms;
+    setHasAvailableExtras(hasExtras); // <- this is a new state variable you can use
+    
+    if (activeSource !== prevSource) {
+      setPrevSource(activeSource)
+    }
+
+    setShowExtras(false)
+  }, [activeSource, definitions])
+
+  const scrollToBottomOfExtras = () => {
+    if (DataContainerRef.current) {
+      DataContainerRef.current.scrollTo({
+        top: DataContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  };
+  
+
 
 
   if (!show) return null
@@ -781,9 +858,9 @@ const Bubble = () => {
           backgroundColor: 'var(--background)',
 
           // Resize limits
-          minWidth: "200px",
+          minWidth: "300px",
           maxWidth: viewportWidth,
-          minHeight: "100px",
+          minHeight: "200px",
           maxHeight: viewportHeight
         }}
       >
@@ -801,7 +878,7 @@ const Bubble = () => {
         {/* Utility Buttons Row */}
         <div className="flex items-center justify-between px-2 py-1 mb-1 bg-mainBody rounded-md text-[#9DAFC8]">
           {/* Left Side */}
-          <div className="flex items-center space-x-2 w-[50%]">
+          <div className="flex items-center space-x-2 w-[50%] mr-2">
 
             {/* Conditional Search Rendering based on searchMode */}
             <input
@@ -844,31 +921,70 @@ const Bubble = () => {
           </div>
 
           {/* Right Side */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center">
 
-            {/* Context AI Button */}
-            <button
-              title="Context AI (Pro)"
-              className="p-1 flex items-center gap-1 rounded text-text hover:bg-dullBox transition-colors duration-200"
-              onClick={() => {
-                const selection = window.getSelection()?.toString().trim()
-                if (!selection) {
-                  alert("Please select a word first!")
-                  return
-                }
-
-                setShowContextAI((prev) => !prev)
-                setShowHistory(false)
-              }}
-            >
-              <HiOutlineSparkles size={18} /> {/* swap icon if you prefer */}
-              <span className="hidden lg:inline text-sm font-medium">Context AI</span>
-            </button>
+            {/* Upgrade Button (if not Pro) */}
+            {!isPro ? (
+              <button
+                title="Upgrade to Pro"
+                className="flex items-center gap-1 px-2 py-1 rounded-full text-text border border-border bg-mainBody hover:bg-dullBox transition-colors duration-200"
+                onClick={handleUpgrade}
+                style={{
+                  color: "var(--text)",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--main-body)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--hover-icon)"
+                  e.currentTarget.style.backgroundColor = "var(--hover-square)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--text)"
+                  e.currentTarget.style.backgroundColor = "var(--main-body)"
+                }}
+              >
+                <FaCrown size={16} style={{ color: "inherit" }} />
+                {!isCompactView && (
+                  <span className="text-sm font-medium">Upgrade to Pro</span>
+                )}
+              </button>
+            ) : (
+              // Context AI Button (if Pro)
+              <button
+                title="Context AI (Pro)"
+                className="flex items-center gap-1 px-2 py-1 rounded-full text-text border border-border bg-mainBody hover:bg-dullBox transition-colors duration-200"
+                onClick={() => {
+                  const selection = window.getSelection()?.toString().trim()
+                  if (!selection) {
+                    alert("Please select a word first!")
+                    return
+                  }
+                  setShowContextAI((prev) => !prev)
+                  setShowHistory(false)
+                }}
+                style={{
+                  color: "var(--text)",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--main-body)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--hover-icon)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--text)";
+                }}
+              >
+                <HiOutlineSparkles size={18} style={{ color: "inherit" }} />
+                {!isCompactView && (
+                  <span className="text-sm font-medium">Context AI</span>
+                )}
+              </button>
+            )}
 
             {/* Pin */}
             <button 
               title={!isDetached ? "Undock bubble" : "Dock to word"}
-              className="p-1 rounded text-text hover:bg-dullBox"
+              className="p-1 rounded text-text hover:bg-dullBox ml-2"
               onClick={() => {
                 if (!isDetached) {
                   // Detach and center
@@ -888,19 +1004,19 @@ const Bubble = () => {
             {/* Lock */}
             <button
               title={isLocked ? "Unlock bubble" : "Lock bubble"}
-              className="p-1 rounded text-text hover:bg-dullBox"
+              className="p-1 rounded text-text hover:bg-dullBox ml-2"
               onClick={() => setIsLocked(!isLocked)}
             >
               {isLocked ? <IoMdLock size={16} /> : <IoMdUnlock size={16} />}
             </button>
 
             {/* History */}
-            <button title="History" className="p-1 rounded text-text hover:bg-dullBox" onClick={() => setShowHistory((prev) => !prev)}>
+            <button title="History" className="p-1 rounded text-text hover:bg-dullBox ml-2" onClick={() => setShowHistory((prev) => !prev)}>
               <IoBook size={16} />
             </button>
 
             {/* SidePanel */}
-            <button onClick={openPanel} className="p-1 rounded text-text hover:bg-dullBox">
+            <button onClick={openPanel} className="p-1 rounded text-text hover:bg-dullBox ml-2">
               <BiSolidDockRight size = {16} />
             </button>
           </div>
@@ -928,24 +1044,34 @@ const Bubble = () => {
                 <IoTimeOutline className="text-text" /> Recent Dictionary Lookups
               </h2>
 
-              <div className="flex gap-2">
-                {/* Export Button */}
-                <button
+              <div className={`flex gap-2 ${isCompactHistoryView ? "flex-col" : ""}`}>
+                {/* Upgrade to Premium Button or Export Button  */}
+                {!isPro ? (
+                    <button
+                    className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
+                    title="Upgrade to Pro to unlock exports"
+                    onClick={handleUpgrade}
+                  >
+                    <FaCrown size={16} />
+                    <span className="text-sm">{"Upgrade"}</span>
+                  </button>
+                ) : (
+                  <button
                   disabled={history.length === 0}
                   className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-text ${
                     history.length === 0
-                      ? "bg-border cursor-not-allowed"
+                      ? "bg-gray-600 cursor-not-allowed"
                       : "bg-mainBody hover:bg-dullBox"
                   }`}
                   title="Export History"
                   onClick={() => {
                     setShowExportModal(true);
-                    setIsLocked(true)
                   }}
                 >
                   <HiOutlineArrowDownTray size={16} />
                   <span className="text-sm">Export</span>
                 </button>
+                )}
 
                 {/* Clear All Button */}
                 <button
@@ -971,13 +1097,13 @@ const Bubble = () => {
 
                 return (
                   <div key={entry.word} className="py-3 mr-2">
-                    <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleExpanded(entry.word)}>
+                    <div className="flex justify-between items-center cursor-pointer">
                       <div className="flex items-center justify-between w-full">
                         {/* Left side: the word */}
-                        <span className="text-base text-dataText">{entry.word}</span>
+                        <span className="text-base text-dataText mr-2">{entry.word}</span>
 
                         {/* Right side: time, link, etc */}
-                        <div className="flex items-center gap-2 text-xs text-otherText">
+                        <div className={`flex items-center gap-2 text-xs text-otherText ${isCompactHistoryView ? "flex-col" : ""}`}>
                           <span className="text-xs text-otherText">{timestamp}</span>
                           {entry.pageUrl && (
                             <a
@@ -1004,6 +1130,7 @@ const Bubble = () => {
                         onMouseLeave={(e) => {
                           e.currentTarget.style.color = "var(--text)";
                         }}
+                        onClick={() => toggleExpanded(entry.word)}
                       >
                         {isOpen ? (
                           <IoMdArrowDropup style={{ color: "inherit" }} size={24} />
@@ -1039,12 +1166,12 @@ const Bubble = () => {
           <div className="flex-col flex overflow-hidden rounded-b-lg h-[100%]">
 
             {/* Tabs */}
-            <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background" style={{ scrollbarWidth: 'thin' }}>  
+            <div className="flex pt-2 px-2 rounded-t-lg overflow-x-auto bg-background" style={{ scrollbarWidth: 'none' }}>  
             {sourceOrder
               .filter((key) => enabledSources[key]) // Only enabled
               .map((key) => {
                 const source = definitionSources[key]
-                console.log("source tabs", source);
+                // console.log("source tabs", source);
                 if (!source) {
                   console.warn(`Missing source for key: ${key}`)
                   return null
@@ -1057,24 +1184,26 @@ const Bubble = () => {
                       className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-mainBody" : "bg-background"
                         }`}
                     >
-                      <button
-                        onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                        className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${isActive
-                            ? "bg-tabActiveBg"
-                            : "bg-mainBody hover:bg-dullBox"
-                          }`}
-                        title={source.name}
-                      >
-                        {typeof source.icon === "string" ? (
-                          <img
-                            src={source.icon}
-                            alt={`${source.name} icon`}
-                            className="w-6 h-6 object-contain"
-                          />
-                        ) : (
-                          <span className="text-lg">{source.icon}</span>
-                        )}
-                      </button>
+                      <PortalTooltip text={source.name}>
+                        <button
+                          onClick={() => setActiveSource(key as keyof typeof definitionSources)}
+                          className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${isActive
+                              ? "bg-tabActiveBg"
+                              : "bg-mainBody hover:bg-dullBox"
+                            }`}
+                          title={source.name}
+                        >
+                          {typeof source.icon === "string" ? (
+                            <img
+                              src={source.icon}
+                              alt={`${source.name} icon`}
+                              className="w-6 h-6 object-contain"
+                            />
+                          ) : (
+                            <span className="text-lg">{source.icon}</span>
+                          )}
+                        </button>
+                      </PortalTooltip>
                     </div>
                   </div>
                 )
@@ -1083,30 +1212,31 @@ const Bubble = () => {
 
             </div>
 
-            {/* dont nest the main text in two divs, just make two main divs for youglish and the other renders okay, cool thanks */}
             {/* Main Text */}
             {activeSource === "youglish" ? (
-              <div className="flex flex-1 flex-col items-center justify-center mb-2 rounded-b-lg p-2 text-dataText bg-mainBody">
-                <h2 className="text-lg text-dataText font-semibold mb-4">YouGlish Pronunciation</h2>
+              <div className="flex flex-1 flex-col items-center justify-center h-full bg-mainBody text-dataText">
+                  <h2 className="text-lg font-semibold my-4">YouGlish Pronunciation</h2>
 
-                <p className="text-sm text-otherText mb-2 text-center">
-                  Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
-                </p>
+                  <p className="text-sm text-otherText mb-2 text-center">
+                      Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
+                  </p>
 
-                <a
-                  href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
-                >
-                  🔊 Open YouGlish
-                </a>
+                  <a
+                      href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
+                  >
+                      🔊 Open YouGlish
+                  </a>
               </div>
             ) : (
               <div 
+                id="data-scroll-container"
+                ref={DataContainerRef}
                 className="flex-1 flex-col overflow-y-auto space-y-2 mb-2 rounded-b-lg p-2 bg-mainBody" 
                 style = {{
-                  scrollbarColor: "var(--tab-active-bg) var(--main-body)", // thumb, track (Firefox)
+                  scrollbarColor: "var(--tab-active-bg) var(--main-body)", 
                   overscrollBehavior: "contain",
                   WebkitOverflowScrolling: "touch" 
                 }}>
@@ -1179,7 +1309,7 @@ const Bubble = () => {
                         <div
                           key={idx}
                           className={`pb-3 ${
-                            idx === arr.length - 1 && activeSource === "duckduckgo" ? "" : "border-b border-border"
+                            idx === arr.length - 1 && (activeSource === "duckduckgo" || !hasAvailableExtras) ? "" : "border-b border-border"
                           }`}
                         >
                           <p className="text-sm text-dataText italic">{line}</p>
@@ -1190,50 +1320,97 @@ const Bubble = () => {
                 </div>
                 
 
-                {activeSource !== "duckduckgo" && (
+                {activeSource !== "duckduckgo" && hasAvailableExtras && (  
                   <>
-                  <p className="whitespace-pre-wrap text-sm italic text-blue-500" onClick={handleSynonymAntonyms}>
-                  Show Synonyms and Antonyms
-                  </p>
+                    <button
+                      onClick={() => {
+                        handleSynonymAntonyms()
+                        setTimeout(() => {
+                          scrollToBottomOfExtras(); // now call the function
+                        }, 50);
+                      }}
+                      className={`mt-3 px-3 py-1 rounded-lg text-sm font-medium transition
+                        ${showExtras
+                          ? "bg-dullBox text-red-500 hover:bg-red-600 hover:text-white"
+                          : "bg-tabActiveBg text-blue-500 hover:bg-blue-600 hover:text-white"}
+                      `}
+                    >
+                      {showExtras ? "Hide Synonyms & Antonyms" : "Show Synonyms & Antonyms"}
+                    </button> 
 
-                  
-                  {showExtras && (
-                    <>
-                      {definitions[activeSource]?.synonyms?.length > 0 && (
-                        <div className="mt-2">
-                          <strong className="block text-xs text-dataText mb-1">Synonyms:</strong>
-                          <div className="flex flex-wrap gap-1">
-                            {definitions[activeSource].synonyms.map((syn, i) => (
-                              <span
-                                key={`syn-${i}`}
-                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                              >
-                                {syn}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    {showExtras && (
+                      <div>
+                        <div className="mt-4 space-y-4">
+                          {definitions[activeSource]?.synonyms?.length > 0 && (
+                            <div>
+                              <strong className="block text-xs text-dataText mb-2">Synonyms:</strong>
+                              <div className="flex flex-wrap gap-2">
+                                {definitions[activeSource].synonyms.map((syn, i) => (
+                                  <span
+                                    key={`syn-${i}`}
+                                    className="px-2 py-1 rounded-full text-xs font-medium"
+                                    style={{
+                                      backgroundColor: "#DBEAFE",
+                                      color: "#1E40AF"
+                                    }}
+                                  >
+                                    {syn}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
-                      {definitions[activeSource]?.antonyms?.length > 0 && (
-                        <div className="mt-2">
-                          <strong className="block text-xs text-dataText mb-1">Antonyms:</strong>
-                          <div className="flex flex-wrap gap-1">
-                            {definitions[activeSource].antonyms.map((ant, i) => (
-                              <span
-                                key={`ant-${i}`}
-                                className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full"
-                              >
-                                {ant}
-                              </span>
-                            ))}
-                          </div>
+                          {definitions[activeSource]?.antonyms?.length > 0 && (
+                            <div>
+                              <strong className="block text-xs text-dataText mb-2">Antonyms:</strong>
+                              <div className="flex flex-wrap gap-2">
+                                {definitions[activeSource].antonyms.map((ant, i) => (
+                                  <span
+                                    key={`ant-${i}`}
+                                    className="px-2 py-1 rounded-full text-xs font-medium"
+                                    style={{
+                                      backgroundColor: "#FECACA",
+                                      color: "#B91C1C"
+                                    }}
+                                  >
+                                    {ant}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </>
-                  )}
+
+                        <div id="extras-bottom-anchor" className="h-1" />
+                      </div>
+                    )}
                   </>
                 )}
+
+                {/* More Info Button Aligned Bottom Left */}
+                {definitionSources[activeSource]?.getMoreInfoUrl && (
+                  <div className="flex justify-end self-start">
+                    <a
+                      href={definitionSources[activeSource].getMoreInfoUrl(text)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1 mr-2 bg-tabActiveBg text-dataText text-lg rounded-2xl hover:bg-dullBox transition"
+                    >
+                      {typeof definitionSources[activeSource].icon === "string" ? (
+                        <img
+                          src={definitionSources[activeSource].icon}
+                          alt={`${definitionSources[activeSource].name} icon`}
+                          className="w-6 h-6 object-contain"
+                        />
+                      ) : (
+                        <span className="text-lg">{definitionSources[activeSource].icon}</span>
+                      )}
+                      More Info
+                    </a>
+                  </div>
+                )}
+
               </div>// start of word data
             )}
             

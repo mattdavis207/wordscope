@@ -74,6 +74,7 @@ export const useDictionary = <T extends Record<string, any>>(definitionSources: 
       activeSource,
       setActiveSource,
       showExtras,
+      setShowExtras,
       handleSynonymAntonyms
     }
   }

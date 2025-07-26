@@ -7,6 +7,10 @@ import wordnikapiIcon from "../assets/wordnik_logo.png"
 import wordsapiIcon from "../assets/wordsapi-logo.png"
 import youglishapiIcon from "../assets/youglishapi-logo.png"
 import linguarobotapiIcon from "../assets/linguarobotapi-logo.png"
+import googledictionaryIcon from "../assets/google-dictionary-api-logo.png"
+import googleDictionaryApi from "google-dictionary-api"
+// const googleDictionaryApi = require("google-dictionary-api") as any
+
 
 //Api keys
 const WORDS_API_KEY = process.env.PLASMO_PUBLIC_WORDS_API_KEY
@@ -16,22 +20,62 @@ const WORDNIK_API_KEY = process.env.PLASMO_PUBLIC_WORDNIK_API_KEY
 
 // Sources
 export const definitionSources = {
-  //
-  // WORDNIKAPI
-  //
-  'wordnik': {
-    name: "Wordnik",
-    icon: wordnikapiIcon,
-    fetchDefinition: async (word: string) => {
-      const apiKey = WORDNIK_API_KEY 
-      const res = await fetch(
-        `https://api.wordnik.com/v4/word.json/${word}/definitions?limit=10&includeRelated=true&sourceDictionaries=all&useCanonical=false&includeTags=false&api_key=${apiKey}`
-      )
-      const json = await res.json()
 
-      if (!json || !json.length) {
+  //
+  // Google Dictionary
+  //
+  "google": {
+    name: "Google Dictionary",
+    icon: googledictionaryIcon, // Replace this with your actual Google icon import
+    fetchDefinition: async (word: string) => {
+      try {
+        const res = await fetch(
+          `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
+        )
+        const json = await res.json()
+    
+        if (!Array.isArray(json) || !json.length) {
+          return {
+            definition: "No definition found.",
+            synonyms: [],
+            antonyms: [],
+            phoneticText: "",
+            pronunciationAudio: "",
+            extrasFetched: true
+          }
+        }
+    
+        const entry = json[0]
+        const definitionLines: string[] = []
+        const synonymsSet = new Set<string>()
+
+        entry.meanings.forEach((meaning: any) => {
+          meaning.definitions.forEach((def: any) => {
+            if (def.definition?.trim()) {
+              // Add the definition line
+              definitionLines.push(`(${meaning.partOfSpeech}) ${def.definition.trim()}`)
+
+              // Add the example line directly after (if it exists)
+              if (def.example?.trim()) {
+                definitionLines.push(`Example: ${def.example.trim()}`)
+              }
+            }
+            def.synonyms?.forEach((syn: string) => synonymsSet.add(syn))
+          })
+        })
+
         return {
-          definition: "No definition found.",
+          definition: definitionLines.join("\n"), // single \n between each line
+          synonyms: Array.from(synonymsSet),
+          antonyms: [],
+          phoneticText: entry.phonetic || entry.phonetics?.[0]?.text || "",
+          pronunciationAudio: entry.phonetics?.find((p: any) => p.audio)?.audio || "",
+          extrasFetched: true
+        }
+      } catch (error) {
+        console.error("Google Dictionary Fetch Error:", error)
+        return {
+          definition: "Error fetching definition.",
           synonyms: [],
           antonyms: [],
           phoneticText: "",
@@ -39,57 +83,12 @@ export const definitionSources = {
           extrasFetched: true
         }
       }
-
-      // Pronunciation
-      const pronunciationRes = await fetch(
-        `https://api.wordnik.com/v4/word.json/${word}/pronunciations?limit=1&useCanonical=false&api_key=${apiKey}`
-      )
-      const pronunciationJson = await pronunciationRes.json()
-      const phoneticText = pronunciationJson?.[0]?.raw || ""
-
-      // Fetch Related Words (Synonyms & Antonyms)
-      const relatedRes = await fetch(
-        `https://api.wordnik.com/v4/word.json/${word}/relatedWords?useCanonical=false&api_key=${apiKey}`
-      )
-      const relatedJson = await relatedRes.json()
-
-      // Synonyms & Antonyms (combined from all meanings)
-      const synonyms = relatedJson
-        ?.find((rel: any) => rel.relationshipType === "synonym")
-        ?.words || []
-
-      const antonyms = relatedJson
-        ?.find((rel: any) => rel.relationshipType === "antonym")
-        ?.words || []
-
-      // Definitions (flattened)
-      const definitions = json.map((def: any) => ({
-        partOfSpeech: def.partOfSpeech,
-        definition: stripHtml(def.text),
-        example: stripHtml(def.exampleUses?.[0]?.text) || "",
-        synonyms: def.relatedWords?.find((r: any) => r.relationshipType === "synonym")?.words || [],
-        antonyms: def.relatedWords?.find((r: any) => r.relationshipType === "antonym")?.words || []
-      }))
-
-      const definition =
-        definitions
-          .map(
-            (def) => `(${def.partOfSpeech}) ${def.definition}`
-          )
-          .join("\n") || "No definition found."
-
-      return {
-        definition,
-        synonyms,
-        antonyms,
-        phoneticText,
-        pronunciationAudio: "", // Wordnik doesn’t provide audio directly
-        extrasFetched: true
-      }
     },
     fetchExtras: async (word: string) => {
-      return undefined;
-    }
+      return undefined
+    },
+    getMoreInfoUrl: (word: string) =>
+    `https://www.google.com/search?q=define+${encodeURIComponent(word)}`
   },
 
 
@@ -136,7 +135,9 @@ export const definitionSources = {
         antonyms: antJson?.antonyms ?? [],
         extrasFetched: true
       }
-    }
+    },
+    getMoreInfoUrl: (word: string) =>
+    `https://www.wordsapi.com/`
   },
 
   //
@@ -229,7 +230,9 @@ export const definitionSources = {
   },
   fetchExtras: async (word: string) => {
     return undefined
-  }
+  },
+  getMoreInfoUrl: (word: string) =>
+    `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`
   },
 
 
@@ -273,7 +276,9 @@ export const definitionSources = {
             antonyms,
             extrasFetched: true
           }
-    }
+    },
+    getMoreInfoUrl: (word: string) =>
+    `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word)}`
   },
 
 
@@ -342,7 +347,9 @@ export const definitionSources = {
     },
     fetchExtras: async (word:string) => {
       return undefined;
-    }
+    },
+    getMoreInfoUrl: (word: string) =>
+    `https://dictionaryapi.dev/`
   },
 
 
@@ -376,7 +383,9 @@ export const definitionSources = {
     },
     fetchExtras: async (_word: string) => {
       return undefined // DuckDuckGo doesn't support extras like synonyms, etc.
-    }
+    },
+    getMoreInfoUrl: (word: string) =>
+    `https://duckduckgo.com/?q=define+${encodeURIComponent(word)}`
   },
 
 
@@ -457,7 +466,9 @@ export const definitionSources = {
         extrasFetched: true
       }
     },
-    fetchExtras: async (_word: string) => undefined
+    fetchExtras: async (_word: string) => undefined,
+    getMoreInfoUrl: (word: string) =>
+    `https://www.linguarobot.io/`
   }
   
 

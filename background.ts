@@ -64,4 +64,13 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 
 
 
+// Listener for opening popup on 
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "OPEN_POPUP") {
+    console.log("trying open")
+    chrome.action.openPopup()
+  }
+})
+
+
 
