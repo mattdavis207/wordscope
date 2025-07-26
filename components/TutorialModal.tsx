@@ -150,7 +150,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
   
             {/* Progress */}
             <div className="flex justify-between items-center mt-4">
-                {/* Back Button  */}
+                {/* Back Button */}
                 <button
                   onClick={() => step > 0 && setStep((s) => s - 1)}
                   disabled={step === 0}

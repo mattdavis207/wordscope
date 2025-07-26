@@ -1395,7 +1395,7 @@ const Bubble = () => {
                       href={definitionSources[activeSource].getMoreInfoUrl(text)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-1 mr-2 bg-tabActiveBg text-dataText text-lg rounded-2xl hover:bg-dullBox transition"
+                      className="inline-flex items-center gap-2 px-3 py-1 mr-2  bg-tabActiveBg text-dataText text-lg rounded-2xl hover:bg-dullBox transition"
                     >
                       {typeof definitionSources[activeSource].icon === "string" ? (
                         <img
