@@ -6,6 +6,58 @@ console.log(
   "Live now; make now always the most precious time. Now will never come again."
 )
 
+// Add export count
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get("exportCount", (result) => {
+    if (result.exportCount === undefined) {
+      chrome.storage.local.set({ exportCount: 3 })
+    }
+  })
+})
+
+
+
+// Add listener for fetch requests from content.tsx
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const API_BASE = "https://wordscope-extension.vercel.app/api"
+
+  // Handle isPro check
+  if (message.type === "CHECK_IS_PRO" && message.email) {
+    fetch(`${API_BASE}/is-pro?email=${encodeURIComponent(message.email)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        sendResponse({ success: true, isPro: data.isPro })
+      })
+      .catch((err) => {
+        console.error("Error checking isPro:", err)
+        sendResponse({ success: false })
+      })
+
+    return true // allow async sendResponse
+  }
+
+  // Handle checkout session
+  if (message.type === "CREATE_CHECKOUT_SESSION" && message.email) {
+    fetch(`${API_BASE}/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: message.email }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        sendResponse({ success: true, url: data.url })
+      })
+      .catch((err) => {
+        console.error("❌ Error creating checkout session:", err)
+        sendResponse({ success: false })
+      })
+
+    return true // allow async sendResponse
+  }
+})
+
+
+
 // Create chrome contextMenu 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Background installed")
@@ -71,6 +123,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.action.openPopup()
   }
 })
+
+
 
 
 

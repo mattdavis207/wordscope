@@ -5,8 +5,8 @@ import { definitionSources } from "../sources/definitionSources"
 import { useSourceSettings } from "~hooks/useSourceSettings"
 import { useHistory } from "../hooks/useHistory";
 
-import "~/styles/tailwind.css"
-import "../styles/globals.css";
+import "~/public/styles/tailwind.css"
+import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
 import PortalTooltip from "~components/PortalTooltip"
@@ -195,7 +195,7 @@ export const MiniDefinitionView = ({
 
         {/* Main Text */}
         <div 
-        className="mb-2 p-2 overflow-y-auto h-[100%] bg-mainBody rounded-b-lg"
+        className="p-2 overflow-y-auto h-[100%] bg-mainBody rounded-b-lg"
         style = {{
             scrollbarColor: "var(--tab-active-bg) var(--main-body)", 
             overscrollBehavior: "contain",
@@ -203,65 +203,80 @@ export const MiniDefinitionView = ({
             borderTop: "none"
           }}>
         {activeSource === "youglish" ? (
-        <div className="flex flex-col items-center justify-center h-full text-dataText">
-            <h2 className="text-lg font-semibold mb-4">YouGlish Pronunciation</h2>
-            
-            <p className="text-sm text-otherText mb-2 text-center">
-            Click the button below to hear real-world examples of how <strong>{word}</strong> is pronounced in English.
-            </p>
-            
-            <a
-            href={`https://youglish.com/pronounce/${encodeURIComponent(word)}/english`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
-            >
-            🔊 Open YouGlish
-            </a>
-        </div>
+          <div className="flex flex-col justify-between h-full px-2 pt-4 pb-2 text-dataText bg-mainBody">
+            {/* Header */}
+            <div className="flex flex-col items-center text-center">
+                <h2 className="text-lg font-semibold mb-2">YouGlish Pronunciation</h2>
+                <p className="text-sm text-otherText mb-4 max-w-sm">
+                Hear real-world examples of how <strong>{word}</strong> is pronounced in English.
+                </p>
+                <a
+                href={`https://youglish.com/pronounce/${encodeURIComponent(word)}/english`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded shadow-sm transition"
+                >
+                🔊 Open in YouGlish
+                </a>
+            </div>
+
+            {/* License and Attribution */}
+            {definitionSources[activeSource]?.license && (
+                <div className="mt-6 flex justify-end">
+                <div className="text-[8px] text-right text-otherText leading-snug max-w-xs">
+                    <p className="mb-0">{definitionSources[activeSource].license.attribution}</p>
+                    <a
+                    href={definitionSources[activeSource].license.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-dataText"
+                    >
+                    {definitionSources[activeSource].license.name}
+                    </a>
+                </div>
+                </div>
+              )}
+            </div>
         ) : (
             <>
             {/* Word and Phonetic Text */}
             <div className="flex items-center">
-                <h2 className="font-semibold text-dataText text-lg mr-2">{word}</h2>
-                <h2 className="text-sm text-otherText">{sources['freedictionaryapi']?.phoneticText}</h2>
-                <button
-                title="Play Pronunciation"
-                className="ml-1 mb-3 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                onClick={() => {
-                    const rawUrl = sources['freedictionaryapi']?.pronunciationAudio
-                    // Use speech synthesis if no audio from freedictionaryapi
-                    if (!rawUrl) {
-                    // Fallback to Web Speech API
-                    const utterance = new SpeechSynthesisUtterance(word)
-                    utterance.lang = "en-US"
-                    speechSynthesis.speak(utterance)
-                    } else {
-                    console.log(rawUrl);
-                    const audioUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl
                 
-                    const audio = new Audio(audioUrl)
-                    audio.play().catch((err) => console.warn("Audio failed to play", err))
-                    }
+                <div className="flex items-center flex-1">
+                  <h2 className="font-semibold text-dataText text-lg mr-2">{word}</h2>
+                  {current?.phoneticText?.trim() && (
+                    <h2 className="text-sm text-otherText mr-2">
+                      {current.phoneticText}
+                    </h2>
+                  )}
+                  <button
+                    title="Play Pronunciation"
+                    className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                    onClick={() => {
+                      const utterance = new SpeechSynthesisUtterance(word);
+                      utterance.lang = "en-US"; // Set language (optional)
+                      window.speechSynthesis.speak(utterance);
+                    }}
+                  >
+                    <IoVolumeMediumSharp size={22} />
+                  </button>
+                  
+                  { Boolean(sources['freedictionaryapi']?.pronunciationAudio) && (
+                    <button
+                      title="Free Dictionary API Audio"
+                      className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                      onClick={() => {
+                        const audioUrl = sources['freedictionaryapi']?.pronunciationAudio
 
-
-                }}
-                >
-                <IoVolumeMediumSharp size={20} />
-                </button>
-
-                <button
-                title="Lingua Robot Audio"
-                className="ml-3 mb-3 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                onClick={() => {
-                    const audioUrl = sources['linguarobotapi']?.pronunciationAudio
-                
-                    const audio = new Audio(audioUrl)
-                    audio.play().catch((err) => console.warn("Audio failed to play", err))
-                }}
-                >
-                <IoVolumeMediumSharp size={20} />
-                </button>
+                        const audio = new Audio(audioUrl)
+                        audio.play().catch((err) => console.warn("Audio failed to play", err))
+                      }}
+                      >
+                        <IoVolumeMediumSharp size={22} />
+                    </button>
+                  )}
+                  
+                </div>
             </div>
 
             <p className="text-xs text-otherText">Definition for:</p>
@@ -308,6 +323,26 @@ export const MiniDefinitionView = ({
                     </a>
                   </div>
                 )}
+
+                {/* License and Attribution */}
+                {definitionSources[activeSource]?.license && (
+                <div className="mt-3 flex justify-end">
+                    <div className="text-[8px] text-right text-otherText leading-snug max-w-xs">
+                    <p className="mb-0">
+                        {definitionSources[activeSource].license.attribution}
+                    </p>
+                    <a
+                        href={definitionSources[activeSource].license.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-dataText"
+                    >
+                        {definitionSources[activeSource].license.name}
+                    </a>
+                    </div>
+                </div>
+                )}
+                
 
                 {/* {activeSource !== "duckduckgo" && hasAvailableExtras && (  
                   <>

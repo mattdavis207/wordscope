@@ -4,7 +4,9 @@ module.exports = {
       "./popup.tsx",
       "./content.tsx",
       "./src/**/*.{js,ts,jsx,tsx}",
-      "./styles/globals.css",
+      "./public/styles/globals.css",
+      "./views/**/*.{js,ts,jsx,tsx}", 
+      "./assets/styles/tailwind-content.css"
     ],
     theme: {
       extend: {
@@ -22,8 +24,12 @@ module.exports = {
           aiChatBubble: "var(--ai-chat-bubble)",
           userChatBubble: "var(--user-chat-bubble)",
         },
+        lineClamp: {
+          2: '2',
+          3: '3',
+        }
       },
     },
-    plugins: [require('tailwind-scrollbar')],
+    plugins: [require('tailwind-scrollbar'), require('@tailwindcss/line-clamp')],
   }
   

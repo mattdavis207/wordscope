@@ -8,8 +8,7 @@ import wordsapiIcon from "../assets/wordsapi-logo.png"
 import youglishapiIcon from "../assets/youglishapi-logo.png"
 import linguarobotapiIcon from "../assets/linguarobotapi-logo.png"
 import googledictionaryIcon from "../assets/google-dictionary-api-logo.png"
-import googleDictionaryApi from "google-dictionary-api"
-// const googleDictionaryApi = require("google-dictionary-api") as any
+
 
 
 //Api keys
@@ -26,7 +25,9 @@ export const definitionSources = {
   //
   "google": {
     name: "Google Dictionary",
-    icon: googledictionaryIcon, // Replace this with your actual Google icon import
+    description:
+      "Offers concise definitions and part-of-speech tagging from Google search dictionary data. Often used for fast and clean single-line definitions.",
+    icon: googledictionaryIcon, 
     fetchDefinition: async (word: string) => {
       try {
         const res = await fetch(
@@ -87,8 +88,14 @@ export const definitionSources = {
     fetchExtras: async (word: string) => {
       return undefined
     },
-    getMoreInfoUrl: (word: string) =>
-    `https://www.google.com/search?q=define+${encodeURIComponent(word)}`
+    getMoreInfoUrl: (word: string) => 
+    `https://www.google.com/search?q=define+${encodeURIComponent(word)}`,
+    exportable: true,
+    license: {
+      name: "GNU GPL v3",
+      url: "https://www.gnu.org/licenses/gpl-3.0.html",
+      attribution: "Content sourced from the Google Dictionary API"
+    },
   },
 
 
@@ -97,6 +104,8 @@ export const definitionSources = {
   //
   'wordsapi': {
     name: "WordsAPI",
+    description:
+      "Provides structured definitions, examples, synonyms, and hierarchy-based word relationships. Used as a robust semantic source for word understanding.",
     icon: wordsapiIcon, // or use a proper icon URL
     fetchDefinition: async (word: string) => {
       const headers = {
@@ -137,7 +146,13 @@ export const definitionSources = {
       }
     },
     getMoreInfoUrl: (word: string) =>
-    `https://www.wordsapi.com/`
+    `https://www.wordsapi.com/`,
+    exportable: false,
+    license: {
+      name: "Proprietary (API Terms)",
+      url: "https://www.wordsapi.com/docs/#terms",
+      attribution: "Data provided by WordsAPI; export not permitted"
+    }
   },
 
   //
@@ -145,6 +160,8 @@ export const definitionSources = {
   //
   'wiktionary': {
   name: "Wiktionary",
+  description:
+      "An open-content dictionary offering definitions, example usage, etymology, and word structures. Serves as a comprehensive lexical source.",
   icon: wiktionaryIcon,
   fetchDefinition: async (word: string) => {
     try {
@@ -232,7 +249,13 @@ export const definitionSources = {
     return undefined
   },
   getMoreInfoUrl: (word: string) =>
-    `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`
+    `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`,
+  exportable: true,
+    license: {
+      name: "CC BY-SA 4.0 & GNU Free Documentation License",
+      url: "https://creativecommons.org/licenses/by-sa/4.0/",
+      attribution: "Content sourced from Wiktionary"
+    }
   },
 
 
@@ -240,7 +263,9 @@ export const definitionSources = {
   //MERRIAMWEBSTERAPI
   //
   'merriamwebsterapi': {
-    name: "MerriamWebsterAPI",
+    name: "Merriam-Webster API",
+    description:
+      "Delivers definitions and example sentences from Merriam-Webster’s dictionary database. Primarily used for accurate and formal reference entries.",
     icon: merriamwebsterIcon,
     fetchDefinition: async (word: string) => {
       const res = await fetch(
@@ -278,7 +303,13 @@ export const definitionSources = {
           }
     },
     getMoreInfoUrl: (word: string) =>
-    `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word)}`
+    `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word)}`,
+    exportable: false,
+    license: {
+      name: "Proprietary (Non-commercial API Use)",
+      url: "https://dictionaryapi.com/register/index",
+      attribution: "Definitions provided by Merriam-Webster; non-commercial, in-app display only, export not permitted"
+    }
   },
 
 
@@ -288,6 +319,8 @@ export const definitionSources = {
   //
   'freedictionaryapi': {
     name: "FreeDictionaryAPI",
+    description:
+      "Sourced from Wiktionary, this provides both definitions and pronunciation audio.",
     icon: freedictionaryapiIcon,
     fetchDefinition: async (word: string) => {
       const res = await fetch(
@@ -349,7 +382,13 @@ export const definitionSources = {
       return undefined;
     },
     getMoreInfoUrl: (word: string) =>
-    `https://dictionaryapi.dev/`
+    `https://dictionaryapi.dev/`,
+    exportable: true,
+    license: {
+      name: "CC BY-SA 4.0",
+      url: "https://creativecommons.org/licenses/by-sa/4.0/",
+      attribution: "Content from FreeDictionaryAPI via Wiktionary"
+    }
   },
 
 
@@ -360,6 +399,8 @@ export const definitionSources = {
   //
   'duckduckgo': {
     name: "DuckDuckGo",
+    description:
+      "Returns concise facts, definitions, or contextual answers via DuckDuckGo's Instant Answer system. Used for quick factual context or external definitions.",
     icon: duckduckgoIcon,
     fetchDefinition: async (word: string) => {
       try {
@@ -385,7 +426,13 @@ export const definitionSources = {
       return undefined // DuckDuckGo doesn't support extras like synonyms, etc.
     },
     getMoreInfoUrl: (word: string) =>
-    `https://duckduckgo.com/?q=define+${encodeURIComponent(word)}`
+    `https://duckduckgo.com/?q=define+${encodeURIComponent(word)}`,
+    exportable: false,
+    license: {
+      name: "Third-party Derived (via Instant Answers)",
+      url: "https://duckduckgo.com/terms",
+      attribution: "Data from DuckDuckGo Instant Answers; third-party content"
+    }
   },
 
 
@@ -394,6 +441,8 @@ export const definitionSources = {
   //
   'youglish': {
     name: "YouGlish",
+    description:
+      "Provides real-world pronunciation examples from YouTube clips using the queried word. Used to supplement pronunciation with live context.",
     icon: youglishapiIcon,
     fetchDefinition: async (_word: string) => {
       return { definition: "YouGlish is a pronunciation viewer only." }
@@ -404,6 +453,12 @@ export const definitionSources = {
         youglishUrl, // return this as part of extras
         extrasFetched: true
       }
+    },
+    exportable: false,
+    license: {
+      name: "YouGlish Terms of Service",
+      url: "https://youglish.com/terms",
+      attribution: "Audio pronunciation provided by YouGlish"
     }
   },
 
@@ -413,6 +468,8 @@ export const definitionSources = {
   //
   'linguarobot': {
     name: "Lingua Robot",
+    description:
+      "Provides definitions, parts of speech, and related word data sourced from Wiktionary. Used for core word lookup and lexical relationships.",
     icon: linguarobotapiIcon,
     fetchDefinition: async (word: string) => {
       const headers = {
@@ -444,7 +501,7 @@ export const definitionSources = {
   
       const pronunciationData = entry?.pronunciations || []
   
-      // 🎯 Try to find US pronunciation first
+      // Try to find US pronunciation first
       const usPron = pronunciationData.find((p: any) =>
         p.context?.regions?.includes("United States") && p.audio?.url
       )
@@ -453,7 +510,7 @@ export const definitionSources = {
   
       const audioUrl = usPron?.audio?.url || fallbackPron?.audio?.url || ""
   
-      // 🔠 Find IPA transcription (preferring US)
+      // Find IPA transcription (preferring US)
       const transcription =
         usPron?.transcriptions?.find((t: any) => t.notation === "IPA")?.transcription ??
         fallbackPron?.transcriptions?.find((t: any) => t.notation === "IPA")?.transcription ??
@@ -468,7 +525,13 @@ export const definitionSources = {
     },
     fetchExtras: async (_word: string) => undefined,
     getMoreInfoUrl: (word: string) =>
-    `https://www.linguarobot.io/`
+    `https://www.linguarobot.io/`,
+    exportable: true,
+    license: {
+      name: "CC BY-SA 3.0",
+      url: "https://creativecommons.org/licenses/by-sa/3.0/",
+      attribution: "Content from Wiktionary via Lingua Robot"
+    }
   }
   
 

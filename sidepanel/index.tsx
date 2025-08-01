@@ -5,10 +5,9 @@ import { HiMiniChatBubbleBottomCenterText, HiOutlineSparkles, HiOutlineTrash, Hi
 import { GoHeart, GoHeartFill } from "react-icons/go"
 import { FaCrown } from "react-icons/fa"
 import React from "react"
-import "~/styles/tailwind.css"
 
-import "~/styles/tailwind.css"
-import "../styles/globals.css";
+import "~/public/styles/tailwind.css"
+import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
 
@@ -74,6 +73,15 @@ const SidePanel = () => {
 
     // Pro flag
     const [isPro, setIsPro] = useState(false)
+    const [exportCount, setExportCount] = useState<number | null>(null)
+
+    // Pull export count 
+    useEffect(() => {
+        chrome.storage.local.get(["exportCount", "isPro"], (result) => {
+        setExportCount(result.exportCount ?? 0)
+        setIsPro(result.isPro ?? false)
+        })
+    }, [])
 
     useEffect(() => {
         const email = localStorage.getItem("userEmail")
@@ -385,7 +393,7 @@ const SidePanel = () => {
 
                         <div className="flex flex-col gap-2">
                             {/* Upgrade to Premium Button or Export Button  */}
-                            {!isPro ? (
+                            { !isPro && (!exportCount || exportCount <= 0) ? (
                                 <button
                                     className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
                                     title="Upgrade to Pro to unlock exports"
@@ -500,7 +508,7 @@ const SidePanel = () => {
             ) : (
                 <div className="flex-col flex overflow-hidden flex-1 rounded-b-lg h-[100%]">
                     {/* Tabs */}
-                    <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background" style={{ scrollbarWidth: 'none' }}>
+                    <div className="flex pt-2 px-2 rounded-t-lg overflow-x-auto bg-background" style={{ scrollbarWidth: 'none' }}>
                         {sourceOrder
                             .filter((key) => enabledSources[key]) // Only enabled
                             .map((key) => {
@@ -543,21 +551,39 @@ const SidePanel = () => {
 
                     {/* Main Text */}
                     {activeSource === "youglish" ? (
-                        <div className="flex flex-1 flex-col items-center justify-center h-full bg-mainBody text-dataText">
-                            <h2 className="text-lg font-semibold my-4">YouGlish Pronunciation</h2>
-
-                            <p className="text-sm text-otherText mb-2 text-center">
-                                Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
+                        <div className="flex flex-col justify-between h-full p-4 text-dataText bg-mainBody">
+                        {/* Header */}
+                        <div className="flex flex-col items-center text-center">
+                            <h2 className="text-lg font-semibold mb-2">YouGlish Pronunciation</h2>
+                            <p className="text-sm text-otherText mb-4 max-w-sm">
+                            Hear real-world examples of how <strong>{text}</strong> is pronounced in English.
                             </p>
-
                             <a
-                                href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
+                            href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded shadow-sm transition"
+                            >
+                            🔊 Open in YouGlish
+                            </a>
+                        </div>
+
+                        {/* License and Attribution */}
+                        {definitionSources[activeSource]?.license && (
+                            <div className="mt-6 flex justify-end">
+                            <div className="text-[10px] text-right text-otherText leading-snug max-w-xs">
+                                <p className="mb-0">{definitionSources[activeSource].license.attribution}</p>
+                                <a
+                                href={definitionSources[activeSource].license.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
-                            >
-                                🔊 Open YouGlish
-                            </a>
+                                className="underline hover:text-dataText"
+                                >
+                                {definitionSources[activeSource].license.name}
+                                </a>
+                            </div>
+                            </div>
+                        )}
                         </div>
                     ) : (
                         <div
@@ -568,43 +594,43 @@ const SidePanel = () => {
 
                                 {/* Left side  */}
                                 <div className="flex items-center flex-1">
-                                    <h2 className="font-semibold text-dataText text-lg mr-2">{text}</h2>
-                                    <h2 className="text-sm text-otherText">{definitions['freedictionaryapi']?.phoneticText}</h2>
+                                <h2 className="font-semibold text-dataText text-lg mr-2">{text}</h2>
+                                {definitions[activeSource]?.phoneticText?.trim() && (
+                                    <h2 className="text-sm text-otherText mr-2">
+                                    {definitions[activeSource].phoneticText}
+                                    </h2>
+                                )}
+                                <PortalTooltip text="Synthesizer">
                                     <button
-                                        title="Play Pronunciation"
-                                        className="ml-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                                        onClick={() => {
-                                            const rawUrl = definitions['freedictionaryapi']?.pronunciationAudio
-                                            // Use speech synthesis if no audio from freedictionaryapi
-                                            if (!rawUrl) {
-                                                // Fallback to Web Speech API
-                                                const utterance = new SpeechSynthesisUtterance(text)
-                                                utterance.lang = "en-US"
-                                                speechSynthesis.speak(utterance)
-                                            } else {
-                                                console.log(rawUrl);
-                                                const audioUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl
-
-                                                const audio = new Audio(audioUrl)
-                                                audio.play().catch((err) => console.warn("Audio failed to play", err))
-                                            }
-                                        }}
+                                    title="Play Pronunciation"
+                                    className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                                    onClick={() => {
+                                        const utterance = new SpeechSynthesisUtterance(text);
+                                        utterance.lang = "en-US"; // Set language (optional)
+                                        window.speechSynthesis.speak(utterance);
+                                    }}
                                     >
-                                        <IoVolumeMediumSharp size={20} />
+                                    <IoVolumeMediumSharp size={22} />
                                     </button>
-
+                                </PortalTooltip>
+                                
+                                { Boolean(definitions['freedictionaryapi']?.pronunciationAudio) && (
+                                    <PortalTooltip text="FreeDictionaryAPI Audio">
                                     <button
-                                        title="Lingua Robot Audio"
-                                        className="ml-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                                        title="Free Dictionary API Audio"
+                                        className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
                                         onClick={() => {
-                                            const audioUrl = definitions['linguarobotapi']?.pronunciationAudio
-
-                                            const audio = new Audio(audioUrl)
-                                            audio.play().catch((err) => console.warn("Audio failed to play", err))
+                                        const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
+            
+                                        const audio = new Audio(audioUrl)
+                                        audio.play().catch((err) => console.warn("Audio failed to play", err))
                                         }}
-                                    >
-                                        <IoVolumeMediumSharp size={20} />
+                                        >
+                                        <IoVolumeMediumSharp size={22} />
                                     </button>
+                                    </PortalTooltip>
+                                )}
+                                
                                 </div>
 
                                 {/* Manual Save Button (Right side) */}
@@ -732,6 +758,25 @@ const SidePanel = () => {
                             </div>
                             )}
 
+                            {/* License and Attribution */}
+                            {definitionSources[activeSource]?.license && (
+                            <div className="mt-3 flex justify-end">
+                                <div className="text-[8px] text-right text-otherText leading-snug max-w-xs">
+                                <p className="mb-0">
+                                    {definitionSources[activeSource].license.attribution}
+                                </p>
+                                <a
+                                    href={definitionSources[activeSource].license.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline hover:text-dataText"
+                                >
+                                    {definitionSources[activeSource].license.name}
+                                </a>
+                                </div>
+                            </div>
+                            )}
+
                         </div>// start of word data
                     )}
                 </div>
@@ -762,7 +807,7 @@ const SidePanel = () => {
                                 <span>File Type</span>
                                 <select
                                     className="bg-mainBody text-text rounded px-2 py-1"
-                                    value={exportFileType}
+                                    value={defaultExportSource}
                                     onChange={(e) => setExportFileType(e.target.value as "tsv" | "csv" | "json")}
                                 >
                                     <option value="tsv">TSV (.tsv)</option>
@@ -777,10 +822,12 @@ const SidePanel = () => {
                                 <span>Export Source</span>
                                 <select
                                     className="bg-mainBody text-text rounded px-2 py-1"
-                                    value={exportSource}
+                                    value={defaultExportSource}
                                     onChange={(e) => setExportSource(e.target.value)}
                                 >
-                                    {Object.keys(enabledSources).map((source) => (
+                                    {Object.keys(enabledSources)
+                                        .filter((source) => definitionSources[source]?.exportable)
+                                        .map((source) => (
                                         <option key={source} value={source}>
                                             {source}
                                         </option>
@@ -846,7 +893,18 @@ const SidePanel = () => {
                                     }`}
                                 disabled={!includeAllWords && selectedWords.length === 0}
                                 title={!includeAllWords && selectedWords.length === 0 ? "Select at least one word" : ""}
-                                onClick={handleExport}
+                                onClick={async () => {
+                                    const { exportCount } = await chrome.storage.local.get("exportCount")
+                                    if (!exportCount || exportCount <= 0) {
+                                      alert("You've reached your free export limit!")
+                                      return
+                                    }
+                    
+                                    handleExport()
+                                  
+                                    // Decrement and save new value
+                                    await chrome.storage.local.set({ exportCount: exportCount - 1 })
+                                }}
                             >
                                 Export
                             </button>

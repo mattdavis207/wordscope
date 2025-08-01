@@ -11,17 +11,40 @@ export function useSourceSettings() {
   const [enabledSources, setEnabledSources] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
 
-  const [defaultExportSource, setDefaultExportSource] = useState<string>("wordnik")
+  const [defaultExportSource, setDefaultExportSource] = useState<string>("google")
 
   // Load persisted settings on mount
   useEffect(() => {
     chrome.storage.local.get(SOURCE_SETTINGS_KEY, (result) => {
       const settings = result[SOURCE_SETTINGS_KEY] || {}
+      console.log("get settings from history", settings)
       const allKeys = Object.keys(definitionSources)
-      const persistedOrderRaw = Object.keys(definitionSources);
-      console.log("pulling settings from local storage", settings);
-      console.log("allKeys", allKeys);
-      console.log("persistedOrderRaw", persistedOrderRaw);
+
+      // No saved settings found — initialize on first run
+      if (!settings || Object.keys(settings).length === 0) {
+        console.log("No settings found — initializing default settings")
+        const defaultOrder = allKeys
+        const defaultEnabled = Object.fromEntries(allKeys.map((key) => [key, true]))
+
+        const defaultSettings = {
+          order: defaultOrder,
+          enabled: defaultEnabled
+        }
+
+        // Save to chrome.storage
+        chrome.storage.local.set({ [SOURCE_SETTINGS_KEY]: defaultSettings }, () => {
+          console.log("Default settings saved")
+        })
+
+        // Update local state
+        setSourceOrder(defaultOrder)
+        setEnabledSources(defaultEnabled)
+        setLoading(false)
+        return
+      }
+
+      //If saved settings 
+      const persistedOrderRaw = settings.order
 
       const cleanedOrder = persistedOrderRaw.map((item) => {
         if (typeof item === "string") return item
@@ -45,7 +68,7 @@ export function useSourceSettings() {
         ...settings.enabled // override with saved user settings if present
       }
   
-      setSourceOrder(persistedOrderRaw)
+      setSourceOrder(persistedOrder)
       setEnabledSources(fixedEnabled)
       setLoading(false)
     })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import "~/styles/tailwind.css"
-import "../styles/globals.css";
+import "~/public/styles/tailwind.css"
+import "../public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
 import { marked } from "marked";

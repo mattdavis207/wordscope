@@ -6,8 +6,8 @@ import { FaCog, FaHandsHelping, FaGlobe, FaHeart, FaStar, FaHandHoldingUsd } fro
 import { HiOutlineSparkles } from "react-icons/hi" 
 import { BiSolidDockRight } from "react-icons/bi"
 
-import "~/styles/tailwind.css"
-import "../styles/globals.css";
+import "~/public/styles/tailwind.css"
+import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
 

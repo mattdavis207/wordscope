@@ -11,8 +11,9 @@ import { GoHeart, GoHeartFill } from "react-icons/go"
 import { SiSolana } from "react-icons/si";
 import { RxCrossCircled } from "react-icons/rx"
 import { HexColorPicker } from "react-colorful";
-import "~/styles/tailwind.css"
-import "./styles/globals.css";
+import wordscopeLogo from "assets/wordscope-logo.png"
+import "~/public/styles/tailwind.css"
+import "~/public/styles/globals.css";
 
 
 import { useBubbleSize } from "~hooks/useBubbleSize";
@@ -168,11 +169,21 @@ function IndexPopup() {
 
   // Pro flag and sign in states
   const [isPro, setIsPro] = useState(false)
+  const [exportCount, setExportCount] = useState<number | null>(null)
   const [showSignInModal, setShowSignInModal] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
+  // Pull export count 
+  useEffect(() => {
+    chrome.storage.local.get(["exportCount", "isPro"], (result) => {
+      setExportCount(result.exportCount ?? 0)
+      setIsPro(result.isPro ?? false)
+    })
+  }, [])
+
   useEffect(() => {
     const email = localStorage.getItem("userEmail")
+    console.log("📦 chrome.storage.local.get from isPro useEffect, userEmail:", email)
     if (!email) return
     
     fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
@@ -184,12 +195,15 @@ function IndexPopup() {
   //Sign in Logic 
   useEffect(() => {
     const email = localStorage.getItem("userEmail")
+    console.log("📦 chrome.storage.local.get from sign in useEffect, userEmail:", email)
     setUserEmail(email)
+    
   }, [])
 
   const handleSignOut = () => {
     setShowSignInModal(false)
     localStorage.removeItem("userEmail")
+    chrome.storage.local.remove("userEmail")
     setUserEmail(null)
     window.location.reload()
   }
@@ -198,7 +212,6 @@ function IndexPopup() {
   const handleUpgrade = async () => {
     const email = localStorage.getItem("userEmail")
     console.log("email", email);
-    console.log("Synonyms: ", definitions[activeSource]?.synonyms?.length > 0, "and antoynms: ", definitions[activeSource]?.antonyms?.length > 0)
     if (!email){
       setShowSettings(true) // Open Settings screen
         setTimeout(() => {
@@ -227,6 +240,7 @@ function IndexPopup() {
     }
   }
 
+  // Navigating to sign in setting
   useEffect(() => {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === "OPEN_SETTINGS") {
@@ -237,6 +251,20 @@ function IndexPopup() {
         }, 100) // Give settings time to render
       }
     })
+  }, [])
+
+  //Navigating to history export from bubble
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === "open-history-export") {
+        setActiveTab("history") // or however you switch to the History tab
+        setTimeout(() => {
+          document.getElementById("export-history-button")?.click()
+        }, 100) // slight delay to ensure tab UI loads
+      }
+    })
+  
+    return () => chrome.runtime.onMessage.removeListener(() => {})
   }, [])
 
   // For tracking animation between tabs and synonyms/antonyms
@@ -294,8 +322,6 @@ function IndexPopup() {
     });
   }, []);
   
-  
-
   
   // Toggle for minidefinition view for saved word
   const toggleExpanded = (word: string) => {
@@ -481,9 +507,11 @@ function IndexPopup() {
       {/* Header */}
       <div className="flex justify-between items-center bg-background p-3 h-70">
         <div className="flex items-center">
-          <div className="bg-[#3282B8] text-[#000a1b] font-bold rounded-full w-7 h-7 flex items-center justify-center">
-            W
-          </div>
+              <img
+            src={wordscopeLogo}
+            alt="Wordscope Logo"
+            className="w-7 h-7 object-contain mr-2"
+          />
           <span className="text-text text-base font-medium lowercase">wordscope</span>
         </div>
         <div className="flex">
@@ -883,7 +911,9 @@ function IndexPopup() {
               onChange={(e) => updateDefaultExportSource(e.target.value)}
               className="w-full px-3 py-2 bg-background border border-gray-600 rounded text-dataText outline-none"
             >
-              {Object.keys(definitionSources).map((key) => (
+              {Object.keys(definitionSources)
+              .filter((source) => definitionSources[source]?.exportable)
+              .map((key) => (
                 <option key={key} value={key}>
                   {definitionSources[key].name}
                 </option>
@@ -1029,9 +1059,22 @@ function IndexPopup() {
               <SignInModal
                 onClose={() => setShowSignInModal(false)}
                 onSignIn={(email) => {
+                  localStorage.setItem("userEmail", email)
+
+                  // Save email to chrome.storage.local if not already
+                  chrome.storage.local.get("userEmail", (result) => {
+                    if (!result.userEmail) {
+                      chrome.storage.local.set({ userEmail: email }, () => {
+                        console.log("✅ userEmail saved:", email)
+                      })
+                    } else {
+                      console.log("🔁 userEmail already exists:", result.userEmail)
+                    }
+                  })
+
                   setUserEmail(email)
                   window.location.reload()
-                }}
+                  }}
               />
             )}
           </section>
@@ -1245,60 +1288,87 @@ function IndexPopup() {
             </div>
 
             {/* Main Definition Box */}
-            <div className="flex-1 rounded-b-lg p-2 overflow-y-auto bg-mainBody" style={{scrollbarWidth: 'none'}}>
+            <div className="flex-1 rounded-b-lg px-2 pt-2 overflow-y-auto bg-mainBody" style={{scrollbarWidth: 'none'}}>
               {activeSource === "youglish" ? (
-                  <div className="flex flex-col items-center h-full text-dataText">
-                      <h2 className="text-lg font-semibold mb-4">YouGlish Pronunciation</h2>
-                      
-                      <p className="text-sm text-otherText mb-2 text-center">
-                      Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
-                      </p>
-                      
-                      <a
+                <div className="flex flex-col justify-between h-full p-4 text-dataText">
+                  {/* Header */}
+                  <div className="flex flex-col items-center text-center">
+                    <h2 className="text-lg font-semibold mb-2">YouGlish Pronunciation</h2>
+                    <p className="text-sm text-otherText mb-4 max-w-sm">
+                      Hear real-world examples of how <strong>{text}</strong> is pronounced in English.
+                    </p>
+                    <a
                       href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
-                      >
-                      🔊 Open YouGlish
-                      </a>
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded shadow-sm transition"
+                    >
+                      🔊 Open in YouGlish
+                    </a>
                   </div>
-              ): (
+
+                  {/* License and Attribution */}
+                  {definitionSources[activeSource]?.license && (
+                    <div className="mt-6 flex justify-end">
+                      <div className="text-[10px] text-right text-otherText leading-snug max-w-xs">
+                        <p className="mb-0">{definitionSources[activeSource].license.attribution}</p>
+                        <a
+                          href={definitionSources[activeSource].license.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline hover:text-dataText"
+                        >
+                          {definitionSources[activeSource].license.name}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
               <div className="flex-1 flex-col overflow-y-auto space-y-2 rounded-b-lg p-2">
-                {/* Word and Phonetic Text */}
-                <div className="flex items-center justify-between">
+                  {/* Word and Phonetic Text */}
+                  <div className="flex items-center justify-between">
 
                   {/* Left side  */}
                   <div className="flex items-center flex-1">
-                    <h2 className="font-semibold text-dataText text-lg">{text}</h2>
-                    <h2 className="text-sm text-otherText">{definitions[activeSource]?.phoneticText}</h2>
-                    <button
-                      title="Play Pronunciation"
-                      className="ml-2 mb-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                      onClick={() => {
-                        const rawUrl = definitions[activeSource]?.pronunciationAudio
-                        const audioUrl = rawUrl?.startsWith("//") ? "https:" + rawUrl : rawUrl
-                        if (audioUrl) {
-                          const audio = new Audio(audioUrl)
-                          audio.play().catch((err) => console.warn("Audio failed to play", err))
-                        }
-                      }}
-                    >
-                      <IoVolumeMediumSharp size={20} />
-                    </button>
+                    <h2 className="font-semibold text-dataText text-lg mr-2">{text}</h2>
+                    {definitions[activeSource]?.phoneticText?.trim() && (
+                      <h2 className="text-sm text-otherText mr-2">
+                        {definitions[activeSource].phoneticText}
+                      </h2>
+                    )}
 
-                    <button
-                      title="Lingua Robot Audio"
-                      className="ml-1 mb-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                      onClick={() => {
-                        const audioUrl = definitions['linguarobotapi']?.pronunciationAudio
+                    <PortalTooltip text="Synthesizer">
+                      <button
+                        title="Play Pronunciation"
+                        className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                        onClick={() => {
+                          const utterance = new SpeechSynthesisUtterance(text);
+                          utterance.lang = "en-US"; // Set language (optional)
+                          window.speechSynthesis.speak(utterance);
+                        }}
+                      >
+                        <IoVolumeMediumSharp size={22} />
+                      </button>
+                    </PortalTooltip>
+                    
+                    { Boolean(definitions['freedictionaryapi']?.pronunciationAudio) && (
+                      <PortalTooltip text="FreeDictionaryAPI Audio">
+                        <button
+                          title="Free Dictionary API Audio"
+                          className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                          onClick={() => {
+                            const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
 
-                        const audio = new Audio(audioUrl)
-                        audio.play().catch((err) => console.warn("Audio failed to play", err))
-                      }}
-                    >
-                      <IoVolumeMediumSharp size={20} />
-                    </button>
+                            const audio = new Audio(audioUrl)
+                            audio.play().catch((err) => console.warn("Audio failed to play", err))
+                          }}
+                          >
+                            <IoVolumeMediumSharp size={22} />
+                        </button>
+                      </PortalTooltip>
+                    )}
+                    
                   </div>
 
                   {/* Manual Save Button (Right side)  */}
@@ -1427,6 +1497,26 @@ function IndexPopup() {
                     </a>
                   </div>
                 )}
+
+                {/* License and Attribution */}
+                {definitionSources[activeSource]?.license && (
+                  <div className="mt-3 flex justify-end">
+                    <div className="text-[8px] text-right text-otherText leading-snug max-w-xs">
+                      <p className="mb-0">
+                        {definitionSources[activeSource].license.attribution}
+                      </p>
+                      <a
+                        href={definitionSources[activeSource].license.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-dataText"
+                      >
+                        {definitionSources[activeSource].license.name}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 
               </div>)}
 
@@ -1461,7 +1551,7 @@ function IndexPopup() {
 
               <div className="flex flex-col gap-2 mr-6">
                 {/* Upgrade to Premium Button or Export Button  */}
-                {!isPro ? (
+                {!isPro && (!exportCount || exportCount <= 0) ? (
                     <button
                     className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
                     title="Upgrade to Pro to unlock exports"
@@ -1473,6 +1563,7 @@ function IndexPopup() {
                   </button>
                 ) : (
                   <button
+                  id="export-history-button"
                   disabled={history.length === 0}
                   className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-text ${
                     history.length === 0
@@ -1621,10 +1712,12 @@ function IndexPopup() {
               <span>Export Source</span>
               <select
                 className="bg-mainBody text-text rounded px-2 py-1"
-                value={exportSource}
+                value={defaultExportSource}
                 onChange={(e) => setExportSource(e.target.value)}
               >
-                {Object.keys(enabledSources).map((source) => (
+                {Object.keys(enabledSources)
+                .filter((source) => definitionSources[source]?.exportable)
+                .map((source) => (
                   <option key={source} value={source}>
                     {source}
                   </option>
@@ -1691,7 +1784,18 @@ function IndexPopup() {
               }`}
               disabled={!includeAllWords && selectedWords.length === 0}
               title={!includeAllWords && selectedWords.length === 0 ? "Select at least one word" : ""}
-              onClick={handleExport}
+              onClick={async () => {
+                const { exportCount } = await chrome.storage.local.get("exportCount")
+                if ((!exportCount || exportCount <= 0) && !isPro) {
+                  alert("You've reached your free export limit!")
+                  return
+                }
+
+                handleExport()
+              
+                // Decrement and save new value
+                await chrome.storage.local.set({ exportCount: exportCount - 1 })
+              }}
             >
               Export
             </button>

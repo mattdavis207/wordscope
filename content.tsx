@@ -10,8 +10,9 @@ import { GoHeart, GoHeartFill } from "react-icons/go"
 
 import { createRoot } from "react-dom/client"
 
-import "~/styles/tailwind.css"
-import "./styles/globals.css";
+// import "~/public/styles/tailwind.css"
+import "./assets/styles/tailwind-content.css"
+import "~/public/styles/globals.css";
 import { injectSavedThemes } from "./hooks/injectThemes";
 import type { Theme } from "./hooks/injectThemes"
 
@@ -44,6 +45,8 @@ document.addEventListener("contextmenu", (e) => {
   }
   console.log(" updated lastRightClickPos:", lastRightClickPos)
 })
+
+chrome.storage.local.get("userEmail", (result) => console.log("Got from storage", result))
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
@@ -107,14 +110,6 @@ const Bubble = () => {
   const [expandedWord, setExpandedWord] = useState<string | null>(null)
   const [hoverTrash, setHoverTrash] = useState(false)
 
-  // Export flags and state variables
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFileType, setExportFileType] = useState<"tsv" | "csv" | "json">("tsv");
-  const [exportSource, setExportSource] = useState(defaultExportSource || "");
-  const [includeAllWords, setIncludeAllWords] = useState(true);
-  const [selectedWords, setSelectedWords] = useState<string[]>([]);
-
-
   //Selection coords
   const [rectLeft, setRectLeft] = useState(0);
   const [rectRight, setRectRight] = useState(0);
@@ -144,21 +139,75 @@ const Bubble = () => {
 
   // Pro flag
   const [isPro, setIsPro] = useState(false)
+  const [exportCount, setExportCount] = useState<number | null>(null)
 
-  useEffect(() => {
-    const email = localStorage.getItem("userEmail")
-    if (!email) return
+   // Pull export count 
+   useEffect(() => {
+    chrome.storage.local.get(["exportCount", "isPro"], (result) => {
+      setExportCount(result.exportCount ?? 0)
+      setIsPro(result.isPro ?? false)
+    })
+  }, [])
+
+  const getUserEmail = (): Promise<string | null> => {
+    return new Promise((resolve) => {
+      chrome.storage.local.get("userEmail", (result) => {
+        resolve(result.userEmail || null)
+      })
+    })
+  }
+  // Get email from chrome.storage.local to update isPro
+  useEffect( () => {
+    const checkIsPro = async () => {
+      const email = await getUserEmail()
+      console.log("✅ email from chrome.storage.local:", email)
+      if (!email) return
     
-    fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
-      .then((res) => res.json())
-      .then((data) => setIsPro(data.isPro))
-      .catch((err) => console.error("Error checking Pro:", err))
+      // Send message to background.ts for fetching from isPro endpoint
+      chrome.runtime.sendMessage(
+        { type: "CHECK_IS_PRO", email },
+        (response) => {
+          if (response?.success) {
+            console.log("✅ isPro status:", response.isPro)
+            setIsPro(response.isPro)
+          } else {
+            console.error("❌ Failed to fetch isPro status")
+          }
+        }
+      )
+    }
+    checkIsPro()
+    
   }, [])
   
 
-  const handleUpgrade = async () => {
-    const email = localStorage.getItem("userEmail")
+  // Get email on sign in to update isPro state
+  useEffect(() => {
+    const listener = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string
+    ) => {
+      if (areaName === "local") {
+        if (changes.isPro) {
+          console.log("changing isPro to", changes.isPro.newValue)
+          setIsPro(changes.isPro.newValue)
+        }
+        if (changes.exportCount) {
+          setExportCount(changes.exportCount.newValue)
+        }
+      }
+    }
+  
+    chrome.storage.onChanged.addListener(listener)
+    return () => chrome.storage.onChanged.removeListener(listener)
+  }, [])
+  
+  
 
+  const handleUpgrade = async () => {
+    const email = await getUserEmail()
+    console.log("✅ email from chrome.storage.local:", email)
+    
     // Direct user to sign in if no email
     if (!email){
       chrome.runtime.sendMessage({ type: "OPEN_POPUP" })
@@ -171,18 +220,17 @@ const Bubble = () => {
     }
     // Start checkout session if email is in storage
     else{
-      const res = await fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/create-checkout-session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-    
-      const data = await res.json()
-      if (data.url) {
-        window.open(data.url, "_blank")
-      } else {
-        alert("Failed to create checkout session.")
-      }
+      // Fetch url from background.ts 
+      chrome.runtime.sendMessage(
+        { type: "CREATE_CHECKOUT_SESSION", email },
+        (response) => {
+          if (response?.success && response.url) {
+            window.open(response.url, "_blank")
+          } else {
+            alert("❌ Failed to create checkout session")
+          }
+        }
+      )
     }
   }
 
@@ -709,36 +757,15 @@ const Bubble = () => {
   }, [])
 
 
-  // Fallback if defaultExportSource is not set to firstEnabled source
-  useEffect(() => {
-    if (!defaultExportSource && sourceOrder.length > 0) {
-      const firstEnabled = sourceOrder.find((src) => enabledSources[src]);
-      setExportSource(firstEnabled || "");
-    }
-  }, [defaultExportSource, sourceOrder, enabledSources]);
+ 
+
 
   const handleExport = () => {
-    let data = "";
-    if (exportFileType === "tsv") {
-      data = exportAsTSV(exportSource, includeAllWords, selectedWords);
-    } else if (exportFileType === "csv") {
-      data = exportAsCSV(exportSource, includeAllWords, selectedWords);
-    } else if (exportFileType === "json") {
-      data = exportAsJSON(exportSource, includeAllWords, selectedWords);
-    } else if (exportFileType === "pdf") {
-      exportAsPDF(exportSource, includeAllWords, selectedWords);
-    }
-  
-    const blob = new Blob([data], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `dictionary_history.${exportFileType}`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setShowExportModal(false);
+    chrome.runtime.sendMessage({ type: "OPEN_POPUP" })
+    setTimeout(() => {
+      chrome.runtime.sendMessage({ action: "open-history-export" })
+    }, 1500)
   };
-  
 
 
   // For tracking animation between tabs and synonyms/antonyms
@@ -952,7 +979,7 @@ const Bubble = () => {
               // Context AI Button (if Pro)
               <button
                 title="Context AI (Pro)"
-                className="flex items-center gap-1 px-2 py-1 rounded-full text-text border border-border bg-mainBody hover:bg-dullBox transition-colors duration-200"
+                className="flex items-center gap-1 p-1 rounded text-text bg-mainBody hover:bg-dullBox transition-colors duration-200"
                 onClick={() => {
                   const selection = window.getSelection()?.toString().trim()
                   if (!selection) {
@@ -961,11 +988,6 @@ const Bubble = () => {
                   }
                   setShowContextAI((prev) => !prev)
                   setShowHistory(false)
-                }}
-                style={{
-                  color: "var(--text)",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--main-body)",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = "var(--hover-icon)";
@@ -1046,7 +1068,7 @@ const Bubble = () => {
 
               <div className={`flex gap-2 ${isCompactHistoryView ? "flex-col" : ""}`}>
                 {/* Upgrade to Premium Button or Export Button  */}
-                {!isPro ? (
+                {!isPro && (!exportCount || exportCount <= 0) ? (
                     <button
                     className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
                     title="Upgrade to Pro to unlock exports"
@@ -1064,9 +1086,7 @@ const Bubble = () => {
                       : "bg-mainBody hover:bg-dullBox"
                   }`}
                   title="Export History"
-                  onClick={() => {
-                    setShowExportModal(true);
-                  }}
+                  onClick={handleExport}
                 >
                   <HiOutlineArrowDownTray size={16} />
                   <span className="text-sm">Export</span>
@@ -1214,27 +1234,54 @@ const Bubble = () => {
 
             {/* Main Text */}
             {activeSource === "youglish" ? (
-              <div className="flex flex-1 flex-col items-center justify-center h-full bg-mainBody text-dataText">
-                  <h2 className="text-lg font-semibold my-4">YouGlish Pronunciation</h2>
+              <div 
+                className="flex-1 flex-col overflow-y-auto bg-mainBody text-dataText"
+                style = {{
+                  scrollbarColor: "var(--tab-active-bg) var(--main-body)", 
+                  overscrollBehavior: "contain",
+                  WebkitOverflowScrolling: "touch" 
+                }}
+                >
+                    <div className= "flex flex-col items-center justify-between"> 
+                      <h2 className="text-lg font-semibold my-4">YouGlish Pronunciation</h2>
 
-                  <p className="text-sm text-otherText mb-2 text-center">
-                      Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
-                  </p>
+                      <p className="text-sm text-otherText mb-2 text-center">
+                          Click the button below to hear real-world examples of how <strong>{text}</strong> is pronounced in English.
+                      </p>
 
-                  <a
-                      href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
-                  >
-                      🔊 Open YouGlish
-                  </a>
+                      <a
+                          href={`https://youglish.com/pronounce/${encodeURIComponent(text)}/english`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-blue-600 hover:bg-blue-700 text-dataText font-medium py-2 px-4 rounded transition"
+                      >
+                          🔊 Open YouGlish
+                      </a>
+                    </div>
+                  
+                  
+                    {/* License and Attribution  */}
+                    {definitionSources[activeSource]?.license && (
+                      <div className="mt-6 pr-4 pb-2 flex justify-end">
+                        <div className="text-[10px] text-right text-otherText leading-snug max-w-xs">
+                          <p className="mb-0">{definitionSources[activeSource].license.attribution}</p>
+                          <a
+                            href={definitionSources[activeSource].license.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:text-dataText"
+                          >
+                            {definitionSources[activeSource].license.name}
+                          </a>
+                        </div>
+                      </div>
+                    )}   
               </div>
             ) : (
               <div 
                 id="data-scroll-container"
                 ref={DataContainerRef}
-                className="flex-1 flex-col overflow-y-auto space-y-2 mb-2 rounded-b-lg p-2 bg-mainBody" 
+                className="flex-1 flex-col overflow-y-auto space-y-2 mb-2 rounded-b-lg p-2 pr-4 bg-mainBody" 
                 style = {{
                   scrollbarColor: "var(--tab-active-bg) var(--main-body)", 
                   overscrollBehavior: "contain",
@@ -1243,47 +1290,41 @@ const Bubble = () => {
                 {/* Word and Phonetic Text */}
                 <div className="flex items-center justify-between">
 
-                  {/* Left side */}
+                  {/* Left side  */}
                   <div className="flex items-center flex-1">
                     <h2 className="font-semibold text-dataText text-lg mr-2">{text}</h2>
-                    <h2 className="text-sm text-otherText">{definitions['freedictionaryapi']?.phoneticText}</h2>
+                    {definitions[activeSource]?.phoneticText?.trim() && (
+                      <h2 className="text-sm text-otherText mr-2">
+                        {definitions[activeSource].phoneticText}
+                      </h2>
+                    )}
                     <button
                       title="Play Pronunciation"
-                      className="ml-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                      className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
                       onClick={() => {
-                        const rawUrl = definitions['freedictionaryapi']?.pronunciationAudio
-                        // Use speech synthesis if no audio from freedictionaryapi
-                        if (!rawUrl) {
-                          // Fallback to Web Speech API
-                          const utterance = new SpeechSynthesisUtterance(text)
-                          utterance.lang = "en-US"
-                          speechSynthesis.speak(utterance)
-                        } else {
-                          console.log(rawUrl);
-                          const audioUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = "en-US"; // Set language (optional)
+                        window.speechSynthesis.speak(utterance);
+                      }}
+                    >
+                      <IoVolumeMediumSharp size={22} />
+                    </button>
+                    
+                    { Boolean(definitions['freedictionaryapi']?.pronunciationAudio) && (
+                      <button
+                        title="Free Dictionary API Audio"
+                        className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                        onClick={() => {
+                          const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
 
                           const audio = new Audio(audioUrl)
                           audio.play().catch((err) => console.warn("Audio failed to play", err))
-                        }
-
-
-                      }}
-                    >
-                      <IoVolumeMediumSharp size={20} />
-                    </button>
-
-                    <button
-                      title="Lingua Robot Audio"
-                      className="ml-1 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                      onClick={() => {
-                        const audioUrl = definitions['linguarobotapi']?.pronunciationAudio
-
-                        const audio = new Audio(audioUrl)
-                        audio.play().catch((err) => console.warn("Audio failed to play", err))
-                      }}
-                    >
-                      <IoVolumeMediumSharp size={20} />
-                    </button>
+                        }}
+                        >
+                          <IoVolumeMediumSharp size={22} />
+                      </button>
+                    )}
+                    
                   </div>
 
                   {/* Manual Save Button (Right side) */}
@@ -1395,7 +1436,7 @@ const Bubble = () => {
                       href={definitionSources[activeSource].getMoreInfoUrl(text)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-1 mr-2  bg-tabActiveBg text-dataText text-lg rounded-2xl hover:bg-dullBox transition"
+                      className="inline-flex items-center gap-2 px-3 py-1 bg-tabActiveBg text-dataText text-lg rounded-2xl hover:bg-dullBox transition"
                     >
                       {typeof definitionSources[activeSource].icon === "string" ? (
                         <img
@@ -1411,131 +1452,28 @@ const Bubble = () => {
                   </div>
                 )}
 
+                {/* License and Attribution */}
+                {definitionSources[activeSource]?.license && (
+                  <div className="mt-6 flex justify-end">
+                    <div className="text-[10px] text-right text-otherText leading-snug max-w-xs">
+                      <p className="mb-0">{definitionSources[activeSource].license.attribution}</p>
+                      <a
+                        href={definitionSources[activeSource].license.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-dataText"
+                      >
+                        {definitionSources[activeSource].license.name}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
               </div>// start of word data
             )}
             
 
           </div> //Main box (aside from history rendering)
-        )}
-
-
-        {showExportModal && (
-          <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-background text-text rounded-lg shadow-lg w-96 p-6">
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Export History</h3>
-                <button
-                  className="text-text hover:text-red-400"
-                  onClick={() => {
-                    setShowExportModal(false)
-                    setIsLocked(false)
-                  }}
-                >
-                  <HiOutlineXMark size={20} />
-                </button>
-              </div>
-
-              {/* Export Options */}
-              <div className="space-y-3">
-                {/* File Type */}
-                <div className="flex items-center justify-between">
-                  <span>File Type</span>
-                  <select
-                    className="bg-mainBody text-text rounded px-2 py-1"
-                    value={exportFileType}
-                    onChange={(e) => setExportFileType(e.target.value as "tsv" | "csv" | "json")}
-                  >
-                    <option value="tsv">TSV (.tsv)</option>
-                    <option value="csv">CSV (.csv)</option>
-                    <option value="json">JSON (.json)</option>
-                    <option value="pdf">PDF (.pdf)</option>
-                  </select>
-                </div>
-
-                {/* Source */}
-                <div className="flex items-center justify-between">
-                  <span>Export Source</span>
-                  <select
-                    className="bg-mainBody text-text rounded px-2 py-1"
-                    value={exportSource}
-                    onChange={(e) => setExportSource(e.target.value)}
-                  >
-                    {Object.keys(enabledSources).map((source) => (
-                      <option key={source} value={source}>
-                        {source}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Include All Words or Selected */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="allWords"
-                    checked={includeAllWords}
-                    onChange={(e) => setIncludeAllWords(e.target.checked)}
-                  />
-                  <label htmlFor="allWords">Include All Words</label>
-                </div>
-
-                {/* Word Selection (if Include All is false) */}
-                {!includeAllWords && (
-                  <div className="bg-mainBody rounded p-3">
-                    <p className="font-medium mb-2">Select Words to Export</p>
-                    <div className="max-h-48 overflow-y-auto space-y-1">
-                      {history.map(({ word }) => (
-                        <div key={word} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id={`word-${word}`}
-                            checked={selectedWords.includes(word)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedWords((prev) => [...prev, word]);
-                              } else {
-                                setSelectedWords((prev) => prev.filter((w) => w !== word));
-                              }
-                            }}
-                          />
-                          <label htmlFor={`word-${word}`} className="truncate">
-                            {word}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-
-              {/* Modal Actions */}
-              <div className="flex justify-end gap-2 mt-5">
-                <button
-                  className="px-3 py-1 bg-mainBody rounded hover:bg-dullBox"
-                  onClick={() => {
-                    setShowExportModal(false)
-                    setIsLocked(false)
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  className={`px-3 py-1 rounded ${
-                    (!includeAllWords && selectedWords.length === 0)
-                      ? "bg-border cursor-not-allowed"
-                      : "bg-green-600 hover:bg-green-700"
-                  }`}
-                  disabled={!includeAllWords && selectedWords.length === 0}
-                  title={!includeAllWords && selectedWords.length === 0 ? "Select at least one word" : ""}
-                  onClick={handleExport}
-                >
-                  Export
-                </button>
-              </div>
-            </div>
-          </div>
         )}
 
       </div>
@@ -1544,8 +1482,30 @@ const Bubble = () => {
 }
 
 
-
 // Inject the component into the page
-const mount = document.createElement("div")
-document.body.appendChild(mount)
-createRoot(mount).render(<Bubble />)
+const shadowHost = document.createElement("div")
+shadowHost.id = "wordscope-bubble"
+document.body.appendChild(shadowHost)
+const shadow = shadowHost.attachShadow({ mode: "open" })
+
+// Inject CSS first
+const style = document.createElement("link")
+style.rel = "stylesheet"
+style.href = chrome.runtime.getURL("assets/styles/tailwind-content.css")
+shadow.appendChild(style)
+
+style.onload = () => {
+  const bubbleRoot = document.createElement("div")
+  shadow.appendChild(bubbleRoot)
+  createRoot(bubbleRoot).render(<Bubble/>)
+}
+
+
+
+
+
+
+
+// const mount = document.createElement("div")
+// document.body.appendChild(mount)
+// createRoot(mount).render(<Bubble />)

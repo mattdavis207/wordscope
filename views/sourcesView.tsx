@@ -4,8 +4,8 @@ import { RxDragHandleDots2 } from "react-icons/rx"
 import { ReactSortable as Sortable } from "react-sortablejs"
 import { useSourceSettings } from "../hooks/useSourceSettings"
 
-import "~/styles/tailwind.css"
-import "../styles/globals.css";
+import "~/public/styles/tailwind.css"
+import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
 
@@ -35,6 +35,7 @@ export function SourcesTab() {
     loadThemes();
   }, []);
 
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   // Render this if still loading
   if (loading || sourceOrder.length === 0) return null
@@ -50,19 +51,6 @@ export function SourcesTab() {
         tag="div"
         list={sourceOrder}
         setList={(newOrder) => {
-          const cleanedOrder = newOrder.map((item: { [x: string]: any }) => {
-            if (typeof item === "string") return item
-            if (typeof item === "object" && item !== null) {
-              // Only grab numeric keys
-              return Object.keys(item)
-                .filter((k) => /^\d+$/.test(k))
-                .sort((a, b) => Number(a) - Number(b))
-                .map((k) => item[k])
-                .join("")
-            }
-            return ""
-          }).filter(Boolean)
-        
           setSourceOrder(newOrder)
           saveSettings(newOrder, enabledSources)
         }}
@@ -76,40 +64,74 @@ export function SourcesTab() {
             >
               {/* Drag Handle */}
               <div className="flex items-center mr-3 text-otherText cursor-grab">
-                <RxDragHandleDots2 size={20} />
+                <RxDragHandleDots2 size={24} />
               </div>
 
               {/* Source Info */}
               <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  {typeof source.icon === "string" ? (
-                    <img
-                      src={source.icon}
-                      alt={`${source.name} icon`}
-                      className="w-6 h-6 object-contain"
-                    />
-                  ) : (
-                    <span className="text-lg">{source.icon}</span>
-                  )}
-                  <span className="font-medium text-dataText">{source.name}</span>
-                </div>
-                <p className="text-sm text-otherText mt-1">
-                  A dictionary source providing definitions and examples.
-                </p>
-              </div>
+                {/* Header Row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {typeof source.icon === "string" ? (
+                      <img
+                        src={source.icon}
+                        alt={`${source.name} icon`}
+                        className="w-6 h-6 object-contain"
+                      />
+                    ) : (
+                      <span className="text-xl">{source.icon}</span>
+                    )}
+                    <span className="font-medium text-dataText">{source.name}</span>
+                  </div>
 
-              {/* Enable/Disable Toggle */}
-              <div className="flex items-center ml-3">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={enabledSources[key]}
-                    onChange={() => toggleSource(key)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-400 peer-focus:ring-4 rounded-full peer peer-checked:bg-blue-500 transition-all duration-300"></div>
-                  <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 peer-checked:translate-x-full"></div>
-                </label>
+                  {/* Toggle */}
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enabledSources[key]}
+                      onChange={() => toggleSource(key)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-400 peer-focus:ring-4 rounded-full peer peer-checked:bg-blue-500 transition-all duration-300"></div>
+                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 peer-checked:translate-x-full"></div>
+                  </label>
+                </div>
+
+                {/* Description Section */}
+                <div className="mt-2 text-sm text-otherText">
+                  <p
+                    className={`transition-all ${
+                      expanded === key ? "" : "line-clamp-2"
+                    }`}
+                  >
+                    {source.description}
+                  </p>
+                  {source.description.length > 80 && (
+                    <button
+                      className="text-[10px] text-blue-400 hover:underline mt-1"
+                      onClick={() => setExpanded(expanded === key ? null : key)}
+                    >
+                      {expanded === key ? "Show Less" : "Show More"}
+                    </button>
+                  )}
+                </div>
+
+                {/* License */}
+                {source.license && (
+                  <div className="mt-2 flex justify-end">
+                    <div className="text-[8px] text-right text-otherText leading-tight max-w-xs">
+                      <p className="mb-0">{source.license.attribution}</p>
+                      <a
+                        href={source.license.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-dataText"
+                      >
+                        {source.license.name}
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )

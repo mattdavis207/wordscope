@@ -40,6 +40,7 @@
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "4.1.1",
     "@ljharb/tsconfig": "^0.3.2",
+    "@tailwindcss/line-clamp": "^0.4.4",
     "@types/chrome": "0.0.258",
     "@types/express": "^5.0.3",
     "@types/node": "20.11.5",
@@ -53,13 +54,21 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
+      "https://*/*",
+      "https://wordscope-extension.vercel.app/*"
     ],
     "permissions": [
       "contextMenus",
       "storage",
       "sidePanel",
-      "tabs"
+      "tabs",
+      "scripting"
+    ],
+    "web_accessible_resources": [
+      {
+        "resources": ["assets/styles/tailwind-content.css"],
+        "matches": ["<all_urls>"]
+      }
     ]
   }
 }
