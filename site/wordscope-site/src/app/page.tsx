@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import './globals.css'
+// import { Bubble } from "../../../content.tsx"
 import "./tailwind.css"
+import './globals.css'
+
 
 export default function Home() {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -28,12 +30,12 @@ export default function Home() {
   ];
 
   const browsers = [
-    { name: "Chrome", logo: "/logos/chrome.png", url: "https://chrome.google.com/webstore" },
-    { name: "Edge", logo: "/logos/edge.png", url: "https://microsoftedge.microsoft.com/addons" },
-    { name: "Brave", logo: "/logos/brave.png", url: "https://chrome.google.com/webstore" },
-    { name: "Opera", logo: "/logos/opera.png", url: "https://addons.opera.com" },
-    { name: "Vivaldi", logo: "/logos/vivaldi.png", url: "https://chrome.google.com/webstore" },
-    { name: "Yandex", logo: "/logos/yandex.png", url: "https://chrome.google.com/webstore" }
+    { name: "Chrome", logo: "/browsers/chrome-logo.png", url: "https://chrome.google.com/webstore" },
+    { name: "Edge", logo: "/browsers/edge-logo.png", url: "https://microsoftedge.microsoft.com/addons" },
+    { name: "Brave", logo: "/browsers/brave-logo.png", url: "https://chrome.google.com/webstore" },
+    { name: "Opera", logo: "/browsers/opera-logo.png", url: "https://addons.opera.com" },
+    { name: "Vivaldi", logo: "/browsers/vivaldi-logo.png", url: "https://chrome.google.com/webstore" },
+    { name: "Yandex", logo: "/browsers/yandex-logo.png", url: "https://chrome.google.com/webstore" }
   ];
 
   return (
@@ -60,9 +62,8 @@ export default function Home() {
       </div>
       
       {/* Spacer for fixed header */}
-      <div className="h-20"></div>
+      <div className="h-1"></div>
 
-      <h1 className="text-6xl text-white font-bold">Test Font Size</h1>
 
       {/* Hero Section */}
       <header className="relative overflow-hidden min-h-screen flex items-center">
@@ -75,7 +76,9 @@ export default function Home() {
             </div>
           </div>
           
-          <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold mb-8 bg-gradient-to-r from-[#BBE1FA] to-[#FFFFFF] bg-clip-text text-transparent leading-tight">
+          <h1 
+            className="font-bold mb-8 bg-gradient-to-r from-[#BBE1FA] to-[#FFFFFF] bg-clip-text text-transparent text-center"
+            style={{ fontSize: "4.5rem", lineHeight: "1.1" }}>
             Your Personal Dictionary
             <br />
             <span className="text-[#2563EB]">& AI Companion</span>
@@ -86,20 +89,20 @@ export default function Home() {
             Transform any webpage into your personal learning environment.
           </p>
 
-          <div id="download" className="mt-12">
+          <div id="download" className="mt-20">
             <p className="text-[#9CA3AF] mb-6 text-lg font-medium">Available for all major browsers:</p>
             <div className="flex flex-wrap justify-center gap-4">
               {browsers.map((browser) => (
                 <a
                   key={browser.name}
                   href={browser.url}
-                  className="group bg-[#1c2f47] hover:bg-[#2A4E75] border border-[#374151] hover:border-[#2563EB] text-white px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center space-x-3"
+                  className="group bg-[#1c2f47] hover:bg-[#2A4E75] border border-[#374151] hover:border-[#2563EB] text-white px-4 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center space-x-2"
                 >
                   <Image 
                     src={browser.logo} 
                     alt={`${browser.name} logo`} 
-                    width={24} 
-                    height={24}
+                    width={30} 
+                    height={30}
                     className="group-hover:scale-110 transition-transform"
                   />
                   <span className="font-medium text-lg">{browser.name}</span>
@@ -113,12 +116,12 @@ export default function Home() {
       {/* Interactive Feature Demo */}
       <section className="py-24 px-6 bg-[#072141] relative">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-6">See Wordscope in Action</h2>
+          <h2 className="font-bold text-center mb-6" style={{ fontSize: "2.5rem" }}>See Wordscope in Action</h2>
           <p className="text-[#9CA3AF] text-center mb-20 max-w-2xl mx-auto text-lg">
             Experience the power of instant definitions and contextual understanding right in your browser.
           </p>
           
-          <div className="relative bg-[#01122B] rounded-2xl p-10 border border-[#374151] shadow-2xl">
+          <div className="relative bg-[#01122B] rounded-2xl p-10 border border-[#374151] shadow-2xl mt-10">
             <div className="flex items-center space-x-4 mb-8 pb-6 border-b border-[#374151]">
               <div className="w-4 h-4 bg-red-500 rounded-full"></div>
               <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
@@ -133,64 +136,10 @@ export default function Home() {
                 The <span className="bg-[#2563EB] px-2 py-1 rounded-md cursor-pointer hover:bg-[#1e50c3] transition relative">revolutionary</span> approach 
                 to language learning involves understanding words in their natural context rather than memorizing isolated definitions.
               </p>
+
+              <Bubble></Bubble>
               
-              {/* Wordscope Bubble - Always Visible */}
-              <div className="absolute top-12 left-24 bg-[#1c2f47] border-2 border-[#2A4E75] rounded-xl p-6 shadow-2xl max-w-sm transform -translate-y-2 z-10">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-[#2A4E75] rounded-lg flex items-center justify-center">
-                      <span className="text-sm font-bold text-[#BBE1FA]">W</span>
-                    </div>
-                    <h4 className="font-semibold text-[#BBE1FA] text-lg">revolutionary</h4>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button className="w-8 h-8 bg-[#2A4E75] hover:bg-[#374151] rounded-lg text-sm transition flex items-center justify-center">🔊</button>
-                    <button className="w-8 h-8 bg-[#2A4E75] hover:bg-[#374151] rounded-lg text-sm transition flex items-center justify-center">⭐</button>
-                  </div>
-                </div>
-
-                {/* Pronunciation */}
-                <div className="mb-4 text-[#9CA3AF] text-sm">
-                  /ˌrevəˈluːʃəneri/ • <span className="text-[#2563EB]">adjective</span>
-                </div>
-                
-                {/* Definition */}
-                <div className="mb-4">
-                  <p className="text-[#BBE1FA] font-medium mb-2">Definition:</p>
-                  <p className="text-[#9CA3AF] text-sm leading-relaxed">
-                    Involving or causing a complete or dramatic change; radically new or innovative.
-                  </p>
-                </div>
-
-                {/* Example */}
-                <div className="mb-4">
-                  <p className="text-[#BBE1FA] font-medium mb-2">Example:</p>
-                  <p className="text-[#9CA3AF] text-sm italic leading-relaxed">
-                    {'The revolutionary new technology changed everything.'}
-                  </p>
-                </div>
-
-                {/* Sources */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="bg-[#2A4E75] text-[#BBE1FA] px-3 py-1 rounded-full text-xs font-medium">Google Dictionary</span>
-                  <span className="bg-[#374151] text-[#9CA3AF] px-3 py-1 rounded-full text-xs">Merriam-Webster</span>
-                  <span className="bg-[#374151] text-[#9CA3AF] px-3 py-1 rounded-full text-xs">Oxford</span>
-                </div>
-
-                {/* Bottom Actions */}
-                <div className="flex justify-between items-center pt-4 border-t border-[#374151]">
-                  <button className="text-[#2563EB] text-sm font-medium hover:text-[#1e50c3] transition">
-                    Add to History
-                  </button>
-                  <button className="bg-[#2563EB] hover:bg-[#1e50c3] text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                    Context AI
-                  </button>
-                </div>
-
-                {/* Arrow pointing to word */}
-                <div className="absolute -bottom-2 left-8 w-0 h-0 border-l-4 border-r-4 border-t-8 border-transparent border-t-[#2A4E75]"></div>
-              </div>
+              
             </div>
           </div>
         </div>
@@ -199,7 +148,7 @@ export default function Home() {
       {/* Feature Details with Enhanced Dropdowns */}
       <section id="features" className="bg-[#01122B] px-6 py-20">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-4">Inside Wordscope</h2>
+          <h2 className="font-bold text-center mb-4" style={{ fontSize: "2.5rem" }}>Inside Wordscope</h2>
           <p className="text-[#9CA3AF] text-center mb-16 max-w-2xl mx-auto">
             Explore the comprehensive features that make Wordscope your ultimate language companion.
           </p>
@@ -265,8 +214,8 @@ export default function Home() {
 
       {/* Features Grid */}
       <section className="bg-[#072141] px-6 py-24">
-        <h2 className="text-4xl font-bold text-center mb-20">Key Features</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto">
+        <h2 className="font-bold text-center" style={{ fontSize: "2.5rem" }}>Key Features</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto mt-5">
           {[
             { title: "Instant Definitions", desc: "Highlight any word to get definitions from multiple sources.", icon: "⚡", color: "from-[#2563EB] to-[#1e50c3]" },
             { title: "Source Configuration", desc: "Enable, disable, and reorder your preferred sources.", icon: "🔧", color: "from-[#059669] to-[#047857]" },
@@ -299,7 +248,7 @@ export default function Home() {
             </span>
           </div>
           
-          <h2 className="text-4xl font-bold mb-6">
+          <h2 className="font-bold mb-6" style={{ fontSize: "2.5rem" }}>
             Wordscope <span className="bg-gradient-to-r from-[#2563EB] to-[#7c3aed] bg-clip-text text-transparent">Pro</span>
           </h2>
           
@@ -337,14 +286,27 @@ export default function Home() {
                 ))}
               </ul>
               
-              <Link
-                href="/api/create-stripe-session"
+              <button
+                onClick={async () => {
+                  const res = await fetch("https://wordscope-extension.vercel.app/api/create-stripe-session", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      email: "", // or null
+                    }),
+                  });
+
+                  const { url } = await res.json();
+                  if (url) {
+                    window.location.href = url; // Redirect to Stripe Checkout
+                  }
+                }}
                 className="inline-block w-full bg-gradient-to-r from-[#2563EB] to-[#7c3aed] 
-                hover:from-[#1e50c3] hover:to-[#6d28d9] text-white font-semibold py-4 px-8 mt-4 rounded-xl 
-                transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  hover:from-[#1e50c3] hover:to-[#6d28d9] text-white font-semibold py-4 px-8 mt-4 rounded-xl 
+                  transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 Upgrade to Pro
-              </Link>
+              </button>
               
               <p className="text-[#9CA3AF] text-sm mt-4">Cancel anytime</p>
             </div>
@@ -353,178 +315,56 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#072141] py-12 px-6 border-t border-[#374151]">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-[#2A4E75] rounded-lg flex items-center justify-center">
-                  <span className="text-lg font-bold text-[#BBE1FA]">W</span>
-                </div>
-                <span className="text-xl font-bold">Wordscope</span>
-              </div>
-              <p className="text-[#9CA3AF] max-w-md">
-                Transform your browsing experience with instant definitions, contextual AI, and powerful learning tools.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4 text-[#BBE1FA]">Legal</h4>
-                <ul className="space-y-2 text-[#9CA3AF]">
-                  <li><Link href="#" className="hover:text-[#BBE1FA] transition">Privacy Policy</Link></li>
-                  <li><Link href="#" className="hover:text-[#BBE1FA] transition">Terms of Service</Link></li>
-                  <li><Link href="#" className="hover:text-[#BBE1FA] transition">Cookie Policy</Link></li>
-                </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4 text-[#BBE1FA]">Connect</h4>
-              <ul className="space-y-2 text-[#9CA3AF]">
-                <li><Link href="#" className="hover:text-[#BBE1FA] transition">Twitter</Link></li>
-                <li><Link href="#" className="hover:text-[#BBE1FA] transition">Reddit</Link></li>
-                <li><Link href="#" className="hover:text-[#BBE1FA] transition">Github</Link></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="pt-8 border-t border-[#374151] text-center">
-            <p className="text-[#9CA3AF]">&copy; 2025 Wordscope. All rights reserved.</p>
-          </div>
+      <footer className="bg-[#072141] py-10 px-6 border-t border-[#374151]">
+  <div className="max-w-6xl mx-auto w-full flex flex-wrap md:flex-nowrap justify-between gap-8 text-sm text-[#9CA3AF]">
+
+    {/* Left: Branding */}
+    <div className="flex-1 min-w-[200px]">
+      <div className="flex items-center space-x-3 mb-3">
+        <div className="w-8 h-8 bg-gradient-to-br from-[#2A4E75] to-[#2563EB] rounded-lg flex items-center justify-center shadow-2xl">
+          <span className="text-lg font-bold text-[#BBE1FA]">W</span>
         </div>
-      </footer>
+        <span className="text-xl font-bold text-[#BBE1FA]">Wordscope</span>
+      </div>
+      <p className="text-[#9CA3AF]">
+      Instantly define and explore words in real time as you browse. Wordscope brings contextual AI, trusted dictionary sources, 
+      and powerful learning tools together to transform every webpage into a personalized learning environment.
+      </p>
+    </div>
+
+    {/* Middle: Legal */}
+    <div className="min-w-[150px] ml-30">
+      <h4 className="font-semibold mb-3 text-[#BBE1FA]">Legal</h4>
+      <ul className="space-y-2">
+        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Privacy Policy</Link></li>
+        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Terms of Service</Link></li>
+        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Cookie Policy</Link></li>
+      </ul>
+    </div>
+
+    {/* Right: Connect */}
+    <div className="min-w-[150px]">
+      <h4 className="font-semibold mb-3 text-[#BBE1FA]">Connect</h4>
+      <ul className="space-y-2">
+        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Twitter</Link></li>
+        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Reddit</Link></li>
+        <li><Link href="#" className="hover:text-[#BBE1FA] transition">GitHub</Link></li>
+      </ul>
+    </div>
+
+  </div>
+
+  {/* Bottom bar */}
+  <div className="pt-8 border-t border-[#374151] text-center mt-10">
+    <p className="text-xs text-[#9CA3AF]">&copy; 2025 Wordscope. All rights reserved.</p>
+  </div>
+</footer>
+
+
+
     </div>
   );
 }
-
-
-
-// "use client";
-
-// import { useState } from "react";
-
-// import Image from "next/image";
-// import Link from "next/link";
-
-// export default function Home() {
-
-
-//   const [expanded, setExpanded] = useState<string | null>(null);
-
-//   const toggle = (key: string) => setExpanded(expanded === key ? null : key);
-
-//   return (
-//     <div className="bg-[#01122B] text-[#BBE1FA] font-sans">
-//       {/* Top Header */}
-//       <div className="flex items-center justify-between px-6 py-4 bg-[#072141] shadow">
-//         <div className="flex items-center space-x-2">
-//           <Image src="/logo.png" alt="Wordscope Logo" width={40} height={40} />
-//           <span className="text-2xl font-bold">Wordscope</span>
-//         </div>
-//       </div>
-
-//       {/* Hero Section */}
-//       <header className="flex flex-col items-center justify-center text-center py-24 px-4">
-//         <h1 className="text-4xl font-bold mb-4">Your Personal Dictionary & AI Companion</h1>
-//         <p className="max-w-xl text-[#9CA3AF] text-lg">
-//           Instantly define, explore, and understand words in context while you browse.
-//         </p>
-//         <div className="mt-6 flex flex-wrap justify-center gap-4">
-//           {["chrome", "edge", "brave", "opera", "vivaldi", "yandex"].map((browser) => (
-//             <a
-//               key={browser}
-//               href="#"
-//               className="bg-[#1c2f47] hover:bg-[#2A4E75] text-white text-sm px-4 py-2 rounded transition"
-//               title={`Get on ${browser}`.toUpperCase()}
-//             >
-//               {browser.charAt(0).toUpperCase() + browser.slice(1)}
-//             </a>
-//           ))}
-//         </div>
-//       </header>
-
-//       {/* Feature Details with Dropdowns */}
-//       <section className="bg-[#072141] px-6 py-20 max-w-4xl mx-auto">
-//         <h2 className="text-3xl font-semibold text-center mb-10">Inside Wordscope</h2>
-//         {[
-//           {
-//             title: "Sources",
-//             desc: "Enable/disable and reorder dictionary sources.",
-//             details: "Includes Google Dictionary, Wiktionary, WordAPI, Merriam-Webster, and more."
-//           },
-//           {
-//             title: "History Tab",
-//             desc: "Track all looked-up words.",
-//             details: "Every word you define is saved locally (optionally cloud synced) and shown in a searchable dropdown list."
-//           },
-//           {
-//             title: "Export",
-//             desc: "Take your data elsewhere.",
-//             details: "Export word lists as CSV, Anki-ready JSON, or sync directly to spaced repetition apps."
-//           },
-//         ].map(({ title, desc, details }) => (
-//           <div key={title} className="mb-6 border border-[#2A4E75] rounded-lg">
-//             <button
-//               className="w-full text-left px-6 py-4 bg-[#1c2f47] hover:bg-[#2A4E75] text-lg font-semibold focus:outline-none"
-//               onClick={() => toggle(title)}
-//             >
-//               {title} <span className="float-right">{expanded === title ? "−" : "+"}</span>
-//             </button>
-//             {expanded === title && (
-//               <div className="px-6 py-4 text-[#9CA3AF] text-sm border-t border-[#2A4E75]">
-//                 <p className="mb-1 font-semibold">{desc}</p>
-//                 <p>{details}</p>
-//               </div>
-//             )}
-//           </div>
-//         ))}
-//       </section>
-
-//       {/* Features Section */}
-//       <section className="bg-[#072141] px-6 py-20">
-//         <h2 className="text-3xl font-semibold text-center mb-12">Key Features</h2>
-//         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-//           {[
-//             { title: "Instant Definitions", desc: "Highlight any word to get definitions from multiple sources." },
-//             { title: "Source Configuration", desc: "Enable, disable, and reorder your preferred sources." },
-//             { title: "Context AI", desc: "Analyze usage of words in sentence and paragraph context." },
-//             { title: "History Tracking", desc: "Track, revisit, and export all previous lookups." },
-//             { title: "Custom Themes", desc: "Style the extension to your aesthetic with theme control." },
-//             { title: "Export & Pro Tools", desc: "Save data and unlock advanced features with Pro." },
-//           ].map((feature) => (
-//             <div
-//               key={feature.title}
-//               className="bg-[#1c2f47] p-6 rounded-lg hover:scale-105 transition-transform"
-//             >
-//               <div className="h-36 bg-[#2A4E75] mb-4 rounded" />
-//               <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-//               <p className="text-[#9CA3AF] text-sm">{feature.desc}</p>
-//             </div>
-//           ))}
-//         </div>
-//       </section>
-
-//       {/* Pro Subscription Box */}
-//       <section className="py-20 px-6 bg-[#01122B] text-center">
-//         <h2 className="text-3xl font-semibold mb-6">Go Pro</h2>
-//         <p className="text-[#9CA3AF] max-w-xl mx-auto mb-10">
-//           Unlock full power of Wordscope: extended history, export tools, early AI access, and more.
-//         </p>
-//         <div className="max-w-md mx-auto bg-[#1c2f47] p-8 rounded-lg shadow-lg">
-//           <ul className="text-left mb-6 space-y-3 text-sm">
-//             <li>✔ Unlimited history</li>
-//             <li>✔ Export to Anki/Quizlet</li>
-//             <li>✔ Early access to Context AI</li>
-//             <li>✔ More source integrations</li>
-//             <li>✔ Priority support</li>
-//           </ul>
-//           <div className="text-2xl font-bold mb-4">$3.99 / month</div>
-//           <Link href="/api/create-stripe-session">
-//             <a className="inline-block bg-[#2563EB] hover:bg-[#1e50c3] text-white font-semibold py-2 px-6 rounded-lg transition">
-//               Upgrade to Pro
-//             </a>
-//           </Link>
-//         </div>
-//       </section>
 
 //       {/* Footer */}
 //       <footer className="bg-[#072141] py-10 px-6">

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { IoVolumeMediumSharp, IoTimeOutline, IoSearch, IoPin, IoBook, IoSettings, IoTrashSharp, IoTrashOutline } from "react-icons/io5"
 import { IoMdArrowDropdown, IoMdArrowDropup } from "react-icons/io";
 import { HiMiniChatBubbleBottomCenterText, HiOutlineSparkles, HiOutlineTrash, HiOutlineArrowDownTray, HiOutlineXMark } from "react-icons/hi2";
 import { GoHeart, GoHeartFill } from "react-icons/go"
 import { FaCrown } from "react-icons/fa"
+import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
 import React from "react"
 
 import "~/public/styles/tailwind.css"
@@ -28,6 +29,9 @@ declare global {
 }
 
 const HISTORY_KEY = "history"
+
+// Define the port for listening for close
+const port = chrome.runtime.connect({ name: "sidepanel" })
 
 const SidePanel = () => {
     // History hook useStates
@@ -54,6 +58,7 @@ const SidePanel = () => {
 
     const [hasAvailableExtras, setHasAvailableExtras] = useState(false);
     const [prevSource, setPrevSource] = useState(activeSource)
+    const scrollRef = useRef<HTMLDivElement>(null)
     const [expandedWord, setExpandedWord] = useState<string | null>(null)
     const [searchInput, setSearchInput] = useState("")
     const [showHistory, setShowHistory] = useState(false)
@@ -68,13 +73,20 @@ const SidePanel = () => {
     const [showExportModal, setShowExportModal] = useState(false);
     const [exportFileType, setExportFileType] = useState<"tsv" | "csv" | "json">("tsv");
     const [exportSource, setExportSource] = useState(defaultExportSource || "");
-    const [includeAllWords, setIncludeAllWords] = useState(true);
+    const [includeAllWords, setIncludeAllWords] = useState(false);
     const [selectedWords, setSelectedWords] = useState<string[]>([]);
 
     // Pro flag
     const [isPro, setIsPro] = useState(false)
     const [exportCount, setExportCount] = useState<number | null>(null)
 
+    const scroll = (dir: "left" | "right") => {
+        scrollRef.current?.scrollBy({
+          left: dir === "left" ? -100 : 100,
+          behavior: "smooth"
+        })
+    }
+    
     // Pull export count 
     useEffect(() => {
         chrome.storage.local.get(["exportCount", "isPro"], (result) => {
@@ -245,7 +257,7 @@ const SidePanel = () => {
 
 
     return (
-        <div className="h-[100%] flex flex-col overflow-y-auto text-sm shadow-lg px-4 pb-4 pt-2 bg-background">
+        <div className="h-[100%] flex flex-col overflow-hidden text-sm shadow-lg px-4 pb-4 pt-2 bg-background">
             {/* Search and Utility Buttons Row */}
             <div className="flex items-center justify-between px-2 py-1 mb-2 bg-mainBody rounded-md text-text">
                 {/* Left Side */}
@@ -264,6 +276,7 @@ const SidePanel = () => {
                                 if (firstEnabled) {
                                     setActiveSource(firstEnabled as keyof typeof definitionSources)
                                 }
+                                setShowContextAI(false)
                                 setShowHistory(false)
                                 setText(searchInput.trim())
                                 setSearchInput("")
@@ -281,6 +294,7 @@ const SidePanel = () => {
                             if (firstEnabled) {
                                 setActiveSource(firstEnabled as keyof typeof definitionSources)
                             }
+                            setShowContextAI(false)
                             setShowHistory(false)
                             setText(searchInput.trim())
                             setSearchInput("")
@@ -349,7 +363,11 @@ const SidePanel = () => {
                     )}
 
                     {/* History */}
-                    <button title="History" className="p-1 rounded text-text hover:bg-dullBox" onClick={() => setShowHistory((prev) => !prev)}>
+                    <button title="History" className="p-1 rounded text-text hover:bg-dullBox" 
+                        onClick={() => {
+                        setShowHistory((prev) => !prev)
+                        setShowContextAI(false)
+                        }}>
                         <IoBook size={16} />
                     </button>
 
@@ -507,45 +525,84 @@ const SidePanel = () => {
                 </div>
             ) : (
                 <div className="flex-col flex overflow-hidden flex-1 rounded-b-lg h-[100%]">
-                    {/* Tabs */}
-                    <div className="flex pt-2 px-2 rounded-t-lg overflow-x-auto bg-background" style={{ scrollbarWidth: 'none' }}>
-                        {sourceOrder
-                            .filter((key) => enabledSources[key]) // Only enabled
-                            .map((key) => {
-                                const source = definitionSources[key]
-                                const isActive = key === activeSource
+                    <div className="relative group">
+                        {/* Left Arrow */}
+                        <button
+                        onClick={() => scroll("left")}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition mt-2 group-hover:opacity-100 transition duration-200 transition-colors"
+                        style={{
+                            color: "var(--text)",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "var(--hover-icon)";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "var(--text)";
+                        }}
+                        >
+                        <BiChevronLeft style={{ color: "inherit" }} className="text-2xl" />
+                        </button>
+        
+                        {/* Right Arrow */}
+                        <button
+                        onClick={() => scroll("right")}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition-colors mt-2 group-hover:opacity-100 transition duration-200" 
+                        style={{
+                            color: "var(--text)",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "var(--hover-icon)";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "var(--text)";
+                        }}
+                        >
+                        <BiChevronRight style={{ color: "inherit" }} className="text-2xl" />
+                        </button>
+                        {/* Tabs */}
+                        <div ref={scrollRef} className="flex pt-2 px-2 rounded-t-lg overflow-x-auto bg-background" style={{ 
+                            scrollbarWidth: 'none',
+                            scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+                            overscrollBehavior: "contain",
+                            WebkitOverflowScrolling: "touch" }}>  
+                            {sourceOrder
+                                .filter((key) => enabledSources[key]) // Only enabled
+                                .map((key) => {
+                                    const source = definitionSources[key]
+                                    const isActive = key === activeSource
 
-                                return (
-                                    <div key={key} >
-                                        <div
-                                            className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-mainBody" : "bg-background"
-                                                }`}
-                                        >
-                                            <PortalTooltip text={source.name}>
-                                                <button
-                                                    onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                                                    className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${isActive
-                                                            ? "bg-tabActiveBg"
-                                                            : "bg-mainBody hover:bg-dullBox"
-                                                        }`}
-                                                    title={source.name}
-                                                >
-                                                    {typeof source.icon === "string" ? (
-                                                        <img
-                                                            src={source.icon}
-                                                            alt={`${source.name} icon`}
-                                                            className="w-6 h-6 object-contain"
-                                                        />
-                                                    ) : (
-                                                        <span className="text-lg">{source.icon}</span>
-                                                    )}
-                                                </button>
-                                            </PortalTooltip>
+                                    return (
+                                        <div key={key} >
+                                            <div
+                                                className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-mainBody" : "bg-background"
+                                                    }`}
+                                            >
+                                                <PortalTooltip text={source.name}>
+                                                    <button
+                                                        onClick={() => setActiveSource(key as keyof typeof definitionSources)}
+                                                        className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${isActive
+                                                                ? "bg-tabActiveBg"
+                                                                : "bg-mainBody hover:bg-dullBox"
+                                                            }`}
+                                                        title={source.name}
+                                                    >
+                                                        {typeof source.icon === "string" ? (
+                                                            <img
+                                                                src={source.icon}
+                                                                alt={`${source.name} icon`}
+                                                                className="w-6 h-6 object-contain"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-lg">{source.icon}</span>
+                                                        )}
+                                                    </button>
+                                                </PortalTooltip>
+                                            </div>
                                         </div>
-                                    </div>
-                                )
+                                    )
 
-                            })}
+                                })}
+                        </div>
                     </div>
 
 
@@ -794,6 +851,7 @@ const SidePanel = () => {
                                 className="text-text hover:text-red-400"
                                 onClick={() => {
                                     setShowExportModal(false)
+                                    setIncludeAllWords(false)
                                 }}
                             >
                                 <HiOutlineXMark size={20} />
@@ -850,7 +908,11 @@ const SidePanel = () => {
                             {!includeAllWords && (
                                 <div className="bg-mainBody rounded p-3">
                                     <p className="font-medium mb-2">Select Words to Export</p>
-                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                    <div className="max-h-48 overflow-y-auto space-y-1" style={{
+                                        scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+                                        overscrollBehavior: "contain",
+                                        WebkitOverflowScrolling: "touch"
+                                    }}>
                                         {history.map(({ word }) => (
                                             <div key={word} className="flex items-center gap-2">
                                                 <input
@@ -882,6 +944,7 @@ const SidePanel = () => {
                                 className="px-3 py-1 bg-mainBody rounded hover:bg-dullBox"
                                 onClick={() => {
                                     setShowExportModal(false)
+                                    setIncludeAllWords(false)
                                 }}
                             >
                                 Cancel

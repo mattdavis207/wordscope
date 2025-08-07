@@ -8,6 +8,7 @@ import { FaRegPlusSquare, FaChevronLeft, FaChevronRight, FaEthereum, FaBitcoin,
 import { AiOutlineInfoCircle } from "react-icons/ai"
 import { IoMdArrowDropdown, IoMdArrowDropup} from "react-icons/io";
 import { GoHeart, GoHeartFill } from "react-icons/go"
+import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
 import { SiSolana } from "react-icons/si";
 import { RxCrossCircled } from "react-icons/rx"
 import { HexColorPicker } from "react-colorful";
@@ -85,6 +86,7 @@ function IndexPopup() {
   const [expandedWord, setExpandedWord] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState("")
   const [activeTab, setActiveTab] = useState("definitions")
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [hasAvailableExtras, setHasAvailableExtras] = useState(false);
   const [prevSource, setPrevSource] = useState(activeSource)
   const [hoverTrash, setHoverTrash] = useState(false)
@@ -98,7 +100,7 @@ function IndexPopup() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFileType, setExportFileType] = useState<"tsv" | "csv" | "json">("tsv");
   const [exportSource, setExportSource] = useState(defaultExportSource || "");
-  const [includeAllWords, setIncludeAllWords] = useState(true);
+  const [includeAllWords, setIncludeAllWords] = useState(false);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
 
 
@@ -121,7 +123,7 @@ function IndexPopup() {
     border: "#374151",
     tabActiveBg: '#2A4E75',
     aiChatBubble: '#2563EB',
-    userChatBubble: '#374151',
+    userChatBubble: '#3B82F6',
   });
 
   const [themes, setThemes] = useState([
@@ -133,7 +135,11 @@ function IndexPopup() {
     {
       name: "Wordscope Light",
       className: "theme-light",
-      colors: ["#FFFFFF", "#1F2937", "#F3F4F6", "#E5E7EB", "#1F2937"],
+      colors: [ "#f5f9ff",
+              "#1e3a5f",
+              "#ffffff",
+              "#e3edf7",
+              "#2563eb",]
     },
     {
       name: "Solar Breeze",
@@ -173,6 +179,13 @@ function IndexPopup() {
   const [showSignInModal, setShowSignInModal] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
+  const scroll = (dir: "left" | "right") => {
+    scrollRef.current?.scrollBy({
+      left: dir === "left" ? -100 : 100,
+      behavior: "smooth"
+    })
+  }
+  
   // Pull export count 
   useEffect(() => {
     chrome.storage.local.get(["exportCount", "isPro"], (result) => {
@@ -190,6 +203,10 @@ function IndexPopup() {
       .then((res) => res.json())
       .then((data) => setIsPro(data.isPro))
       .catch((err) => console.error("Error checking Pro:", err))
+
+    if (isPro) {
+
+    }
   }, [])
 
   //Sign in Logic 
@@ -234,6 +251,7 @@ function IndexPopup() {
   
     const data = await res.json()
     if (data.url) {
+
       window.open(data.url, "_blank")
     } else {
       alert("Failed to create checkout session.")
@@ -397,8 +415,6 @@ function IndexPopup() {
     if (e.key === "AltGraph") return "Alt"
     return e.key.charAt(0).toUpperCase() + e.key.slice(1)
   }
-
-
 
   // Fallback if defaultExportSource is not set to firstEnabled source
     useEffect(() => {
@@ -1238,9 +1254,47 @@ function IndexPopup() {
             <div className="text-center text-lg text-otherText mt-10 italic">Search a word to get started...</div>
           ) : ( 
           <div className= "flex flex-col flex-1 overflow-hidden ">
+            <div className="relative group">
+              {/* Left Arrow */}
+              <button
+                onClick={() => scroll("left")}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition mt-2 group-hover:opacity-100 transition duration-200 transition-colors"
+                style={{
+                  color: "var(--text)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--hover-icon)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--text)";
+                }}
+              >
+                <BiChevronLeft style={{ color: "inherit" }} className="text-2xl" />
+              </button>
 
+              {/* Right Arrow */}
+              <button
+                onClick={() => scroll("right")}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition-colors mt-2 group-hover:opacity-100 transition duration-200" 
+                style={{
+                  color: "var(--text)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--hover-icon)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--text)";
+                }}
+              >
+                <BiChevronRight style={{ color: "inherit" }} className="text-2xl" />
+              </button>
             {/* Tabs (source switcher) */}
-            <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background" style={{scrollbarWidth: 'none'}}>
+            <div ref={scrollRef} className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background scrollbar-horizontal"style={{ 
+              scrollbarWidth: "none",
+              scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch",
+              }}>  
             {sourceOrder
               .filter((key) => enabledSources[key]) // Only enabled
               .map((key) => {
@@ -1286,6 +1340,7 @@ function IndexPopup() {
                 )
               })}
             </div>
+          </div>
 
             {/* Main Definition Box */}
             <div className="flex-1 rounded-b-lg px-2 pt-2 overflow-y-auto bg-mainBody" style={{scrollbarWidth: 'none'}}>
@@ -1684,6 +1739,7 @@ function IndexPopup() {
               className="text-text hover:text-red-400"
               onClick={() => {
                 setShowExportModal(false)
+                setIncludeAllWords(false)
               }}
             >
               <HiOutlineXMark size={20} />
@@ -1740,7 +1796,11 @@ function IndexPopup() {
             {!includeAllWords && (
               <div className="bg-mainBody rounded p-3">
                 <p className="font-medium mb-2">Select Words to Export</p>
-                <div className="max-h-48 overflow-y-auto space-y-1">
+                <div className="max-h-48 overflow-y-auto space-y-1" style={{
+                    scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+                    overscrollBehavior: "contain",
+                    WebkitOverflowScrolling: "touch"
+                  }}>
                   {history.map(({ word }) => (
                     <div key={word} className="flex items-center gap-2">
                       <input
@@ -1772,6 +1832,7 @@ function IndexPopup() {
               className="px-3 py-1 bg-mainBody rounded hover:bg-dullBox"
               onClick={() => {
                 setShowExportModal(false)
+                setIncludeAllWords(false)
               }}
             >
               Cancel

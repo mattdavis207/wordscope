@@ -29,11 +29,11 @@ const ChatBubble = ({ sender, text }: { sender: "user" | "ai", text: string }) =
   return (
     <div className={`flex w-full ${sender === "user" ? "justify-end" : "justify-start"} mb-2`}>
       <div
-        className="inline-block px-4 py-2 rounded-lg text-sm relative break-words rounded-br-none ml-auto"
+        className="inline-block px-4 py-2 rounded-lg text-sm text-dataText relative break-words rounded-br-none"
         style={{
           maxWidth: "75%",    // Limits bubble size
           wordWrap: "break-word",
-          backgroundColor: sender === "user" ? "var(--user-chat-bubble)" : "var(--ai-chat-bubble)",
+          backgroundColor: `var(--${sender}-chat-bubble)`,
         }}
       >
         {sender === "ai" && text !== "Thinking..." && (

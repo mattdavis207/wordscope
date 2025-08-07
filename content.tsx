@@ -7,6 +7,7 @@ import { HiOutlineSparkles, HiOutlineTrash, HiOutlineArrowDownTray, HiOutlineXMa
 import { FaCrown } from "~node_modules/react-icons/fa";
 import { BsPinAngleFill } from "react-icons/bs";
 import { GoHeart, GoHeartFill } from "react-icons/go"
+import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
 
 import { createRoot } from "react-dom/client"
 
@@ -50,7 +51,7 @@ chrome.storage.local.get("userEmail", (result) => console.log("Got from storage"
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
-const Bubble = () => {
+export const Bubble = () => {
 
   // History hook useStates
   const { saveWord, history, setHistory, deleteWord, clearHistory, isSaved, toggleSave, autoAddToHistory, exportAsTSV, exportAsCSV, exportAsJSON, exportAsPDF } = useHistory()
@@ -106,6 +107,7 @@ const Bubble = () => {
 
   const [hasAvailableExtras, setHasAvailableExtras] = useState(false);
   const [prevSource, setPrevSource] = useState(activeSource)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [searchInput, setSearchInput] = useState("")
   const [expandedWord, setExpandedWord] = useState<string | null>(null)
   const [hoverTrash, setHoverTrash] = useState(false)
@@ -133,6 +135,7 @@ const Bubble = () => {
   const [isLocked, setIsLocked] = useState(false);
   const [isCompactView, setIsCompactView] = useState(false)
   const [isCompactHistoryView, setIsCompactHistoryView] = useState(false)
+  const isSidePanel = useRef(false);
 
   // Docking state
   const [isDetached, setIsDetached] = useState(false)
@@ -140,6 +143,13 @@ const Bubble = () => {
   // Pro flag
   const [isPro, setIsPro] = useState(false)
   const [exportCount, setExportCount] = useState<number | null>(null)
+
+  const scroll = (dir: "left" | "right") => {
+    scrollRef.current?.scrollBy({
+      left: dir === "left" ? -100 : 100,
+      behavior: "smooth"
+    })
+  }
 
    // Pull export count 
    useEffect(() => {
@@ -316,142 +326,168 @@ const Bubble = () => {
   // useEffect for calculating bubble coords and rendering on click
   useEffect(() => {
     const checkAndShowBubble = (e?: MouseEvent | Event, forcedText?: string, forcedMousePos?: { x: number; y: number }) => {
-    console.log("📦 click detected", e);
-    console.log("definition sources", definitionSources)
 
-    // 2. Apply logic based on selected trigger
-    if (e instanceof MouseEvent) {
-      if (!triggerSettings) return
-      console.log("inside if");
-    
-      const { triggerMethod, modifierCombo, customKeyCombo } = triggerSettings
-    
-      if (triggerMethod === "doubleClick") {
-        if (e.detail !== 2) return
-      } else if (triggerMethod === "modifierClick") {
-        const matched =
-          (modifierCombo === "cmdClick" && e.metaKey) ||
-          (modifierCombo === "altClick" && e.altKey)
-        if (!matched) return
-      } else if (triggerMethod === "keyCombo") {
-        if (!customKeyCombo || customKeyCombo.length === 0) return
-
-        console.log("inside keycombo with these keys pressed: ", pressedKeysRef);
-      
-        const allMatch = customKeyCombo.every((key) => pressedKeysRef.current.has(key))
-        if (!allMatch) return
-      } else {
+      // If side panel open, send word there
+      console.log("isSidePanel", isSidePanel)
+      if (isSidePanel.current){
+        const selectedText = window.getSelection()?.toString().trim();
+        chrome.runtime.sendMessage({
+          type: "word_from_bubble",
+          word: selectedText
+        });
         return
       }
-    }
 
-    const selection = forcedText || window.getSelection()?.toString().trim();
-    if (!selection) return
-
-    let rect
-
-    // If a forced selection was passed from contextMenu, we approximate position
-    if (forcedText) {
-      const range = window.getSelection()
-      if (range?.rangeCount) {
-        rangeRef.current = range.getRangeAt(0).cloneRange()
+      // If click happened inside bubble ignore, or isLocked
+      if (e instanceof MouseEvent && document.getElementById("wordscope-bubble")?.contains(e.target as Node) || (isLocked)) {
+        return
       }
-      const rects = range?.getRangeAt(0)?.getClientRects()
-      rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
-    } else {
-      const range = window.getSelection()
-      if (range?.rangeCount) {
-        rangeRef.current = range.getRangeAt(0).cloneRange()
+
+      // If triggered selection inside the bubble from Contextmenu
+      if (forcedText && document.getElementById("wordscope-bubble")?.contains(e.target as Node) || forcedText && (isLocked)) {
+        return
       }
-      const rects = range?.getRangeAt(0)?.getClientRects()
-      rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
-    }
 
-    if (!rect) return
+      console.log("📦 click detected", e);
+      console.log("definition sources", definitionSources)
 
-    const selectedText = selection?.toString().trim()
-    if (!selectedText) return
+      // 2. Apply logic based on selected trigger
+      if (e instanceof MouseEvent) {
+        if (!triggerSettings) return
+        console.log("inside if");
+      
+        const { triggerMethod, modifierCombo, customKeyCombo } = triggerSettings
+      
+        if (triggerMethod === "doubleClick") {
+          if (e.detail !== 2) return
+        } else if (triggerMethod === "modifierClick") {
+          const matched =
+            (modifierCombo === "cmdClick" && e.metaKey) ||
+            (modifierCombo === "altClick" && e.altKey)
+          if (!matched) return
+        } else if (triggerMethod === "keyCombo") {
+          if (!customKeyCombo || customKeyCombo.length === 0) return
 
-    // Smart position setting based on clientRects and bounding boxes
-    const scrollX = window.scrollX
-    const scrollY = window.scrollY
-    const vw = window.innerWidth
-    const vh = window.innerHeight
+          console.log("inside keycombo with these keys pressed: ", pressedKeysRef);
+        
+          const allMatch = customKeyCombo.every((key) => pressedKeysRef.current.has(key))
+          if (!allMatch) return
+        } else {
+          return
+        }
+      }
 
-    console.log("Rect dimensions", rect.width, rect.height);
+      const selection = forcedText || window.getSelection()?.toString().trim();
+      if (!selection) return
 
-    console.log("Rect top and bottom", rect.top, rect.bottom);
+      let rect
 
+      // If a forced selection was passed from contextMenu, get selection
+      if (forcedText) {
+        const range = window.getSelection()
+        if (range?.rangeCount) {
+          rangeRef.current = range.getRangeAt(0).cloneRange()
+        }
+        const rects = range?.getRangeAt(0)?.getClientRects()
+        rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+      } else {
+        const range = window.getSelection()
+        if (range?.rangeCount) {
+          rangeRef.current = range.getRangeAt(0).cloneRange()
+        }
+        const rects = range?.getRangeAt(0)?.getClientRects()
+        rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+      }
 
-    console.log("popupWidth", popupWidth);
-    console.log("popupHeight", popupHeight);
+      if (!rect) return
 
-    const offset = 12
+      const selectedText = selection?.toString().trim()
+      if (!selectedText) return
 
-    // Define all possible directions with their coordinates
-    const candidates = [
-      {
-        direction: "right",
-        fits: vw - rect.right >= popupWidth + offset,
-        x: rect.right + scrollX + offset,
-        y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
-      },
-      {
-        direction: "bottom",
-        fits: vh - rect.bottom >= popupHeight + offset,
-        x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
-        y: rect.bottom + scrollY + offset,
-      },
-      {
-        direction: "left",
-        fits: rect.left >= popupWidth + offset,
-        x: rect.left + scrollX - popupWidth - offset,
-        y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
-      },
-      {
-        direction: "top",
-        fits: rect.top >= popupHeight + offset,
-        x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
-        y: rect.top + scrollY - popupHeight - offset,
-      },
+      // Smart position setting based on clientRects and bounding boxes
+      const scrollX = window.scrollX
+      const scrollY = window.scrollY
+      const vw = window.innerWidth
+      const vh = window.innerHeight
 
-    ]
+      console.log("Rect dimensions", rect.width, rect.height);
 
-    const bestFit = candidates.find((c) => c.fits) || candidates[0] // default to bottom
-    console.log("bestfit", bestFit.direction)
-
-    const clampedX = Math.max(scrollX, Math.min(bestFit.x, scrollX + vw - popupWidth))
-    const clampedY = Math.max(scrollY, Math.min(bestFit.y, scrollY + vh - popupHeight))
-
-    setBubblePosition({ x: clampedX, y: clampedY })
-    setAnchorPosition({ x: clampedX, y: clampedY })
-    
-
-    setRectLeft(rect.left)
-    setRectRight(rect.right)
-    setRectTop(rect.top)
-    setRectBottom(rect.bottom)
-    setRectWidth(rect.width)
-    setRectHeight(rect.height)
-
-    setArrowDirection(bestFit.direction as "top" | "bottom" | "left" | "right")
-
-    setText(selectedText)
-    lastSelectedWord.current = selectedText
+      console.log("Rect top and bottom", rect.top, rect.bottom);
 
 
-    // Trigger reflow for animation
-    requestAnimationFrame(() => {
-      setShow(true)
-    })
-    }
+      console.log("popupWidth", popupWidth);
+      console.log("popupHeight", popupHeight);
 
-    const observer = new MutationObserver(() => {
-      console.log("DOM changed - SPA activity detected")
-      checkAndShowBubble()
-    });
+      const offset = 12
+
+      // Define all possible directions with their coordinates
+      const candidates = [
+        {
+          direction: "right",
+          fits: vw - rect.right >= popupWidth + offset,
+          x: rect.right + scrollX + offset,
+          y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
+        },
+        {
+          direction: "bottom",
+          fits: vh - rect.bottom >= popupHeight + offset,
+          x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
+          y: rect.bottom + scrollY + offset,
+        },
+        {
+          direction: "left",
+          fits: rect.left >= popupWidth + offset,
+          x: rect.left + scrollX - popupWidth - offset,
+          y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
+        },
+        {
+          direction: "top",
+          fits: rect.top >= popupHeight + offset,
+          x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
+          y: rect.top + scrollY - popupHeight - offset,
+        },
+
+      ]
+
+      const bestFit = candidates.find((c) => c.fits) || candidates[0] // default to bottom
+      console.log("bestfit", bestFit.direction)
+
+      const clampedX = Math.max(scrollX, Math.min(bestFit.x, scrollX + vw - popupWidth))
+      const clampedY = Math.max(scrollY, Math.min(bestFit.y, scrollY + vh - popupHeight))
+
+      setBubblePosition({ x: clampedX, y: clampedY })
+      setAnchorPosition({ x: clampedX, y: clampedY })
+      
+
+      setRectLeft(rect.left)
+      setRectRight(rect.right)
+      setRectTop(rect.top)
+      setRectBottom(rect.bottom)
+      setRectWidth(rect.width)
+      setRectHeight(rect.height)
+
+      setArrowDirection(bestFit.direction as "top" | "bottom" | "left" | "right")
+
+      setText(selectedText)
+      lastSelectedWord.current = selectedText
+
+
+      // Trigger reflow for animation
+      requestAnimationFrame(() => {
+        setShow(true)
+      })
+
+
+    } // end of function
 
     document.addEventListener("click", checkAndShowBubble);
+
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === "PDF_SELECTION" && msg.text) {
+        // Show bubble at fixed top-left (or wherever)
+        checkAndShowBubble(undefined, msg.text, { x: 24, y: 24 })
+      }
+    })
 
     // 🚀 Listen for messages from background script (context menu trigger)
     chrome.runtime.onMessage.addListener((msg) => {
@@ -462,8 +498,9 @@ const Bubble = () => {
 
     return () => {
       document.removeEventListener("click", checkAndShowBubble)
+      document.removeEventListener("selectionchange", checkAndShowBubble)
     }
-  }, [triggerSettings])
+  }, [triggerSettings, isLocked])
 
 
   // Handle Bubble Resize
@@ -686,6 +723,8 @@ const Bubble = () => {
     return () => clearTimeout(timer);
   }, [text, definitions, autoAddToHistory])
 
+
+
   // For updating history to sync
   useEffect(() => {
     const listener = (changes, areaName) => {
@@ -698,19 +737,26 @@ const Bubble = () => {
   }, []);
   
 
-
   // Trigger side panel
   const openPanel = async () => {
 
     setShow(false);
 
-    console.log("Trying panel");
+    // Set sidePanel flag
+    isSidePanel.current = true;
 
     chrome.runtime.sendMessage({ 
       type: "open_side_panel", 
       word: text
     });
   }
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "sidepanel_closed") {
+      console.log("Side panel was closed");
+      isSidePanel.current = false;
+    }
+  });  
 
 
   // On detach
@@ -734,13 +780,12 @@ const Bubble = () => {
       if (areaName === "local" && changes.fromSidePanel?.newValue) {
         const word = changes.fromSidePanel.newValue.word
   
-        
-
         setTimeout(() => {
           setText(word)
           console.log("show bubble again after close");
           setShow(true);
           setIsDetached(true);
+          isSidePanel.current = false
 
           // Reopen bubble centered with last word
           centerBubbleInViewport();
@@ -756,8 +801,6 @@ const Bubble = () => {
     return () => chrome.storage.onChanged.removeListener(handleStorageChange)
   }, [])
 
-
- 
 
 
   const handleExport = () => {
@@ -920,6 +963,7 @@ const Bubble = () => {
                   if (firstEnabled) {
                     setActiveSource(firstEnabled as keyof typeof definitionSources)
                   }
+                  setShowContextAI(false)
                   setShowHistory(false)
                   setText(searchInput.trim())
                   setSearchInput("")
@@ -937,6 +981,7 @@ const Bubble = () => {
                 if (firstEnabled) {
                   setActiveSource(firstEnabled as keyof typeof definitionSources)
                 }
+                setShowContextAI(false)
                 setShowHistory(false)
                 setText(searchInput.trim())
                 setSearchInput("")
@@ -982,7 +1027,7 @@ const Bubble = () => {
                 className="flex items-center gap-1 p-1 rounded text-text bg-mainBody hover:bg-dullBox transition-colors duration-200"
                 onClick={() => {
                   const selection = window.getSelection()?.toString().trim()
-                  if (!selection) {
+                  if ((!selection && !showContextAI) && !text) {
                     alert("Please select a word first!")
                     return
                   }
@@ -1033,7 +1078,10 @@ const Bubble = () => {
             </button>
 
             {/* History */}
-            <button title="History" className="p-1 rounded text-text hover:bg-dullBox ml-2" onClick={() => setShowHistory((prev) => !prev)}>
+            <button title="History" className="p-1 rounded text-text hover:bg-dullBox ml-2" onClick={() => {
+              setShowContextAI(false)
+              setShowHistory((prev) => !prev)
+            }}>
               <IoBook size={16} />
             </button>
 
@@ -1184,52 +1232,90 @@ const Bubble = () => {
 
 
           <div className="flex-col flex overflow-hidden rounded-b-lg h-[100%]">
+            <div className="relative group">
+              {/* Left Arrow */}
+              <button
+                onClick={() => scroll("left")}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition mt-2 group-hover:opacity-100 transition duration-200 transition-colors"
+                style={{
+                  color: "var(--text)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--hover-icon)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--text)";
+                }}
+              >
+                <BiChevronLeft style={{ color: "inherit" }} className="text-2xl" />
+              </button>
 
-            {/* Tabs */}
-            <div className="flex pt-2 px-2 rounded-t-lg overflow-x-auto bg-background" style={{ scrollbarWidth: 'none' }}>  
-            {sourceOrder
-              .filter((key) => enabledSources[key]) // Only enabled
-              .map((key) => {
-                const source = definitionSources[key]
-                // console.log("source tabs", source);
-                if (!source) {
-                  console.warn(`Missing source for key: ${key}`)
-                  return null
-                }
-                const isActive = key === activeSource
+              {/* Right Arrow */}
+              <button
+                onClick={() => scroll("right")}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition-colors mt-2 group-hover:opacity-100 transition duration-200" 
+                style={{
+                  color: "var(--text)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--hover-icon)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--text)";
+                }}
+              >
+                <BiChevronRight style={{ color: "inherit" }} className="text-2xl" />
+              </button>
+              {/* Tabs */}
+              <div ref={scrollRef} className="flex pt-2 px-2 rounded-t-lg overflow-x-auto bg-background" style={{ 
+                scrollbarWidth: 'none',
+                scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch" }}>  
+              {sourceOrder
+                .filter((key) => enabledSources[key]) // Only enabled
+                .map((key) => {
+                  const source = definitionSources[key]
+                  // console.log("source tabs", source);
+                  if (!source) {
+                    console.warn(`Missing source for key: ${key}`)
+                    return null
+                  }
+                  const isActive = key === activeSource
 
-                return (
-                  <div key={key} >
-                    <div
-                      className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-mainBody" : "bg-background"
-                        }`}
-                    >
-                      <PortalTooltip text={source.name}>
-                        <button
-                          onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                          className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${isActive
-                              ? "bg-tabActiveBg"
-                              : "bg-mainBody hover:bg-dullBox"
-                            }`}
-                          title={source.name}
-                        >
-                          {typeof source.icon === "string" ? (
-                            <img
-                              src={source.icon}
-                              alt={`${source.name} icon`}
-                              className="w-6 h-6 object-contain"
-                            />
-                          ) : (
-                            <span className="text-lg">{source.icon}</span>
-                          )}
-                        </button>
-                      </PortalTooltip>
+                  return (
+                    <div key={key} >
+                      <div
+                        className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-mainBody" : "bg-background"
+                          }`}
+                      >
+                        <PortalTooltip text={source.name}>
+                          <button
+                            onClick={() => setActiveSource(key as keyof typeof definitionSources)}
+                            className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${isActive
+                                ? "bg-tabActiveBg"
+                                : "bg-mainBody hover:bg-dullBox"
+                              }`}
+                            title={source.name}
+                          >
+                            {typeof source.icon === "string" ? (
+                              <img
+                                src={source.icon}
+                                alt={`${source.name} icon`}
+                                className="w-6 h-6 object-contain"
+                              />
+                            ) : (
+                              <span className="text-lg">{source.icon}</span>
+                            )}
+                          </button>
+                        </PortalTooltip>
+                      </div>
                     </div>
-                  </div>
-                )
+                  )
 
-              })}
+                })}
 
+              </div>
             </div>
 
             {/* Main Text */}

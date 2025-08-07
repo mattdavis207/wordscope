@@ -55,7 +55,8 @@
   "manifest": {
     "host_permissions": [
       "https://*/*",
-      "https://wordscope-extension.vercel.app/*"
+      "https://wordscope-extension.vercel.app/*",
+      "chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/*"
     ],
     "permissions": [
       "contextMenus",

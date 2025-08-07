@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react"
+import React, { useEffect, useState, useMemo, useRef } from "react"
 import { IoVolumeMediumSharp } from "react-icons/io5"
-import type { DefinitionRecord } from "~hooks/useHistory"
+import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
 import { definitionSources } from "../sources/definitionSources"
 import { useSourceSettings } from "~hooks/useSourceSettings"
 import { useHistory } from "../hooks/useHistory";
@@ -46,11 +46,19 @@ export const MiniDefinitionView = ({
 
     const firstEnabled = sourceOrder.find((key) => enabledSources[key] && sources[key])
     const [activeSource, setActiveSource] = useState<string | null>(firstEnabled || null)
+    const scrollRef = useRef<HTMLDivElement>(null)
     const current = activeSource ? sources[activeSource] : null
 
     const [showExtras, setShowExtras] = useState(false)
     const [hasAvailableExtras, setHasAvailableExtras] = useState(false);
     const [prevSource, setPrevSource] = useState(activeSource)
+
+    const scroll = (dir: "left" | "right") => {
+      scrollRef.current?.scrollBy({
+        left: dir === "left" ? -100 : 100,
+        behavior: "smooth"
+      })
+    }
 
     // useEffect for updating the active tab on render 
     useEffect(() => {
@@ -148,48 +156,87 @@ export const MiniDefinitionView = ({
         
     return (
     <div className ="flex-col flex overflow-hidden rounded-b-lg h-[100%]">
-        {/* Tabs */}
-        <div className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background" style = {{scrollbarWidth: 'none'}}>
-        {sourceOrder
-            .filter((key) => enabledSources[key]) // Only enabled
-            .map((key) => {
-                const source = definitionSources[key]
-                const isActive = key === activeSource
-            
-                return(
-                <div key={key} >
-                    <div
-                    className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${
-                        isActive ? "bg-mainBody" : "bg-background"
-                    }`}
-                    >
-                    <PortalTooltip text={source.name}>
-                      <button
-                          onClick={() => setActiveSource(key as keyof typeof definitionSources)}
-                          className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
-                          isActive
-                              ? "bg-tabActiveBg"
-                              : "bg-mainBody hover:bg-dullBox"
-                          }`}
-                          title={source.name}
-                      >
-                          {typeof source.icon === "string" ? (
-                            <img
-                              src={source.icon}
-                              alt={`${source.name} icon`}
-                              className="w-6 h-6 object-contain"
-                            />
-                          ) : (
-                            <span className="text-lg">{source.icon}</span>
-                          )}
-                      </button>
-                    </PortalTooltip>
-                    </div>
-                </div>
-                )  
-        
-            })}
+        <div className="relative group">
+          {/* Left Arrow */}
+          <button
+          onClick={() => scroll("left")}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition mt-2 group-hover:opacity-100 transition duration-200 transition-colors"
+          style={{
+              color: "var(--text)",
+          }}
+          onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--hover-icon)";
+          }}
+          onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--text)";
+          }}
+          >
+          <BiChevronLeft style={{ color: "inherit" }} className="text-2xl" />
+          </button>
 
+          {/* Right Arrow */}
+          <button
+          onClick={() => scroll("right")}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 opacity-0 rounded-full transition-colors mt-2 group-hover:opacity-100 transition duration-200" 
+          style={{
+              color: "var(--text)",
+          }}
+          onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--hover-icon)";
+          }}
+          onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--text)";
+          }}
+          >
+          <BiChevronRight style={{ color: "inherit" }} className="text-2xl" />
+          </button>
+          {/* Tabs */}
+          <div ref={scrollRef} className="flex pt-2 px-2 mt-2 rounded-t-lg overflow-x-auto bg-background" style={{ 
+            scrollbarWidth: 'none',
+            scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+            overscrollBehavior: "contain",
+            WebkitOverflowScrolling: "touch" }}>  
+          {sourceOrder
+              .filter((key) => enabledSources[key]) // Only enabled
+              .map((key) => {
+                  const source = definitionSources[key]
+                  const isActive = key === activeSource
+              
+                  return(
+                  <div key={key} >
+                      <div
+                      className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${
+                          isActive ? "bg-mainBody" : "bg-background"
+                      }`}
+                      >
+                      <PortalTooltip text={source.name}>
+                        <button
+                            onClick={() => setActiveSource(key as keyof typeof definitionSources)}
+                            className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
+                            isActive
+                                ? "bg-tabActiveBg"
+                                : "bg-mainBody hover:bg-dullBox"
+                            }`}
+                            title={source.name}
+                        >
+                            {typeof source.icon === "string" ? (
+                              <img
+                                src={source.icon}
+                                alt={`${source.name} icon`}
+                                className="w-6 h-6 object-contain"
+                              />
+                            ) : (
+                              <span className="text-lg">{source.icon}</span>
+                            )}
+                        </button>
+                      </PortalTooltip>
+                      </div>
+                  </div>
+                  )  
+          
+              })}
+
+          </div>
         </div>
 
 

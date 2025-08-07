@@ -22,12 +22,25 @@ export type Theme = {
           {
             name: "Wordscope Dark",
             className: "theme-dark",
-            colors: ["#01122B", "#BBE1FA", "#072141", "#1c2f47", "#FFFFFF", "#1c2f47", "#FFFFFF", "#9CA3AF", "#374151", "#2A4E75", '#2563EB', '#374151'],
+            colors: ["#01122B", "#BBE1FA", "#072141", "#1c2f47", "#FFFFFF", "#1c2f47", "#FFFFFF", "#9CA3AF", "#374151", "#2A4E75", '#2563EB', '#3B82F6'],
           },
           {
             name: "Wordscope Light",
             className: "theme-light",
-            colors: ["#FFFFFF", "#1F2937", "#F3F4F6", "#E5E7EB", "#1F2937", "#1c2f47", "#1F2937", "#4B5563", "#E5E7EB", "#2A4E75", '#2563EB', '#374151'],
+            colors: [
+              "#f5f9ff",
+              "#1e3a5f",
+              "#ffffff",
+              "#e3edf7",
+              "#2563eb",
+              "#d0e2ff",
+              "#111827",
+              "#6B7280",
+              "#cbd5e1",
+              "#c3ddfd",
+              "#60a5fa",
+              "#f3f4f6"
+            ],            
           },
           {
             name: "Solar Breeze",

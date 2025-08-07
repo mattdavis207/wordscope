@@ -74,6 +74,32 @@ chrome.runtime.onInstalled.addListener(() => {
     })
   })
 
+// Scripting for getting selection from chrome's pdf viewer
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (typeof tabId !== "number" || tabId < 0) return;
+  if (changeInfo.status !== "complete") return;
+  if (!tab || !tab.url) return;
+
+  if (tab.url?.startsWith("chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai")) {
+    chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        document.addEventListener("selectionchange", () => {
+          const selectedText = window.getSelection()?.toString().trim()
+          if (selectedText) {
+            chrome.runtime.sendMessage({
+              type: "PDF_SELECTION",
+              text: selectedText
+            })
+          }
+        });
+      }
+    }).catch((err) => console.warn("Script injection failed:", err));
+  }
+});
+
+
+
 
   
 // Define the listener is clicked and send message to content.tsx to trigger bubble popup
@@ -108,12 +134,31 @@ chrome.runtime.onMessage.addListener((message, sender) => {
           type: "word_from_bubble",
           word: message.word
         })
-      }, 500) // delay may be necessary
+      }, 750) // delay may be necessary
 
     }
   })();
 });
 
+// Add Listener for sidepanel close
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === "sidepanel") {
+    console.log("📥 Side panel connected")
+
+    port.onDisconnect.addListener(() => {
+      console.log("❌ Side panel closed (disconnected)")
+      // Send a message to content.tsx when side panel is closed
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tabId = tabs[0]?.id
+        if (typeof tabId === "number") {
+          chrome.tabs.sendMessage(tabId, {
+            type: "sidepanel_closed"
+          })
+        }
+      })
+    })
+  }
+})
 
 
 // Listener for opening popup on 

@@ -31,5 +31,14 @@ module.exports = {
       },
     },
     plugins: [require('tailwind-scrollbar'), require('@tailwindcss/line-clamp')],
+    safelist: [
+      'bg-gradient-to-r',
+      'from-blue-500',
+      'via-purple-500',
+      'to-pink-500',
+      'hover:from-blue-600',
+      'hover:to-pink-600'
+    ],
+    
   }
   
