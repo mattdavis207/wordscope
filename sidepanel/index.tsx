@@ -18,7 +18,7 @@ import { useDictionary } from "~hooks/useDictionary"
 import { useHistory } from "~hooks/useHistory"
 import { useSourceSettings } from "~hooks/useSourceSettings";
 import ContextAIView from "../views/contextAIView"
-import { extractContext } from "../backend/contextExtractor"
+import { extractContext } from "../context/contextExtractor"
 import { MiniDefinitionView } from "~views/tabDefinitionView"
 import PortalTooltip from "~components/PortalTooltip";
 
@@ -29,6 +29,7 @@ declare global {
 }
 
 const HISTORY_KEY = "history"
+const DEFAULT_EXPORT_SOURCE_KEY = "defaultExportSource"
 
 // Define the port for listening for close
 const port = chrome.runtime.connect({ name: "sidepanel" })
@@ -192,6 +193,8 @@ const SidePanel = () => {
             if (msg.type === "word_from_bubble") {
                 setText(msg.word)
                 setSearchInput("") // if you use it
+                setShowContextAI(false)
+                setShowHistory(false)
             }
         })
     }, [])
@@ -215,6 +218,22 @@ const SidePanel = () => {
             setExportSource(firstEnabled || "");
         }
     }, [defaultExportSource, sourceOrder, enabledSources]);
+
+    // initialize once from storage, else first enabled/exportable
+    useEffect(() => {
+        chrome.storage.local.get(DEFAULT_EXPORT_SOURCE_KEY, (res) => {
+        const saved = res?.[DEFAULT_EXPORT_SOURCE_KEY] as string | undefined;
+
+        const firstEnabled =
+            sourceOrder.find((src) => enabledSources[src] && definitionSources[src]?.exportable) || "";
+
+        const initial =
+            saved && enabledSources[saved] && definitionSources[saved]?.exportable ? saved : firstEnabled;
+
+        setExportSource(initial);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sourceOrder, enabledSources, definitionSources]);
 
     const handleExport = () => {
         let data = "";
@@ -338,15 +357,16 @@ const SidePanel = () => {
                     ) : (
                         <button
                             title="Context AI (Pro)"
-                            className="text-sm transition-colors mr-1"
+                            className="text-sm transition-colors rounded"
                             style={{
                                 color: "var(--text)",
+                                
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.color = "var(--hover-icon)";
+                                e.currentTarget.style.color = "var(--hover-icon)"
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.color = "var(--text)";
+                                e.currentTarget.style.color = "var(--text)"
                             }}
                             onClick={() => {
                                 const selection = window.getSelection()?.toString().trim();
@@ -419,6 +439,14 @@ const SidePanel = () => {
                                 >
                                     <FaCrown size={16} />
                                     <span className="text-sm">{"Upgrade"}</span>
+
+                                   {/* Show Export Count  */}
+                                    <span
+                                        className="ml-1 rounded-full px-1 py-1 text-[10px] leading-none"
+                                        title={isPro ? "Unlimited exports" : `${Math.max(0, exportCount ?? 0)} of 3 remaining`}
+                                    >
+                                        {isPro ? "∞" : `${Math.max(0, exportCount ?? 0)}/3`}
+                                    </span>
                                 </button>
                             ) : (
                                 <button
@@ -434,6 +462,14 @@ const SidePanel = () => {
                                 >
                                     <HiOutlineArrowDownTray size={16} />
                                     <span className="text-sm">Export</span>
+
+                                    {/* Show Export Count  */}
+                                    <span
+                                        className="ml-1 rounded-full px-1 py-1 text-[10px] leading-none"
+                                        title={isPro ? "Unlimited exports" : `${Math.max(0, exportCount ?? 0)} of 3 remaining`}
+                                    >
+                                        {isPro ? "∞" : `${Math.max(0, exportCount ?? 0)}/3`}
+                                    </span>
                                 </button>
                             )}
 
@@ -865,7 +901,7 @@ const SidePanel = () => {
                                 <span>File Type</span>
                                 <select
                                     className="bg-mainBody text-text rounded px-2 py-1"
-                                    value={defaultExportSource}
+                                    value={exportFileType}
                                     onChange={(e) => setExportFileType(e.target.value as "tsv" | "csv" | "json")}
                                 >
                                     <option value="tsv">TSV (.tsv)</option>
@@ -880,7 +916,7 @@ const SidePanel = () => {
                                 <span>Export Source</span>
                                 <select
                                     className="bg-mainBody text-text rounded px-2 py-1"
-                                    value={defaultExportSource}
+                                    value={exportSource}
                                     onChange={(e) => setExportSource(e.target.value)}
                                 >
                                     {Object.keys(enabledSources)

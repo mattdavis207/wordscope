@@ -13,6 +13,10 @@ module.exports = {
         // You can extend colors, fonts, spacing, etc. here if needed
       },
     },
+    safelist: [
+      'animate-sweep-radar',
+      'bg-radial-gradient'
+    ],
     plugins: [],
   }
   

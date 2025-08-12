@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 // import { Bubble } from "../../../content.tsx"
@@ -12,6 +12,75 @@ export default function Home() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const toggle = (key: string) => setExpanded(expanded === key ? null : key);
+
+  useEffect(() => {
+    const canvas = document.getElementById("constellation-canvas") as HTMLCanvasElement | null;
+    if (!canvas) return;
+  
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+  
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+  
+    const points = Array.from({ length: 200 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.5,
+    }));
+  
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+  
+      // Draw points
+      for (const p of points) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = "#BBE1FA";
+        ctx.fill();
+      }
+  
+      // Connect close points
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+          const a = points[i];
+          const b = points[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist = dx * dx + dy * dy;
+          if (dist < 3000) {
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = "rgba(187, 225, 250, 0.1)";
+            ctx.stroke();
+          }
+        }
+      }
+  
+      // Move points
+      for (const p of points) {
+        p.x += p.vx;
+        p.y += p.vy;
+  
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+      }
+  
+      requestAnimationFrame(draw);
+    };
+  
+    draw();
+  
+    const handleResize = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+  
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const sources = [
     "Google Dictionary", "Wiktionary", "WordAPI", "Merriam-Webster", 
@@ -67,6 +136,13 @@ export default function Home() {
 
       {/* Hero Section */}
       <header className="relative overflow-hidden min-h-screen flex items-center">
+
+         {/* Constellation Background */}
+          <canvas
+            id="constellation-canvas"
+            className="absolute inset-0 w-full h-full z-0"
+          />
+
         <div className="absolute inset-0 bg-gradient-to-br from-[#072141] via-[#01122B] to-[#1c2f47] opacity-50"></div>
         <div className="relative w-full flex flex-col items-center justify-center text-center py-20 px-4">
           <div className="mb-12 relative">
@@ -136,10 +212,6 @@ export default function Home() {
                 The <span className="bg-[#2563EB] px-2 py-1 rounded-md cursor-pointer hover:bg-[#1e50c3] transition relative">revolutionary</span> approach 
                 to language learning involves understanding words in their natural context rather than memorizing isolated definitions.
               </p>
-
-              <Bubble></Bubble>
-              
-              
             </div>
           </div>
         </div>
@@ -288,17 +360,31 @@ export default function Home() {
               
               <button
                 onClick={async () => {
-                  const res = await fetch("https://wordscope-extension.vercel.app/api/create-stripe-session", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      email: "", // or null
-                    }),
-                  });
-
-                  const { url } = await res.json();
-                  if (url) {
-                    window.location.href = url; // Redirect to Stripe Checkout
+                  try {
+                    const res = await fetch("https://wordscope-extension.vercel.app/api/create-stripe-session", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: "test" }),
+                    });
+                  
+                
+                    if (!res.ok) {
+                      const text = await res.text();
+                      console.error("Checkout fetch failed:", res.status, text);
+                      alert(`Checkout failed: ${res.status}\n${text}`);
+                      return;
+                    }
+                
+                    const data = await res.json();
+                    if (data?.url) {
+                      window.location.href = data.url;
+                    } else {
+                      console.error("No URL in response:", data);
+                      alert("No checkout URL returned.");
+                    }
+                  } catch (e) {
+                    console.error("Network error:", e);
+                    alert("Network error – see console for details.");
                   }
                 }}
                 className="inline-block w-full bg-gradient-to-r from-[#2563EB] to-[#7c3aed] 
@@ -346,8 +432,8 @@ export default function Home() {
     <div className="min-w-[150px]">
       <h4 className="font-semibold mb-3 text-[#BBE1FA]">Connect</h4>
       <ul className="space-y-2">
-        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Twitter</Link></li>
-        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Reddit</Link></li>
+        <li><Link href="https://x.com/wordscope55" className="hover:text-[#BBE1FA] transition">Twitter</Link></li>
+        <li><Link href="https://www.reddit.com/r/wordscope_55/" className="hover:text-[#BBE1FA] transition">Reddit</Link></li>
         <li><Link href="#" className="hover:text-[#BBE1FA] transition">GitHub</Link></li>
       </ul>
     </div>

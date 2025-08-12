@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
-import { fetchContextAIResponse } from "../backend/gpt_handler"
+import { fetchContextAIResponse } from "../context/gpt_handler"
 import ChatBubble from "../components/ChatBubble"
 import ChatInput from "../components/ChatInput"
 
@@ -7,6 +7,9 @@ import "~/public/styles/tailwind.css"
 import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
+
+// helper to format numbers consistently
+const fmt = (n: number) => n.toLocaleString()
 
 const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSnippet: string, url: string }) => {
   const [messages, setMessages] = useState<{ sender: "user" | "ai", text: string }[]>([])
@@ -18,8 +21,16 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
   const [themes, setThemes] = useState<Theme[]>([]);
 
   const [appliedTheme, setAppliedTheme] = useState<string>("");
+ 
+  const [tokensLeft, setTokensLeft] = useState<number | null>(null);
+  const [lastUsed, setLastUsed] = useState<number | null>(null);  
+  const [showUsedFlash, setShowUsedFlash] = useState(false)
+  const [prevUsed, setPrevUsed] = useState<number | null>(null)
+  const [seeded, setSeeded] = useState(false)
 
+  const outOfTokens = typeof tokensLeft === "number" && tokensLeft <= 0;
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
+
 
   useEffect(() => {
     const loadThemes = async () => {
@@ -27,6 +38,73 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
     };
     loadThemes();
   }, []);
+
+  // Seed token amount from server once (nice UX on first open)
+  useEffect(() => {
+    const email = localStorage.getItem("userEmail");
+    if (!email) return;
+
+    fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/usage/balance?email=${encodeURIComponent(email)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.remainingTokens === "number") {
+          setTokensLeft(d.remainingTokens);
+          chrome.storage.local.set({ tokens_meta: { remainingTokens: d.remainingTokens } });
+        }
+        // prime prevUsed so no initial flash
+        setPrevUsed(null) // or a number if you also fetch lastUsed here
+        setSeeded(true)
+      })
+      .catch(() => {});
+  }, []);
+
+  // Keep in sync with writes from fetchContextAIResponse()
+  useEffect(() => {
+    // Guard: only run in extension context
+    if (typeof chrome === "undefined" || !chrome.storage?.onChanged) return
+
+    // Seed from cache once
+    chrome.storage.local.get("tokens_meta", (d) => {
+      const meta = d?.tokens_meta || {}
+      if (typeof meta.remainingTokens === "number") setTokensLeft(meta.remainingTokens)
+      if (typeof meta.lastUsed === "number") setLastUsed(meta.lastUsed)
+    })
+
+    // Correctly typed listener
+    const handleChange: Parameters<typeof chrome.storage.onChanged.addListener>[0] = (
+      changes,
+      areaName
+    ) => {
+      if (areaName !== "local") return
+      const change = changes["tokens_meta"]
+      if (change?.newValue) {
+        const meta = change.newValue as { remainingTokens?: number; lastUsed?: number }
+        if (typeof meta.remainingTokens === "number") setTokensLeft(meta.remainingTokens)
+        if (typeof meta.lastUsed === "number") setLastUsed(meta.lastUsed)
+      }
+    }
+
+    chrome.storage.onChanged.addListener(handleChange)
+    return () => chrome.storage.onChanged.removeListener(handleChange)
+  }, [])
+
+  // whenever lastUsed changes, show a brief flash near the token pill
+  useEffect(() => {
+    if (typeof lastUsed === "number") {
+      setShowUsedFlash(true)
+      const t = setTimeout(() => setShowUsedFlash(false), 1800)
+      return () => clearTimeout(t)
+    }
+  }, [lastUsed])
+
+  // whenever lastUsed changes, update prevUsed AFTER render
+  useEffect(() => {
+    if (!seeded) return
+    setPrevUsed(lastUsed ?? null)
+  }, [lastUsed, seeded])
+
+  // Then compute whether or not to play animation
+  const playFlash = seeded && typeof lastUsed === "number" && lastUsed > 0 && lastUsed !== prevUsed
 
   // Always scroll on mount
   const scrollToBottomOfChat = () => {
@@ -157,50 +235,142 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
     });
   }
 
+  // (optional) click-to-refresh balance without reloading
+  const refreshBalance = async () => {
+    const email = localStorage.getItem("userEmail")
+    if (!email) return
+    try {
+      const r = await fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/usage/balance?email=${encodeURIComponent(email)}`)
+      const d = await r.json()
+      if (typeof d.remainingTokens === "number") {
+        setTokensLeft(d.remainingTokens)
+        chrome.storage.local.set({ tokens_meta: { remainingTokens: d.remainingTokens } })
+      }
+    } catch {}
+  }
+
+  // --- TokenPill component: tidy, clickable, shows tokens left ---
+  const TokenPill = () => (
+    <button
+      onClick={refreshBalance}
+      title="Tokens remaining (click to refresh)"
+      className="relative inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-dataText whitespace-nowra bg-dullBox border border-"
+      style={{
+        lineHeight: 1,
+        border: "1px solid var(--border)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+      }}
+    >
+      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#34d399" }} />
+      <span className="font-medium">
+        {tokensLeft === null ? "…" : `${tokensLeft.toLocaleString()} tokens`}
+      </span>
+  
+      {showUsedFlash && typeof lastUsed === "number" && lastUsed > 0 && (
+        <span
+          className="absolute select-none"
+          style={{
+            right: "-10px",
+            top: "-8px",
+            fontSize: 10,
+            fontWeight: 600,
+            color: "#fb7185",
+            animation: "fadeUp 1.2s ease-in-out forwards", // one-shot
+            animationIterationCount: 1
+          }}
+        >
+          −{lastUsed.toLocaleString()}
+        </span>
+      )}
+    </button>
+  )
+  
+  
+
+
+  // tiny keyframes helper for the flash (Tailwind inline)
+  const styleEl = (
+    <style>{`
+      @keyframes fadeUp {
+        0% { opacity: 0; transform: translateY(6px); }
+        10% { opacity: 1; transform: translateY(0); }
+        80% { opacity: 1; transform: translateY(-2px); }
+        100% { opacity: 0; transform: translateY(-6px); }
+      }
+    `}</style>
+  )
+
+
+
   return (
     <div className="relative flex flex-col h-full w-full bg-background shadow-lg">
+      {styleEl}
+
       {/* Header */}
       <div className="flex h-12 justify-between items-center px-3 bg-mainBody">
         <h2 className="flex items-center justify-center text-base font-semibold text-text leading-tight h-full">Context AI</h2>
-        <button
-          onClick={fetchInitialResponse}
-          disabled={loading || hasAnalyzed}
-          className="px-2 py-1 text-sm rounded text-dataText"
-          style={{
-            padding: "0.25rem 0.5rem", // Tailwind: px-2 py-1
-            fontSize: "0.875rem",      // Tailwind: text-sm
-            borderRadius: "0.375rem",  // Tailwind: rounded
-            backgroundImage: "linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899)",
-            cursor: loading || hasAnalyzed ? "not-allowed" : "pointer",
-            opacity: loading || hasAnalyzed ? 0.5 : 1,
-            transition: "all 0.2s ease-in-out",
-          }}
-          onMouseEnter={(e) => {
-            if (!(loading || hasAnalyzed)) {
-              e.currentTarget.style.backgroundImage =
-                "linear-gradient(to right, #2563EB, #7C3AED, #DB2777)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!(loading || hasAnalyzed)) {
-              e.currentTarget.style.backgroundImage =
-                "linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899)";
-            }
-          }}
-        >
-          Analyze Word
-        </button>
-        <button
-          onClick={clearChat}
-          className="px-2 text-sm text-dataText bg-red-500 rounded hover:bg-red-600"
-        >
-          Clear Chat
-        </button>
+
+        {/* right side controls */}
+        <div className="ml-auto flex items-center gap-2">
+          <TokenPill />
+
+          <button
+            onClick={fetchInitialResponse}
+            disabled={loading || hasAnalyzed || outOfTokens}
+            className="inline-flex items-center justify-center h-8 px-3 py-1 text-sm rounded text-dataText disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              padding: "0.25rem 0.5rem",
+              fontSize: "0.875rem",
+              borderRadius: "0.375rem",
+              backgroundImage: "linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899)",
+              cursor: loading || hasAnalyzed || outOfTokens ? "not-allowed" : "pointer",
+              opacity: loading || hasAnalyzed || outOfTokens ? 0.5 : 1,
+              transition: "all 0.2s ease-in-out",
+              lineHeight: 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!(loading || hasAnalyzed || outOfTokens)) {
+                e.currentTarget.style.backgroundImage =
+                  "linear-gradient(to right, #2563EB, #7C3AED, #DB2777)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!(loading || hasAnalyzed || outOfTokens)) {
+                e.currentTarget.style.backgroundImage =
+                  "linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899)"
+              }
+            }}
+          >
+            {typeof tokensLeft === "number" && tokensLeft <= 0 ? "Out of Tokens" : "Analyze Word"}
+          </button>
+
+          <button
+            onClick={clearChat}
+            className="inline-flex items-center justify-center h-8 px-3 text-sm text-dataText bg-red-500 hover:bg-red-600"
+            style={{borderRadius: "0.375rem"}}
+          >
+            Clear
+          </button>
+        </div>
       </div>
+
+      {outOfTokens && (
+      <div className="px-3 py-1 text-[11px] text-rose-400/90">
+        You’ve used all your tokens for this period.
+      </div>
+      )}
+
+      {/* Optional: a slim info bar under header showing last deduction persistently */}
+      {lastUsed !== null && lastUsed > 0 && (
+        <div className="px-3 py-1 text-[11px] text-otherText">
+          Last response used <span className="font-medium text-dataText">−{fmt(lastUsed)}</span> tokens
+        </div>
+      )}
 
       <div>
         {/* Input Bar - Fixed at bottom */}
-        <ChatInput onSend={sendMessage} disabled={loading} />
+        <ChatInput onSend={sendMessage} disabled={loading || outOfTokens} />
       </div>
 
       {/* Chat Area */}

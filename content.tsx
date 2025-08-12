@@ -25,7 +25,7 @@ import { useBubbleSize } from "./hooks/useBubbleSize";
 import { useSourceSettings } from "./hooks/useSourceSettings"
 import { MiniDefinitionView } from "./views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
-import { extractContext } from "./backend/contextExtractor"
+import { extractContext } from "./context/contextExtractor"
 import PortalTooltip from "~components/PortalTooltip";
 
 declare global {
@@ -928,7 +928,7 @@ export const Bubble = () => {
           backgroundColor: 'var(--background)',
 
           // Resize limits
-          minWidth: "300px",
+          minWidth: "315px",
           maxWidth: viewportWidth,
           minHeight: "200px",
           maxHeight: viewportHeight
@@ -1117,27 +1117,43 @@ export const Bubble = () => {
               <div className={`flex gap-2 ${isCompactHistoryView ? "flex-col" : ""}`}>
                 {/* Upgrade to Premium Button or Export Button  */}
                 {!isPro && (!exportCount || exportCount <= 0) ? (
-                    <button
+                  <button
                     className="flex items-center justify-center gap-1 px-2 py-1 bg-mainBody rounded text-text hover:bg-dullBox"
                     title="Upgrade to Pro to unlock exports"
                     onClick={handleUpgrade}
                   >
                     <FaCrown size={16} />
                     <span className="text-sm">{"Upgrade"}</span>
+
+                    {/* Show Export Count  */}
+                    <span
+                      className="ml-1 rounded-full px-1 py-1 text-[10px] leading-none"
+                      title={isPro ? "Unlimited exports" : `${Math.max(0, exportCount ?? 0)} of 3 remaining`}
+                    >
+                      {isPro ? "∞" : `${Math.max(0, exportCount ?? 0)}/3`}
+                    </span>
                   </button>
                 ) : (
                   <button
-                  disabled={history.length === 0}
-                  className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-text ${
-                    history.length === 0
-                      ? "bg-gray-600 cursor-not-allowed"
-                      : "bg-mainBody hover:bg-dullBox"
-                  }`}
-                  title="Export History"
-                  onClick={handleExport}
-                >
+                    disabled={history.length === 0}
+                    className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-text ${
+                      history.length === 0
+                        ? "bg-gray-600 cursor-not-allowed"
+                        : "bg-mainBody hover:bg-dullBox"
+                    }`}
+                    title="Export History"
+                    onClick={handleExport}
+                  >
                   <HiOutlineArrowDownTray size={16} />
                   <span className="text-sm">Export</span>
+
+                  {/* Show Export Count  */}
+                  <span
+                    className="ml-1 rounded-full px-1 py-1 text-[10px] leading-none"
+                    title={isPro ? "Unlimited exports" : `${Math.max(0, exportCount ?? 0)} of 3 remaining`}
+                  >
+                    {isPro ? "∞" : `${Math.max(0, exportCount ?? 0)}/3`}
+                  </span>
                 </button>
                 )}
 
@@ -1558,7 +1574,6 @@ export const Bubble = () => {
               </div>// start of word data
             )}
             
-
           </div> //Main box (aside from history rendering)
         )}
 
@@ -1566,7 +1581,6 @@ export const Bubble = () => {
     </div>
   )
 }
-
 
 // Inject the component into the page
 const shadowHost = document.createElement("div")
@@ -1585,13 +1599,3 @@ style.onload = () => {
   shadow.appendChild(bubbleRoot)
   createRoot(bubbleRoot).render(<Bubble/>)
 }
-
-
-
-
-
-
-
-// const mount = document.createElement("div")
-// document.body.appendChild(mount)
-// createRoot(mount).render(<Bubble />)

@@ -29,7 +29,7 @@ const ChatBubble = ({ sender, text }: { sender: "user" | "ai", text: string }) =
   return (
     <div className={`flex w-full ${sender === "user" ? "justify-end" : "justify-start"} mb-2`}>
       <div
-        className="inline-block px-4 py-2 rounded-lg text-sm text-dataText relative break-words rounded-br-none"
+        className="inline-block px-4 py-2 rounded-lg text-sm text-dataText relative break-words"
         style={{
           maxWidth: "75%",    // Limits bubble size
           wordWrap: "break-word",
@@ -38,7 +38,7 @@ const ChatBubble = ({ sender, text }: { sender: "user" | "ai", text: string }) =
       >
         {sender === "ai" && text !== "Thinking..." && (
           <>
-            <div className="text-xs text-gray-400 mb-1 font-semibold">Context AI</div>
+            <div className="text-xs text-otherText mb-1 font-semibold">Context AI</div>
             <div className="prose prose-invert max-w-none"
               dangerouslySetInnerHTML={{ __html: html}}>
             </div>
@@ -47,7 +47,7 @@ const ChatBubble = ({ sender, text }: { sender: "user" | "ai", text: string }) =
         )}
 
         {text === "Thinking..." && (
-          <span className="text-gray-400 italic">Thinking...</span>
+          <span className="text-otherText italic">Thinking...</span>
         )}
 
         {/* User Bubble */}

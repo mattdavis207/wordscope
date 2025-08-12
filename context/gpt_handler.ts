@@ -1,5 +1,4 @@
-const OPENAI_API_KEY = process.env.PLASMO_PUBLIC_OPENAI_API_KEY
-console.log("OPENAI_API_KEY", OPENAI_API_KEY);
+const API_BASE = process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL;
 
 export async function fetchContextAIResponse(word: string, contextSnippet: string, url: string, history: { sender: "user" | "ai", text: string }[], isInitial = false) {
 
@@ -35,20 +34,29 @@ export async function fetchContextAIResponse(word: string, contextSnippet: strin
     }))
   ]
 
+  // Get email from local storage
+  let email = localStorage.getItem("userEmail") || undefined;
+
+  if (!email && typeof chrome !== "undefined" && chrome.storage?.local) {
+    const { userEmail } = await chrome.storage.local.get("userEmail");
+    email = typeof userEmail === "string" && userEmail.trim() ? userEmail.trim() : undefined;
+  }
+
+  console.log("email used:", email);
+  
+
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch(`${API_BASE}/context-ai`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`
-      },
+      headers: { "Content-Type": "application/json" },
+      // Pass exactly what your server needs: messages + generation params + identity
       body: JSON.stringify({
-        model: "gpt-4o",
+        email,                     // or pass customerId if you store it
         messages: formattedHistory,
         max_tokens: 500,
         temperature: 0.7
       })
-    })
+    });
 
     if (!res.ok) {
       const error = await res.json()
@@ -56,9 +64,19 @@ export async function fetchContextAIResponse(word: string, contextSnippet: strin
     }
 
     const data = await res.json()
-    return data.choices?.[0]?.message?.content.trim() || "No response from AI."
+
+    
+    // Persist remaining + lastUsed for the UI badge
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        const meta: any = { remainingTokens: data.remainingTokens };
+        if (typeof data.used === "number") meta.lastUsed = data.used;
+        chrome.storage.local.set({ tokens_meta: meta });
+      }
+    } catch {}
+
+    return data.text?.trim?.() || "No response from AI.";
   } catch (err) {
-    console.log("OPENAI_API_KEY", OPENAI_API_KEY);
     console.error("Context AI Error: ", err)
     return "Error fetching AI response. Please try again."
   }

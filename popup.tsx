@@ -25,7 +25,7 @@ import { useSourceSettings } from "~hooks/useSourceSettings";
 import { MiniDefinitionView } from "~views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
 import { SourcesTab } from "./views/sourcesView"
-import { extractContext } from "./backend/contextExtractor"
+import { extractContext } from "./context/contextExtractor"
 import { TutorialModal } from "./components/TutorialModal"
 import { Tooltip } from "~components/Tooltip";
 import PortalTooltip from "~components/PortalTooltip";
@@ -43,6 +43,7 @@ declare global {
 }
 
 const HISTORY_KEY = "history"
+const DEFAULT_EXPORT_SOURCE_KEY = "defaultExportSource"
 
 function IndexPopup() {
 
@@ -194,6 +195,7 @@ function IndexPopup() {
     })
   }, [])
 
+  // Check their pro status and add tokens if not done already
   useEffect(() => {
     const email = localStorage.getItem("userEmail")
     console.log("📦 chrome.storage.local.get from isPro useEffect, userEmail:", email)
@@ -204,9 +206,6 @@ function IndexPopup() {
       .then((data) => setIsPro(data.isPro))
       .catch((err) => console.error("Error checking Pro:", err))
 
-    if (isPro) {
-
-    }
   }, [])
 
   //Sign in Logic 
@@ -423,6 +422,23 @@ function IndexPopup() {
         setExportSource(firstEnabled || "");
       }
     }, [defaultExportSource, sourceOrder, enabledSources]);
+
+
+    // initialize once from storage, else first enabled/exportable
+    useEffect(() => {
+      chrome.storage.local.get(DEFAULT_EXPORT_SOURCE_KEY, (res) => {
+        const saved = res?.[DEFAULT_EXPORT_SOURCE_KEY] as string | undefined;
+
+        const firstEnabled =
+          sourceOrder.find((src) => enabledSources[src] && definitionSources[src]?.exportable) || "";
+
+        const initial =
+          saved && enabledSources[saved] && definitionSources[saved]?.exportable ? saved : firstEnabled;
+
+        setExportSource(initial);
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sourceOrder, enabledSources, definitionSources]);
   
     const handleExport = () => {
       let data = "";
@@ -528,7 +544,7 @@ function IndexPopup() {
             alt="Wordscope Logo"
             className="w-7 h-7 object-contain mr-2"
           />
-          <span className="text-text text-base font-medium lowercase">wordscope</span>
+          <span className="text-text text-base font-medium">Wordscope</span>
         </div>
         <div className="flex">
           {/* Upgrade Button and Context AI Button */}
@@ -621,7 +637,7 @@ function IndexPopup() {
                 </button>
                 {/* Reddit */}
                 <a
-                  href="https://reddit.com/r/yourSubreddit"
+                  href="https://www.reddit.com/r/wordscope_55/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center space-x-2 w-full text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
@@ -631,7 +647,7 @@ function IndexPopup() {
                 </a>
                 {/* Twitter */}
                 <a
-                  href="https://twitter.com/yourhandle"
+                  href="https://x.com/wordscope55"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center space-x-2 w-full text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
@@ -1615,6 +1631,14 @@ function IndexPopup() {
                   >
                     <FaCrown size={16} />
                     <span className="text-sm">{loading ? "Redirecting..." : "Upgrade"}</span>
+                    
+                    {/* Show Export Count  */}
+                    <span
+                      className="ml-1 rounded-full px-1 py-1 text-[10px] leading-none"
+                      title={isPro ? "Unlimited exports" : `${Math.max(0, exportCount ?? 0)} of 3 remaining`}
+                    >
+                      {isPro ? "∞" : `${Math.max(0, exportCount ?? 0)}/3`}
+                    </span>
                   </button>
                 ) : (
                   <button
@@ -1632,6 +1656,14 @@ function IndexPopup() {
                 >
                   <HiOutlineArrowDownTray size={16} />
                   <span className="text-sm">Export</span>
+
+                  {/* Show Export Count  */}
+                  <span
+                    className="ml-1 rounded-full px-1 py-1 text-[10px] leading-none"
+                    title={isPro ? "Unlimited exports" : `${Math.max(0, exportCount ?? 0)} of 3 remaining`}
+                  >
+                    {isPro ? "∞" : `${Math.max(0, exportCount ?? 0)}/3`}
+                  </span>
                 </button>
                 )}
 
@@ -1768,7 +1800,7 @@ function IndexPopup() {
               <span>Export Source</span>
               <select
                 className="bg-mainBody text-text rounded px-2 py-1"
-                value={defaultExportSource}
+                value={exportSource}
                 onChange={(e) => setExportSource(e.target.value)}
               >
                 {Object.keys(enabledSources)
