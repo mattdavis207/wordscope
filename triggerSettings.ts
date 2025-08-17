@@ -1,6 +1,6 @@
 
 export type TriggerMethod = "doubleClick" | "modifierClick" | "keyCombo"
-export type ModifierCombo = "altClick" | "cmdClick"
+export type ModifierCombo = "altClick" | "cmdClick" | "shiftClick"
 
 export interface TriggerSettings {
   triggerMethod: TriggerMethod

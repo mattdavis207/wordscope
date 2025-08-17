@@ -17,6 +17,54 @@ const MW_API_KEY = process.env.PLASMO_PUBLIC_MERRIAM_WEBSTER_DICT_API_KEY
 const LR_API_KEY = process.env.PLASMO_PUBLIC_LINGUA_API_KEY
 const WORDNIK_API_KEY = process.env.PLASMO_PUBLIC_WORDNIK_API_KEY
 
+// Rate limiting mechanism
+const rateLimiters = new Map<string, { lastRequest: number; minInterval: number }>()
+
+const createRateLimiter = (source: string, minInterval: number = 1000) => {
+  rateLimiters.set(source, { lastRequest: 0, minInterval })
+}
+
+const waitForRateLimit = async (source: string): Promise<void> => {
+  const limiter = rateLimiters.get(source)
+  if (!limiter) return
+
+  const now = Date.now()
+  const timeSinceLastRequest = now - limiter.lastRequest
+  
+  if (timeSinceLastRequest < limiter.minInterval) {
+    const waitTime = limiter.minInterval - timeSinceLastRequest
+    await new Promise(resolve => setTimeout(resolve, waitTime))
+  }
+  
+  limiter.lastRequest = Date.now()
+}
+
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout: number = 10000): Promise<Response> => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    throw error
+  }
+}
+
+// Initialize rate limiters for all sources
+createRateLimiter('google', 500)
+createRateLimiter('wordsapi', 1000)
+createRateLimiter('wiktionary', 1000)
+createRateLimiter('merriamwebsterapi', 1000)
+createRateLimiter('freedictionaryapi', 500)
+createRateLimiter('duckduckgo', 1000)
+createRateLimiter('linguarobot', 1000)
+
 // Sources
 export const definitionSources = {
 
@@ -30,9 +78,16 @@ export const definitionSources = {
     icon: googledictionaryIcon, 
     fetchDefinition: async (word: string) => {
       try {
-        const res = await fetch(
+        await waitForRateLimit('google')
+        
+        const res = await fetchWithTimeout(
           `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
         )
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
+        
         const json = await res.json()
     
         if (!Array.isArray(json) || !json.length) {
@@ -108,41 +163,68 @@ export const definitionSources = {
       "Provides structured definitions, examples, synonyms, and hierarchy-based word relationships. Used as a robust semantic source for word understanding.",
     icon: wordsapiIcon, // or use a proper icon URL
     fetchDefinition: async (word: string) => {
-      const headers = {
-        "x-rapidapi-key": WORDS_API_KEY,
-        "x-rapidapi-host": "wordsapiv1.p.rapidapi.com",
+      try {
+        await waitForRateLimit('wordsapi')
+        
+        const headers = {
+          "x-rapidapi-key": WORDS_API_KEY,
+          "x-rapidapi-host": "wordsapiv1.p.rapidapi.com",
+        }
+
+        const res = await fetchWithTimeout(`https://wordsapiv1.p.rapidapi.com/words/${word}/definitions`, {
+          method: "GET",
+          headers,
+        })
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
+        
+        const json = await res.json()
+
+        const definition = json.definitions
+          ?.map((d: any) => `(${d.partOfSpeech}) ${d.definition}`)
+          .join("\n") || "No definition found."
+
+        return { definition }
+      } catch (error) {
+        console.error("WordsAPI Fetch Error:", error)
+        return { definition: "Error fetching definition." }
       }
-
-      const res = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word}/definitions`, {
-        method: "GET",
-        headers,
-      })
-      const json = await res.json()
-
-      const definition = json.definitions
-        ?.map((d: any) => `(${d.partOfSpeech}) ${d.definition}`)
-        .join("\n") || "No definition found."
-
-      return { definition }
     },
     fetchExtras: async (word: string) => {
-      const headers = {
-        "x-rapidapi-key": WORDS_API_KEY,
-        "x-rapidapi-host": "wordsapiv1.p.rapidapi.com",
-      }
+      try {
+        await waitForRateLimit('wordsapi')
+        
+        const headers = {
+          "x-rapidapi-key": WORDS_API_KEY,
+          "x-rapidapi-host": "wordsapiv1.p.rapidapi.com",
+        }
 
-      const [synRes, antRes] = await Promise.all([
-        fetch(`https://wordsapiv1.p.rapidapi.com/words/${word}/synonyms`, { method: "GET", headers }),
-        fetch(`https://wordsapiv1.p.rapidapi.com/words/${word}/antonyms`, { method: "GET", headers }),
-      ])
+        const [synRes, antRes] = await Promise.all([
+          fetchWithTimeout(`https://wordsapiv1.p.rapidapi.com/words/${word}/synonyms`, { method: "GET", headers }),
+          fetchWithTimeout(`https://wordsapiv1.p.rapidapi.com/words/${word}/antonyms`, { method: "GET", headers }),
+        ])
 
-      const synJson = await synRes.json()
-      const antJson = await antRes.json()
+        if (!synRes.ok || !antRes.ok) {
+          throw new Error(`HTTP Error: ${synRes.status} or ${antRes.status}`)
+        }
 
-      return {
-        synonyms: synJson?.synonyms ?? [],
-        antonyms: antJson?.antonyms ?? [],
-        extrasFetched: true
+        const synJson = await synRes.json()
+        const antJson = await antRes.json()
+
+        return {
+          synonyms: synJson?.synonyms ?? [],
+          antonyms: antJson?.antonyms ?? [],
+          extrasFetched: true
+        }
+      } catch (error) {
+        console.error("WordsAPI Extras Fetch Error:", error)
+        return {
+          synonyms: [],
+          antonyms: [],
+          extrasFetched: false
+        }
       }
     },
     getMoreInfoUrl: (word: string) =>
@@ -165,7 +247,9 @@ export const definitionSources = {
   icon: wiktionaryIcon,
   fetchDefinition: async (word: string) => {
     try {
-      const res = await fetch(
+      await waitForRateLimit('wiktionary')
+      
+      const res = await fetchWithTimeout(
         `https://en.wiktionary.org/api/rest_v1/page/definition/${word}`,
         {
           headers: {
@@ -268,27 +352,46 @@ export const definitionSources = {
       "Delivers definitions and example sentences from Merriam-Webster’s dictionary database. Primarily used for accurate and formal reference entries.",
     icon: merriamwebsterIcon,
     fetchDefinition: async (word: string) => {
-      const res = await fetch(
-        `https://www.dictionaryapi.com/api/v3/references/collegiate/json/${word}?key=${MW_API_KEY}`
-      )
-      const json = await res.json()
+      try {
+        await waitForRateLimit('merriamwebsterapi')
+        
+        const res = await fetchWithTimeout(
+          `https://www.dictionaryapi.com/api/v3/references/collegiate/json/${word}?key=${MW_API_KEY}`
+        )
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
+        
+        const json = await res.json()
 
-      console.log("json for MW:", json);
-  
-      if (!Array.isArray(json) || !json[0]) {
-        return { definition: "No definition found." }
+        console.log("json for MW:", json);
+    
+        if (!Array.isArray(json) || !json[0]) {
+          return { definition: "No definition found." }
+        }
+    
+        const shortDefs = json[0]?.shortdef ?? []
+        const definition = shortDefs.map((def: string, i: number) => `${i + 1}. ${def}`).join("\n") || "No definition found." 
+    
+        return { definition }
+      } catch (error) {
+        console.error("Merriam-Webster Fetch Error:", error)
+        return { definition: "Error fetching definition." }
       }
-  
-      const shortDefs = json[0]?.shortdef ?? []
-      const definition = shortDefs.map((def: string, i: number) => `${i + 1}. ${def}`).join("\n") || "No definition found." 
-  
-      return { definition }
     },
     fetchExtras: async (word:string) => {
+      try {
+        await waitForRateLimit('merriamwebsterapi')
+        
         const [synRes, antRes] = await Promise.all([
-            fetch(`https://api.datamuse.com/words?rel_syn=${word}`),
-            fetch(`https://api.datamuse.com/words?rel_ant=${word}`)
+            fetchWithTimeout(`https://api.datamuse.com/words?rel_syn=${word}`),
+            fetchWithTimeout(`https://api.datamuse.com/words?rel_ant=${word}`)
           ])
+      
+          if (!synRes.ok || !antRes.ok) {
+            throw new Error(`HTTP Error: ${synRes.status} or ${antRes.status}`)
+          }
       
           const synJson = await synRes.json()
           const antJson = await antRes.json()
@@ -301,6 +404,14 @@ export const definitionSources = {
             antonyms,
             extrasFetched: true
           }
+      } catch (error) {
+        console.error("Merriam-Webster Extras Fetch Error:", error)
+        return {
+          synonyms: [],
+          antonyms: [],
+          extrasFetched: false
+        }
+      }
     },
     getMoreInfoUrl: (word: string) =>
     `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word)}`,
@@ -323,10 +434,18 @@ export const definitionSources = {
       "Sourced from Wiktionary, this provides both definitions and pronunciation audio.",
     icon: freedictionaryapiIcon,
     fetchDefinition: async (word: string) => {
-      const res = await fetch(
-        `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`
-      )
-      const json = await res.json()
+      try {
+        await waitForRateLimit('freedictionaryapi')
+        
+        const res = await fetchWithTimeout(
+          `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`
+        )
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
+        
+        const json = await res.json()
 
       const data = json[0];
 
@@ -377,11 +496,22 @@ export const definitionSources = {
         pronunciationAudio,
         extrasFetched: true  // because it's all already fetched
       }
+      } catch (error) {
+        console.error("FreeDictionaryAPI Fetch Error:", error)
+        return {
+          definition: "Error fetching definition.",
+          synonyms: [],
+          antonyms: [],
+          phoneticText: "",
+          pronunciationAudio: "",
+          extrasFetched: false
+        }
+      }
     },
     fetchExtras: async (word:string) => {
       return undefined;
     },
-    getMoreInfoUrl: (word: string) =>
+    getMoreInfoUrl: (word: string) => 
     `https://dictionaryapi.dev/`,
     exportable: true,
     license: {
@@ -404,9 +534,15 @@ export const definitionSources = {
     icon: duckduckgoIcon,
     fetchDefinition: async (word: string) => {
       try {
-        const res = await fetch(
+        await waitForRateLimit('duckduckgo')
+        
+        const res = await fetchWithTimeout(
           `https://api.duckduckgo.com/?q=${encodeURIComponent(word)}&format=json&no_html=1&no_redirect=1&skip_disambig=1`
         )
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
         const json = await res.json()
         console.log("duckduckgo reponse: ", json);
 
@@ -472,15 +608,22 @@ export const definitionSources = {
       "Provides definitions, parts of speech, and related word data sourced from Wiktionary. Used for core word lookup and lexical relationships.",
     icon: linguarobotapiIcon,
     fetchDefinition: async (word: string) => {
-      const headers = {
-        "x-rapidapi-key": LR_API_KEY,
-        "x-rapidapi-host": "lingua-robot.p.rapidapi.com",
-      }
-  
-      const res = await fetch(
-        `https://lingua-robot.p.rapidapi.com/language/v1/entries/en/${word}`,
-        { method: "GET", headers }
-      )
+      try {
+        await waitForRateLimit('linguarobot')
+        
+        const headers = {
+          "x-rapidapi-key": LR_API_KEY,
+          "x-rapidapi-host": "lingua-robot.p.rapidapi.com",
+        }
+    
+        const res = await fetchWithTimeout(
+          `https://lingua-robot.p.rapidapi.com/language/v1/entries/en/${word}`,
+          { method: "GET", headers }
+        )
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
   
       const json = await res.json()
       const entry = json.entries?.[0]
@@ -521,6 +664,17 @@ export const definitionSources = {
         phoneticText: transcription,
         pronunciationAudio: audioUrl,
         extrasFetched: true
+      }
+      } catch (error) {
+        console.error("Lingua Robot Fetch Error:", error)
+        return {
+          definition: "Error fetching definition.",
+          synonyms: [],
+          antonyms: [],
+          phoneticText: "",
+          pronunciationAudio: "",
+          extrasFetched: false
+        }
       }
     },
     fetchExtras: async (_word: string) => undefined,

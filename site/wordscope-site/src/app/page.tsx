@@ -7,9 +7,252 @@ import Link from "next/link";
 import "./tailwind.css"
 import './globals.css'
 
+// Simple themed modal
+function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+  return (
+    <div
+      aria-modal="true"
+      role="dialog"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+    >
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-3xl rounded-2xl border border-[#374151] bg-[#01122B] shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 bg-[#072141] rounded-t-2xl border-b border-[#374151]">
+          <h3 className="text-xl font-semibold text-[#BBE1FA]">{title}</h3>
+          <button
+            onClick={onClose}
+            className="px-3 py-1 rounded-lg border border-[#374151] text-[#9CA3AF] hover:text-white hover:border-[#2A4E75]"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5 text-[#BBE1FA]">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrivacyContent() {
+  return (
+    <div className="space-y-6 text-sm leading-6">
+      <p className="text-xs uppercase tracking-wide text-[#9CA3AF]">Effective Date: August 10, 2025</p>
+      <p className="text-[#9CA3AF]"><strong className="text-[#BBE1FA]">Wordscope</strong> (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) operates the Wordscope website and browser extension. This Privacy Policy explains how we collect, use, disclose, and protect your information when you use our site and extension.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-2">Information We Collect</h4>
+      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+        <li><span className="text-[#BBE1FA] font-medium">Extension data (local only):</span> We store your lookup history (words, definitions metadata, and source preferences) and, if you choose, your email <em>locally</em> via <code>chrome.storage.local</code> on your device. This data does not leave your device unless you export it.</li>
+        <li><span className="text-[#BBE1FA] font-medium">Payment:</span> Subscriptions and payments are handled by Stripe on their hosted pages. We do not collect or store your full payment details. Stripe may process basic info (e.g., email) per their policy.</li>
+        <li><span className="text-[#BBE1FA] font-medium">Website basics:</span> Our site collects standard logs (e.g., IP, user agent) necessary to serve pages and combat abuse.</li>
+      </ul>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">How We Use Information</h4>
+      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+        <li>Provide core functionality (definitions, history, export).</li>
+        <li>Remember your settings and preferences.</li>
+        <li>Communicate service updates you request (e.g., subscription status).</li>
+      </ul>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Sharing & Disclosure</h4>
+      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+        <li><span className="text-[#BBE1FA] font-medium">Service providers:</span> Stripe for payments. Data shared is limited to what’s necessary for checkout and receipts.</li>
+        <li>We do not sell your personal information.</li>
+        <li>We may disclose information to comply with the law or protect rights and safety.</li>
+      </ul>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Data Retention</h4>
+      <p className="text-[#9CA3AF]">Extension data is stored locally until you clear it or uninstall the extension. If you delete your account or request deletion of server-side records (e.g., billing email), we will delete them within 30 days unless retention is required by law.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Security</h4>
+      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+        <li>Data in transit uses HTTPS/TLS on our website and Stripe checkout pages.</li>
+        <li>Local extension data resides on your device; protect access to your browser profile.</li>
+      </ul>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Third‑Party Services</h4>
+      <p className="text-[#9CA3AF]">Wordscope may link to external sites (e.g., Stripe). Their practices are governed by their own policies.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Source Licenses & Copyright</h4>
+      <p className="text-[#9CA3AF]">Definitions and examples are retrieved from multiple providers. We respect and comply with each source’s license and attribution requirements. Content from sources remains the property of its respective owners and is displayed for personal use within Wordscope. Exported data should be used consistent with those licenses.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Your Choices</h4>
+      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+        <li>View, export, or clear your local history in the extension.</li>
+        <li>Contact us to update or delete server-side records tied to billing.</li>
+      </ul>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Changes</h4>
+      <p className="text-[#9CA3AF]">We may update this policy. We will update the Effective Date and post changes here.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Contact</h4>
+      <p className="text-[#9CA3AF]">Questions? Email us at <a href="mailto:wordscope55@gmail.com" className="underline hover:text-[#BBE1FA]">wordscope55@gmail.com</a>.</p>
+    </div>
+  );
+}
+
+function TermsContent() {
+  return (
+    <div className="space-y-6 text-sm leading-6">
+      <p className="text-xs uppercase tracking-wide text-[#9CA3AF]">Effective Date: August 10, 2025</p>
+      <p className="text-[#9CA3AF]">These Terms of Service (&quot;Terms&quot;) govern your use of the Wordscope website and browser extension (the &quot;Service&quot;) provided by Wordscope (&quot;we&quot;, &quot;us&quot;). By accessing or using the Service, you agree to these Terms.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-2">Use of the Service</h4>
+      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+        <li>Use the Service only for lawful purposes and in accordance with these Terms.</li>
+        <li>You are responsible for safeguarding your browser profile and any credentials used with Stripe checkout.</li>
+      </ul>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Accounts & Subscriptions</h4>
+      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+        <li>Some features (e.g., Pro) require a paid subscription processed by Stripe.</li>
+        <li>We may associate a subscription with your email. Keep it accurate to avoid access issues.</li>
+      </ul>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Intellectual Property</h4>
+      <p className="text-[#9CA3AF]">The Service, brand, and software are owned by Wordscope. Third‑party dictionary content remains the property of the respective providers and is used under their licenses and terms.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">User Content</h4>
+      <p className="text-[#9CA3AF]">If you submit feedback or suggestions, you grant us a non‑exclusive, royalty‑free license to use them to improve the Service.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Third‑Party Links</h4>
+      <p className="text-[#9CA3AF]">Links to third‑party services (e.g., Stripe) are provided for convenience. We don&rsquo;t control and aren&rsquo;t responsible for their content or practices.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Modifications</h4>
+      <p className="text-[#9CA3AF]">We may modify the Service or these Terms. Continued use after changes constitutes acceptance.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Availability</h4>
+      <p className="text-[#9CA3AF]">We strive for high availability but do not guarantee uninterrupted access. Maintenance or outages may occur.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Disclaimer & Limitation of Liability</h4>
+      <p className="text-[#9CA3AF]">The Service is provided &quot;as is&quot; to the fullest extent permitted by law. We disclaim warranties and limit liability for damages arising from use of the Service.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Indemnification</h4>
+      <p className="text-[#9CA3AF]">You agree to indemnify and hold Wordscope harmless from claims arising from your misuse of the Service or violation of these Terms.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Children</h4>
+      <p className="text-[#9CA3AF]">The Service is not intended for children under 13.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Severability & Entire Agreement</h4>
+      <p className="text-[#9CA3AF]">If any provision is unenforceable, the remainder remains in effect. These Terms constitute the entire agreement regarding the Service.</p>
+
+      <h4 className="text-[#BBE1FA] font-semibold mt-6">Contact</h4>
+      <p className="text-[#9CA3AF]">Contact us at <a href="mailto:wordscope55@gmail.com" className="underline hover:text-[#BBE1FA]">wordscope55@gmail.com</a>.</p>
+    </div>
+  );
+}
+
+
+// Feature modal details for cards
+function FeatureDetails({ title }: { title: string }) {
+  const Common = ({ children }: { children: React.ReactNode }) => (
+    <div className="space-y-4 text-sm leading-6 text-[#9CA3AF]">{children}</div>
+  );
+  switch (title) {
+    case 'Instant Definitions':
+      return (
+        <Common>
+          <p>Highlight a word anywhere and get definitions from multiple sources without leaving the page.</p>
+          <ul className="list-disc pl-6 space-y-1 marker:text-[#2A4E75]">
+            <li>Multi‑source merge with per‑source details</li>
+            <li>Keyboard/mouse triggers (double‑click, modifiers, hotkeys)</li>
+            <li>Pronunciation and examples when available</li>
+          </ul>
+        </Common>
+      );
+    case 'Source Configuration':
+      return (
+        <Common>
+          <p>Enable/disable sources, reorder priority, and set a default export source.</p>
+          <ul className="list-disc pl-6 space-y-1 marker:text-[#2A4E75]">
+            <li>Fully local settings in <code>chrome.storage.local</code></li>
+            <li>Per‑source license‑aware display</li>
+            <li>Quick toggle from the UI</li>
+          </ul>
+        </Common>
+      );
+    case 'Context AI':
+      return (
+        <Common>
+          <p>See how a word behaves in real sentences and paragraphs with concise explanations.</p>
+          <ul className="list-disc pl-6 space-y-1 marker:text-[#2A4E75]">
+            <li>100 explanations/month for Pro</li>
+            <li>History‑aware prompts (local)</li>
+            <li>Respectful of source licenses—no bulk scraping</li>
+          </ul>
+        </Common>
+      );
+    case 'History Tracking':
+      return (
+        <Common>
+          <p>Every lookup is saved locally so you can review and study later.</p>
+          <ul className="list-disc pl-6 space-y-1 marker:text-[#2A4E75]">
+            <li>Searchable list of saved words</li>
+            <li>Per‑source data where available</li>
+            <li>Clear/export anytime</li>
+          </ul>
+        </Common>
+      );
+    case 'Custom Themes':
+      return (
+        <Common>
+          <p>Tune the look with theme palettes that match your workflow.</p>
+          <ul className="list-disc pl-6 space-y-1 marker:text-[#2A4E75]">
+            <li>Light/Dark and advanced color tokens</li>
+            <li>Instant preview and apply</li>
+            <li>Persists locally</li>
+          </ul>
+        </Common>
+      );
+    case 'Export & Pro Tools':
+      return (
+        <Common>
+          <p>Get your data out in the formats you need, plus Pro‑only utilities.</p>
+          <ul className="list-disc pl-6 space-y-1 marker:text-[#2A4E75]">
+            <li>CSV, TSV, JSON, PDF exports</li>
+            <li>Anki‑friendly structures</li>
+            <li>Email‑based subscription via Stripe (no card data stored by us)</li>
+          </ul>
+        </Common>
+      );
+    default:
+      return <Common><p>Details coming soon.</p></Common>;
+  }
+}
+
 
 export default function Home() {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<null | 'privacy' | 'tos'>(null);
+  const openPrivacy = () => setActiveModal('privacy');
+  const openTos = () => setActiveModal('tos');
+  const closeModal = () => setActiveModal(null);
+
+  // Feature modal state
+  const [activeFeature, setActiveFeature] = useState<string | null>(null);
+  const openFeature = (title: string) => setActiveFeature(title);
+  const closeFeature = () => setActiveFeature(null);
+
+  // Smooth scroll helper
+  const scrollToId = (id: string) => {
+    const header = document.getElementById('site-header');
+    const headerH = header ? header.getBoundingClientRect().height : 0;
+    const el = document.getElementById(id);
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - headerH - 8; // small gap
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  };
 
   const toggle = (key: string) => setExpanded(expanded === key ? null : key);
 
@@ -110,25 +353,34 @@ export default function Home() {
   return (
     <div id="main" className="bg-[#01122B] text-[#BBE1FA] font-sans min-h-screen">
       {/* Top Header */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-[#072141] shadow-lg border-b border-[#374151] backdrop-blur-sm">
+      <div id="site-header" className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-[#072141] shadow-lg border-b border-[#374151] backdrop-blur-sm">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+          <button 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="w-10 h-10 rounded-lg flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"
+          >
             <Image 
               src={"/wordscope-logo.png"} 
               alt={"Wordscope Logo"} 
               width={40} 
               height={40}
-              className="group-hover:scale-110 transition-transform"
+              className="transition-transform"
             />
-          </div>
-          <Link href="/" className="text-2xl font-bold">Wordscope</Link>
+          </button>
+          <button 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="text-2xl font-bold hover:text-white transition-colors cursor-pointer"
+          >
+            Wordscope
+          </button>
         </div>
         <nav className="flex space-x-8 text-[#9CA3AF]">
-          <Link href="#features" className="hover:text-[#BBE1FA] transition-colors duration-200 font-medium">Features</Link>
-          <Link href="#pro" className="hover:text-[#BBE1FA] transition-colors duration-200 font-medium">Pro</Link>
-          <Link href="#download" className="hover:text-[#BBE1FA] transition-colors duration-200 font-medium">Download</Link>
+          <a href="#features" onClick={(e) => { e.preventDefault(); scrollToId('features'); }} className="hover:text-[#BBE1FA] transition-colors duration-200 font-medium">Features</a>
+          <a href="#pro" onClick={(e) => { e.preventDefault(); scrollToId('pro'); }} className="hover:text-[#BBE1FA] transition-colors duration-200 font-medium">Pro</a>
+          <a href="#download" onClick={(e) => { e.preventDefault(); scrollToId('download'); }} className="hover:text-[#BBE1FA] transition-colors duration-200 font-medium">Download</a>
         </nav>
       </div>
+
       
       {/* Spacer for fixed header */}
       <div className="h-1"></div>
@@ -209,9 +461,24 @@ export default function Home() {
             
             <div className="relative">
               <p className="text-[#BBE1FA] leading-relaxed text-xl mb-6">
-                The <span className="bg-[#2563EB] px-2 py-1 rounded-md cursor-pointer hover:bg-[#1e50c3] transition relative">revolutionary</span> approach 
-                to language learning involves understanding words in their natural context rather than memorizing isolated definitions.
+                The revolutionary approach to expanding your vocabulary involves understanding words in their natural context rather than memorizing isolated definitions.
               </p>
+              
+              {/* Demo GIF Placeholder */}
+              <div className="mt-8 flex justify-center">
+                <div className="bg-[#1c2f47] border border-[#374151] rounded-lg p-6 text-center">
+                  <div className="w-80 h-48 bg-[#072141] rounded-lg flex items-center justify-center mb-4">
+                    <div className="text-[#9CA3AF] text-sm">
+                      📹 Demo GIF will go here
+                      <br />
+                      <span className="text-xs">(showing bubble interaction)</span>
+                    </div>
+                  </div>
+                  <p className="text-[#9CA3AF] text-sm">
+                    Hover over any word to see instant definitions from multiple sources
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -222,7 +489,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <h2 className="font-bold text-center mb-4" style={{ fontSize: "2.5rem" }}>Inside Wordscope</h2>
           <p className="text-[#9CA3AF] text-center mb-16 max-w-2xl mx-auto">
-            Explore the comprehensive features that make Wordscope your ultimate language companion.
+            Explore the comprehensive features that make Wordscope your ultimate word companion.
           </p>
           
           {[
@@ -289,16 +556,20 @@ export default function Home() {
         <h2 className="font-bold text-center" style={{ fontSize: "2.5rem" }}>Key Features</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto mt-5">
           {[
-            { title: "Instant Definitions", desc: "Highlight any word to get definitions from multiple sources.", icon: "⚡", color: "from-[#2563EB] to-[#1e50c3]" },
-            { title: "Source Configuration", desc: "Enable, disable, and reorder your preferred sources.", icon: "🔧", color: "from-[#059669] to-[#047857]" },
-            { title: "Context AI", desc: "Analyze usage of words in sentence and paragraph context.", icon: "🧠", color: "from-[#7c3aed] to-[#6d28d9]" },
-            { title: "History Tracking", desc: "Track, revisit, and export all previous lookups.", icon: "📈", color: "from-[#dc2626] to-[#b91c1c]" },
-            { title: "Custom Themes", desc: "Style the extension to your aesthetic with theme control.", icon: "🎨", color: "from-[#ea580c] to-[#c2410c]" },
-            { title: "Export & Pro Tools", desc: "Save data and unlock advanced features with Pro.", icon: "💎", color: "from-[#0891b2] to-[#0e7490]" },
+            { title: "Instant Definitions", desc: "Triple-click, double-click, or use keyboard shortcuts to get definitions from 8+ sources instantly without leaving your current page.", icon: "⚡", color: "from-[#2563EB] to-[#1e50c3]" },
+            { title: "Source Configuration", desc: "Customize priority order of Google Dictionary, Wiktionary, Merriam-Webster, WordAPI, and 4 other trusted sources with full license compliance.", icon: "🔧", color: "from-[#059669] to-[#047857]" },
+            { title: "Context AI", desc: "Get intelligent explanations of how words work in real sentences and paragraphs with 100 AI-powered insights per month (Pro feature).", icon: "🧠", color: "from-[#7c3aed] to-[#6d28d9]" },
+            { title: "History Tracking", desc: "Automatically save every lookup locally with timestamps, source data, pronunciations, and synonyms - all searchable and exportable.", icon: "📈", color: "from-[#dc2626] to-[#b91c1c]" },
+            { title: "Custom Themes", desc: "Choose from light/dark themes or create custom color schemes with advanced tokens that persist across all websites you browse.", icon: "🎨", color: "from-[#ea580c] to-[#c2410c]" },
+            { title: "Export & Pro Tools", desc: "Export your entire history in CSV, TSV, JSON, or PDF formats. Anki-friendly structures for flashcard creation and spaced repetition learning.", icon: "💎", color: "from-[#0891b2] to-[#0e7490]" },
           ].map((feature) => (
             <div
               key={feature.title}
-              className="group bg-[#1c2f47] p-8 rounded-xl hover:scale-105 transition-all duration-300 border border-[#374151] hover:border-[#2A4E75] hover:shadow-2xl"
+              role="button"
+              tabIndex={0}
+              onClick={() => openFeature(feature.title)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFeature(feature.title); } }}
+              className="group cursor-pointer bg-[#1c2f47] p-8 rounded-xl hover:scale-105 transition-all duration-300 border border-[#374151] hover:border-[#2A4E75] hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-[#2A4E75]"
             >
               <div className={`w-14 h-14 bg-gradient-to-br ${feature.color} mb-6 rounded-lg flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform`}>
                 {feature.icon}
@@ -308,6 +579,10 @@ export default function Home() {
             </div>
           ))}
         </div>
+        {/* Feature Modal */}
+        <Modal isOpen={!!activeFeature} onClose={closeFeature} title={activeFeature || ''}>
+          {activeFeature && <FeatureDetails title={activeFeature} />}
+        </Modal>
       </section>
 
       {/* Pro Subscription */}
@@ -326,8 +601,8 @@ export default function Home() {
           
           <p className="text-[#9CA3AF] max-w-3xl mx-auto mb-12 text-lg leading-relaxed">
             Wordscope Pro gives you everything you need to take your word exploration to the next level. 
-            Unlock access to Context AI with 100 intelligent explanations per month for words in their real-world usage. 
-            Export your entire lookup history in CSV, TSV, JSON, or PDF format to study, share, or save for later. 
+            Unlock access to Context AI with 50,000 tokens per month for intelligent explanations of words in their real-world usage. 
+            Get unlimited exports of your entire lookup history in CSV, TSV, JSON, or PDF formats to study, share, or save for later. 
             Enjoy a premium experience with faster responses, unlimited use of core features, and early access to upcoming tools and enhancements.
           </p>
 
@@ -344,8 +619,8 @@ export default function Home() {
               
               <ul className="text-left mb-8 space-y-4">
                 {[
-                  "Context AI - 100 explanations/month",
-                  "Export to CSV, TSV, JSON, PDF",
+                  "Context AI - 50,000 tokens/month",
+                  "Unlimited exports (CSV, TSV, JSON, PDF)",
                   "Unlimited history storage", 
                   "Premium themes & customization",
                   "Priority customer support",
@@ -361,10 +636,10 @@ export default function Home() {
               <button
                 onClick={async () => {
                   try {
-                    const res = await fetch("https://wordscope-extension.vercel.app/api/create-stripe-session", {
+                    const res = await fetch("https://wordscope-extension.vercel.app/api/create-checkout-session", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ email: "test" }),
+                      body: JSON.stringify({}), // No email, let Stripe collect it
                     });
                   
                 
@@ -388,8 +663,8 @@ export default function Home() {
                   }
                 }}
                 className="inline-block w-full bg-gradient-to-r from-[#2563EB] to-[#7c3aed] 
-                  hover:from-[#1e50c3] hover:to-[#6d28d9] text-white font-semibold py-4 px-8 mt-4 rounded-xl 
-                  transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  hover:from-[#1e50c3] hover:to-[#6d28d9] text-white font-bold py-6 px-10 mt-4 rounded-xl 
+                  transition-all duration-300 transform hover:scale-105 shadow-lg text-lg"
               >
                 Upgrade to Pro
               </button>
@@ -422,9 +697,12 @@ export default function Home() {
     <div className="min-w-[150px] ml-30">
       <h4 className="font-semibold mb-3 text-[#BBE1FA]">Legal</h4>
       <ul className="space-y-2">
-        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Privacy Policy</Link></li>
-        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Terms of Service</Link></li>
-        <li><Link href="#" className="hover:text-[#BBE1FA] transition">Cookie Policy</Link></li>
+        <li>
+          <Link href="#" onClick={(e) => { e.preventDefault(); openPrivacy(); }} className="hover:text-[#BBE1FA] transition">Privacy Policy</Link>
+        </li>
+        <li>
+          <Link href="#" onClick={(e) => { e.preventDefault(); openTos(); }} className="hover:text-[#BBE1FA] transition">Terms of Service</Link>
+        </li>
       </ul>
     </div>
 
@@ -434,7 +712,7 @@ export default function Home() {
       <ul className="space-y-2">
         <li><Link href="https://x.com/wordscope55" className="hover:text-[#BBE1FA] transition">Twitter</Link></li>
         <li><Link href="https://www.reddit.com/r/wordscope_55/" className="hover:text-[#BBE1FA] transition">Reddit</Link></li>
-        <li><Link href="#" className="hover:text-[#BBE1FA] transition">GitHub</Link></li>
+        <li><Link href="mailto:wordscope55@gmail.com" className="hover:text-[#BBE1FA] transition">Contact</Link></li>
       </ul>
     </div>
 
@@ -446,33 +724,14 @@ export default function Home() {
   </div>
 </footer>
 
-
+      {/* Legal Modals */}
+      <Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy">
+        <PrivacyContent />
+      </Modal>
+      <Modal isOpen={activeModal === 'tos'} onClose={closeModal} title="Terms of Service">
+        <TermsContent />
+      </Modal>
 
     </div>
   );
 }
-
-//       {/* Footer */}
-//       <footer className="bg-[#072141] py-10 px-6">
-//         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-[#9CA3AF]">
-//           <div>
-//             <h4 className="font-semibold mb-2 text-white">Legal</h4>
-//             <ul className="space-y-1">
-//               <li><Link href="#"><a className="hover:underline">Privacy Policy</a></Link></li>
-//               <li><Link href="#"><a className="hover:underline">Terms of Service</a></Link></li>
-//             </ul>
-//           </div>
-//           <div>
-//             <h4 className="font-semibold mb-2 text-white">Connect</h4>
-//             <ul className="space-y-1">
-//               <li><Link href="#"><a className="hover:underline">Twitter</a></Link></li>
-//               <li><Link href="#"><a className="hover:underline">GitHub</a></Link></li>
-//               <li><Link href="#"><a className="hover:underline">Email</a></Link></li>
-//             </ul>
-//           </div>
-//         </div>
-//         <p className="text-center text-xs text-[#9CA3AF] mt-10">&copy; 2025 Wordscope. All rights reserved.</p>
-//       </footer>
-//     </div>
-//   );
-// }

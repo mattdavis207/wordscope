@@ -14,14 +14,25 @@ const quotaKey = (customerId: string) => `${PREFIX}:ws:quota:${customerId}`;
 
 
 async function topUp(customerId: string, periodEndMs: number) {
-    await redis.hmset(quotaKey(customerId), {
+    console.log(`🔋 Granting 50k tokens to customer ${customerId}, period ends: ${new Date(periodEndMs)}`);
+    const redisKey = quotaKey(customerId);
+    
+    await redis.hmset(redisKey, {
         tokensRemaining: 50_000,
         periodEnd: periodEndMs,
     });
+    
+    // Verify the data was stored correctly
+    const verification = await redis.hgetall(redisKey);
+    console.log(`✅ Tokens granted to ${customerId}, verification:`, verification);
 }
 
 async function zeroOut(customerId: string) {
-await redis.hmset(quotaKey(customerId), { tokensRemaining: 0 });
+  // Clear both tokens and period to avoid any conflicts on re-subscription
+  await redis.hmset(quotaKey(customerId), { 
+    tokensRemaining: 0,
+    periodEnd: 0
+  });
 }
 
 // Safely get a customer id from any object that might have it string-or-object
@@ -62,6 +73,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    console.log(`🔔 Webhook received: ${event.type}`, { 
+      eventId: event.id,
+      customerId: readCustomerId(event.data.object)
+    });
+    
     switch (event.type) {
       // First purchase via Checkout — grant immediately with a soft 30d anchor.
       // The first invoice that follows will correct the period end.
@@ -98,6 +114,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const customerId = readCustomerId(sub);
         if (customerId) {
           await zeroOut(customerId);
+        }
+        break;
+      }
+
+      // Handle subscription creation/reactivation (for re-subscribers)
+      case "customer.subscription.created": {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sub: any = event.data.object;
+        const customerId = readCustomerId(sub);
+        if (customerId && (sub.status === "active" || sub.status === "trialing")) {
+          const soft30Days = Date.now() + 30 * 24 * 60 * 60 * 1000;
+          await topUp(customerId, soft30Days);
+        }
+        break;
+      }
+
+      // Handle subscription status changes (cancelled to active)
+      case "customer.subscription.updated": {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sub: any = event.data.object;
+        const customerId = readCustomerId(sub);
+        if (customerId && sub.status === "active") {
+          // Check if this is a reactivation (previous object was cancelled/inactive)
+          const prevSub = event.data.previous_attributes;
+          if (prevSub && (prevSub.status === "canceled" || prevSub.status === "incomplete")) {
+            const soft30Days = Date.now() + 30 * 24 * 60 * 60 * 1000;
+            await topUp(customerId, soft30Days);
+          }
+        } else if (customerId && (sub.status === "canceled" || sub.status === "past_due")) {
+          // Subscription expired or failed payment - zero out tokens
+          await zeroOut(customerId);
+        }
+        break;
+      }
+
+      // Handle failed payments that lead to subscription expiration
+      case "invoice.payment_failed": {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const invoice: any = event.data.object;
+        const customerId = readCustomerId(invoice);
+        if (customerId) {
+          // Check if this is the final failed attempt that will cancel the subscription
+          const attemptCount = invoice.attempt_count || 0;
+          if (attemptCount >= 4) { // Stripe typically tries 4 times
+            await zeroOut(customerId);
+          }
         }
         break;
       }

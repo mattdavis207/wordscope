@@ -25,7 +25,6 @@ export function SourcesTab() {
   } = useSourceSettings()
 
   const [themes, setThemes] = useState<Theme[]>([]);
-
   const [appliedTheme, setAppliedTheme] = useState<string>("");
 
   useEffect(() => {

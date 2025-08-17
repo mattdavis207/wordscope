@@ -22,19 +22,29 @@ function setCORS(res: NextApiResponse) {
 
 // find Stripe customer by email (no DB needed)
 async function customerIdByEmail(email: string): Promise<string | null> {
-  // 1) try cache to avoid Stripe call every time
-  const cached = await redis.get<string>(emailCacheKey(email));
-  if (cached) return cached;
-
-  // 2) Stripe search (basil supports .search)
+  console.log(`🔍 Looking up customer for email: ${email}`);
+  
+  // 1) Get fresh customer ID from Stripe (don't trust cache for balance checks)
   const safe = email.replace(/'/g, "\\'");
   const r = await stripe.customers.search({ query: `email:'${safe}'`, limit: 1 });
 
-  const id = r.data?.[0]?.id ?? null;
-  if (id) {
-    // cache for a day (optional)
-    await redis.set(emailCacheKey(email), id, { ex: 86400 });
+  let id = r.data?.[0]?.id ?? null;
+  console.log(`🔎 Stripe search result for ${email}: ${id}`);
+  
+  if (!id) {
+    // Try fallback list method
+    console.log(`🔄 Trying fallback list method for ${email}`);
+    const listResult = await stripe.customers.list({ email, limit: 1 });
+    id = listResult.data?.[0]?.id ?? null;
+    console.log(`📋 List result: ${id}`);
   }
+  
+  if (id) {
+    // Update cache with current customer ID
+    await redis.set(emailCacheKey(email), id, { ex: 86400 });
+    console.log(`💾 Updated cached customer ID ${id} for ${email}`);
+  }
+  
   return id;
 }
 
@@ -50,11 +60,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const customerId = await customerIdByEmail(email);
     if (!customerId) return res.status(404).json({ error: "Stripe customer not found for email" });
 
-    const data = await redis.hgetall<{ tokensRemaining?: number; periodEnd?: number }>(quotaKey(customerId));
+    const data = await redis.hgetall(quotaKey(customerId));
+    
+    // Convert to numbers explicitly (Redis returns strings)
+    const tokensRemaining = data?.tokensRemaining ? Number(data.tokensRemaining) : 0;
+    const periodEnd = data?.periodEnd ? Number(data.periodEnd) : null;
+    
+    console.log(`💰 Balance check for ${customerId}:`, {
+      rawData: data,
+      tokensRemaining,
+      periodEnd,
+      periodEndDate: periodEnd ? new Date(periodEnd) : null,
+      redisKey: quotaKey(customerId)
+    });
 
     return res.status(200).json({
-      remainingTokens: data?.tokensRemaining ?? 0,
-      periodEnd: data?.periodEnd ?? null
+      remainingTokens: tokensRemaining,
+      periodEnd: periodEnd
     });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {

@@ -81,6 +81,55 @@ export function useSourceSettings() {
       }
     })
   }, [])
+
+  // Listen for storage changes to sync between popup and content script
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes[SOURCE_SETTINGS_KEY]) {
+        const newSettings = changes[SOURCE_SETTINGS_KEY].newValue
+        if (newSettings) {
+          console.log("🔄 Source settings changed, updating:", newSettings)
+          
+          const allKeys = Object.keys(definitionSources)
+          const cleanedOrder = newSettings.order?.map((item) => {
+            if (typeof item === "string") return item
+            return Object.keys(item)
+              .filter((k) => /^\d+$/.test(k))
+              .sort((a, b) => Number(a) - Number(b))
+              .map((k) => item[k])
+              .join("")
+          }) || allKeys
+
+          const persistedOrder = [
+            ...cleanedOrder,
+            ...allKeys.filter((key) => !cleanedOrder.includes(key))
+          ]
+
+          const fixedEnabled = {
+            ...Object.fromEntries(allKeys.map((key) => [key, true])),
+            ...newSettings.enabled
+          }
+
+          setSourceOrder(persistedOrder)
+          setEnabledSources(fixedEnabled)
+        }
+      }
+
+      if (changes[DEFAULT_EXPORT_SOURCE_KEY]) {
+        const newDefaultSource = changes[DEFAULT_EXPORT_SOURCE_KEY].newValue
+        if (newDefaultSource) {
+          console.log("🔄 Default export source changed:", newDefaultSource)
+          setDefaultExportSource(newDefaultSource)
+        }
+      }
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
+  }, [])
   
   const updateDefaultExportSource = (source: string) => {
     setDefaultExportSource(source)
@@ -90,6 +139,16 @@ export function useSourceSettings() {
 
   // Toggle enable/disable
   const toggleSource = (key: string) => {
+    // Check if we're trying to disable the last enabled source
+    const currentlyEnabled = Object.values(enabledSources).filter(Boolean).length
+    const isCurrentlyEnabled = enabledSources[key]
+    
+    // Prevent disabling if this is the last enabled source
+    if (isCurrentlyEnabled && currentlyEnabled === 1) {
+      alert("At least one source needs to be enabled")
+      return
+    }
+    
     const updated = { ...enabledSources, [key]: !enabledSources[key] }
     setEnabledSources(updated)
     saveSettings(sourceOrder, updated)

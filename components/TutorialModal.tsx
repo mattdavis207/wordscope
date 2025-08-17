@@ -73,9 +73,9 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
         },
         {
           title: "Support the Developer",
-          description: "Like this extension? Leave a review or donate crypto to keep development alive ❤️",
+          description: "Like this extension? Leave a review or donate crypto to keep development alive",
           custom: (
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-1">
               <FaHeart size={40} className="text-pink-400" />
               <p className="text-center text-sm text-otherText my-2">
                 Every contribution helps bring new features and keep this free for everyone.
@@ -94,7 +94,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
               </button>
             
               {/* Action Buttons */}
-              <div className="flex gap-3 mt-2">
+              <div className="flex gap-3">
                 {/* Review Button */}
                 <a
                     href="https://chrome.google.com/webstore/detail/your-extension-id"
@@ -123,8 +123,13 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
     }, []);
   
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 pt-30">
-        <div className="bg-mainBody p-6 rounded-xl shadow-lg w-96 relative">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100000] p-4">
+        <div className="bg-mainBody p-6 rounded-2xl shadow-2xl shadow-black/50 w-full max-w-sm max-h-[80vh] overflow-y-auto relative"
+             style={{
+               scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+               overscrollBehavior: "contain",
+               WebkitOverflowScrolling: "touch"
+             }}>
             {/* Close Button */}
             <button
                 onClick={onClose}

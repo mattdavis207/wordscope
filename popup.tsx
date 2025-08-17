@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import ReactDOM from "react-dom";
 import { IoClose, IoSearch, IoSettings, IoVolumeMediumSharp, IoSettingsOutline, IoTimeOutline, IoTrashSharp, IoTrashOutline, IoColorPaletteSharp } from "react-icons/io5"
 import { HiOutlineClock, HiOutlineEyeDropper, HiOutlineChatBubbleBottomCenterText, HiOutlineDocumentArrowDown, HiOutlineSparkles, HiOutlineArrowDownTray, HiOutlineXMark, 
-         HiOutlineTrash, HiOutlineCheck, HiOutlinePlus, HiOutlineExclamationCircle, HiOutlineUserCircle} from "react-icons/hi2"
+         HiOutlineTrash, HiOutlineCheck, HiOutlinePlus, HiOutlineExclamationCircle, HiOutlineUserCircle, HiOutlinePencil} from "react-icons/hi2"
 import { FaRegPlusSquare, FaChevronLeft, FaChevronRight, FaEthereum, FaBitcoin,
   FaBookOpen, FaStar, FaTwitter, FaRedditAlien, FaHeart, FaRegCopy, FaCheck, FaCrown} from "react-icons/fa";
 import { AiOutlineInfoCircle } from "react-icons/ai"
@@ -12,6 +12,7 @@ import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
 import { SiSolana } from "react-icons/si";
 import { RxCrossCircled } from "react-icons/rx"
 import { HexColorPicker } from "react-colorful";
+import { injectSavedThemes } from "~hooks/injectThemes";
 import wordscopeLogo from "assets/wordscope-logo.png"
 import "~/public/styles/tailwind.css"
 import "~/public/styles/globals.css";
@@ -35,6 +36,7 @@ import { SignInModal } from "~components/SignInModal";
 
 // Source imports
 import { definitionSources } from "~sources/definitionSources"
+import { clamp } from "~node_modules/framer-motion/dist/types";
 
 declare global {
   interface Window {
@@ -112,6 +114,8 @@ function IndexPopup() {
   const [activeColor, setActiveColor] = useState<string | null>(null); // For color selection in modal
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   const [customThemeName, setCustomThemeName] = useState("");
+  const [editingTheme, setEditingTheme] = useState<number | null>(null); // Track which theme is being edited
+  const [isEditingMode, setIsEditingMode] = useState(false); // Track if we're editing vs creating
   const [customTheme, setCustomTheme] = useState({
     background: "#01122B",
     text: "#BBE1FA",
@@ -470,9 +474,10 @@ function IndexPopup() {
     };
 
     const saveCustomTheme = (themeName, colorMap) => {
+      const customThemeCount = themes.filter(t => t.className.startsWith("custom-theme-")).length;
       const newTheme = {
-        name: themeName || `Custom Theme ${Date.now()}`,
-        className: `custom-theme-${Date.now()}`,
+        name: themeName || `Custom Theme ${customThemeCount + 1}`,
+        className: `custom-theme-${customThemeCount + 1}`,
         colors: Object.values(colorMap) as string[], 
       };
     
@@ -626,11 +631,14 @@ function IndexPopup() {
 
             {/* Dropdown Menu */}
             <ModalContainer isOpen={infoOpen} onClose={() => setInfoOpen(false)} type= "dropdown">
-              <div ref={infoRef} className="absolute right-0 w-52 bg-mainBody rounded-2xl shadow-2xl shadow-black/50 p-2 space-y-2 z-50">
+              <div ref={infoRef} className="absolute right-0 w-52 bg-mainBody rounded-2xl shadow-2xl shadow-black/50 p-2 space-y-2 z-[99999]">
                 {/* Tutorial */}
                 <button
                   className="w-full flex items-center space-x-2 text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
-                  onClick={() => setShowTutorial(true)}
+                  onClick={() => {
+                    setInfoOpen(false)
+                    setShowTutorial(true)
+                  }}
                 >
                   <FaBookOpen size={16} className="text-blue-400" />
                   <span>Tutorial</span>
@@ -657,7 +665,10 @@ function IndexPopup() {
                 </a>
                 {/* Donate */}
                 <button
-                  onClick={() => setShowDonate(true)}
+                  onClick={() => {
+                    setInfoOpen(false)
+                    setShowDonate(true)
+                    }}
                   className="flex items-center space-x-2 w-full text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
                 >
                   <FaHeart size={16} className="text-pink-400" />
@@ -808,6 +819,40 @@ function IndexPopup() {
               </button>
 
                 {themes[currentTheme].className.startsWith("custom-theme-") && (
+                  <>
+                    <button
+                      onClick={() => {
+                        // Set editing mode and populate the modal with existing theme data
+                        setIsEditingMode(true);
+                        setEditingTheme(currentTheme);
+                        setCustomThemeName(themes[currentTheme].name);
+                        
+                        // Convert colors array back to theme object
+                        const themeColors = themes[currentTheme].colors;
+                        const themeObject = {
+                          background: themeColors[0] || "#000000",
+                          text: themeColors[1] || "#000000",
+                          mainBody: themeColors[2] || "#000000",
+                          dullBox: themeColors[3] || "#000000",
+                          hoverIcon: themeColors[4] || "#000000",
+                          hoverSquare: themeColors[5] || "#000000",
+                          dataText: themeColors[6] || "#000000",
+                          otherText: themeColors[7] || "#000000",
+                          border: themeColors[8] || "#000000",
+                          tabActiveBg: themeColors[9] || "#000000",
+                          aiChatBubble: themeColors[10] || "#000000",
+                          userChatBubble: themeColors[11] || "#000000",
+                        };
+                        
+                        setCustomTheme(themeObject);
+                        setShowCustomModal(true);
+                      }}
+                      className="text-blue-500 hover:text-blue-700 ml-2"
+                      title="Edit custom theme"
+                    >
+                      <HiOutlinePencil size={16} />
+                    </button>
+                    
                     <button
                       onClick={() => deleteTheme(currentTheme)}
                       className="text-red-500 hover:text-red-700 ml-2"
@@ -815,6 +860,7 @@ function IndexPopup() {
                     >
                       <HiOutlineTrash size={16} />
                     </button>
+                  </>
                   )}
 
               </div>
@@ -886,7 +932,26 @@ function IndexPopup() {
                   onMouseLeave={(e) => {
                     e.currentTarget.style.color = "var(--text)";
                   }}
-                  onClick={() => setShowCustomModal(true)}
+                  onClick={() => {
+                    setIsEditingMode(false);
+                    setEditingTheme(null);
+                    setCustomThemeName("");
+                    setCustomTheme({
+                      background: "#01122B",
+                      text: "#BBE1FA",
+                      mainBody: "#072141",
+                      dullBox: "#1c2f47",
+                      hoverIcon: "#FFFFFF",
+                      hoverSquare: "#1c2f47",
+                      dataText: "#FFFFFF",
+                      otherText: "#9CA3AF",
+                      border: "#374151",
+                      tabActiveBg: '#2A4E75',
+                      aiChatBubble: '#2563EB',
+                      userChatBubble: '#3B82F6',
+                    });
+                    setShowCustomModal(true);
+                  }}
                   title="Create Custom Theme"
                 >
                   <FaRegPlusSquare style={{ color: "inherit" }} size={24} />
@@ -906,12 +971,21 @@ function IndexPopup() {
                     type="number"
                     className="w-20 px-2 py-1 bg-background border border-gray-600 rounded text-dataText outline-none"
                     value={bubbleSize.width}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value)
                       updateBubbleSize({
                         ...bubbleSize,
-                        width: parseInt(e.target.value)
+                        width: val
                       })
-                    }
+                    }}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      const clampedWidth = Math.max(315, Math.min(1470, val))
+                      updateBubbleSize({
+                        ...bubbleSize,
+                        width: clampedWidth
+                      })
+                    }}
                   />
                 </div>
                 <div>
@@ -920,12 +994,21 @@ function IndexPopup() {
                     type="number"
                     className="w-20 px-2 py-1 bg-background border border-gray-600 rounded text-dataText outline-none"
                     value={bubbleSize.height}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value)
                       updateBubbleSize({
                         ...bubbleSize,
-                        width: parseInt(e.target.value)
+                        height: val
                       })
-                    }
+                    }}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      const clampedHeight = Math.max(200, Math.min(832, val))
+                      updateBubbleSize({
+                        ...bubbleSize,
+                        height: clampedHeight
+                      })
+                    }}
                   />
                 </div>
               </div>
@@ -969,13 +1052,23 @@ function IndexPopup() {
               className="w-full px-3 py-2 bg-background border border-gray-600 rounded text-dataText outline-none"
             >
               <option value="doubleClick">Double click</option>
-              <option value="modifierClick">Command/Alt + click</option>
+              <option value="modifierClick">Command/Alt/Shift + click</option>
               <option value="keyCombo">Custom key combo</option>
             </select>
 
             {/* Modifier Combo Options */}
             {triggerMethod === "modifierClick" && (
               <div className="flex gap-2 mt-3">
+                <button
+                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    modifierCombo === "cmdClick"
+                      ? "bg-[#2A4E75] text-dataText"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                  onClick={() => setModifierCombo("cmdClick")}
+                >
+                  Cmd + Click
+                </button>
                 <button
                   className={`px-3 py-1 rounded-full text-sm font-semibold ${
                     modifierCombo === "altClick"
@@ -988,13 +1081,13 @@ function IndexPopup() {
                 </button>
                 <button
                   className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                    modifierCombo === "cmdClick"
+                    modifierCombo === "shiftClick"
                       ? "bg-[#2A4E75] text-dataText"
                       : "bg-gray-700 text-gray-300"
                   }`}
-                  onClick={() => setModifierCombo("cmdClick")}
+                  onClick={() => setModifierCombo("shiftClick")}
                 >
-                  Cmd + Click
+                  Shift + Click
                 </button>
               </div>
             )}
@@ -1111,22 +1204,24 @@ function IndexPopup() {
             )}
           </section>
 
-          {/* Cancel Subscription Setting */}
-          <section className="p-4 bg-background rounded-lg mt-4">
-            <div className="flex items-center mb-2 space-x-2 text-lg font-semibold text-text">
-              <HiOutlineExclamationCircle size={20} className="text-red-500" />
-              <h2>Manage Subscription</h2>
-            </div>
-            <p className="text-sm text-otherText mb-3">
-              Cancel your Pro subscription at any time. Your Pro features will remain active until the end of your billing cycle.
-            </p>
-            <button
-              onClick={() => setShowCancelModal(true)}
-              className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Cancel Subscription
-            </button>
-          </section>
+          {/* Cancel Subscription Setting - Only show if user is signed in and has Pro subscription */}
+          {userEmail && isPro && (
+            <section className="p-4 bg-background rounded-lg mt-4">
+              <div className="flex items-center mb-2 space-x-2 text-lg font-semibold text-text">
+                <HiOutlineExclamationCircle size={20} className="text-red-500" />
+                <h2>Manage Subscription</h2>
+              </div>
+              <p className="text-sm text-otherText mb-3">
+                Cancel your Pro subscription at any time. Your Pro features will remain active until the end of your billing cycle.
+              </p>
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Cancel Subscription
+              </button>
+            </section>
+          )}
 
           {showCancelModal && (
             <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
@@ -1169,6 +1264,8 @@ function IndexPopup() {
                         alert("Your subscription has been cancelled.")
                         setIsPro(false)
                         setShowCancelModal(false)
+                        // Clear token cache when subscription is cancelled
+                        chrome.storage.local.remove("tokens_meta")
                         window.open(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_CLIENT_URL}/cancel`)
                       } else {
                         alert("Failed to cancel subscription. Please try again.")
@@ -1762,8 +1859,8 @@ function IndexPopup() {
       )}
 
     {showExportModal && (
-      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-        <div className="bg-background text-text rounded-lg shadow-lg w-96 p-6">
+      <div className="fixed inset-0 z-[100000] bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="bg-background text-text rounded-2xl shadow-2xl shadow-black/50 w-full max-w-sm max-h-[80vh] p-6">
           {/* Modal Header */}
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Export History</h3>
@@ -1899,61 +1996,83 @@ function IndexPopup() {
 
     {/* Show the custom theme modal conditionally */}
     <ModalContainer isOpen={showCustomModal} onClose={() => setShowCustomModal(false)}>
-        <div 
-          className="flex items-center justify-center overflow-y-auto" 
-          style={{
-          scrollbarColor: "var(--tab-active-bg) var(--main-body)", // thumb, track (Firefox)
-          overscrollBehavior: "contain",
-          WebkitOverflowScrolling: "touch" // enables momentum + bounce on iOS
-        }}>
-          <div className="bg-background text-text rounded-2xl shadow-2xl shadow-black/50 shadow-lg w-96 p-6 relative">
+        <div className="bg-mainBody rounded-2xl shadow-2xl shadow-black/50 w-72 max-h-[80vh] overflow-y-auto p-4 relative"
+           style={{
+             scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+             overscrollBehavior: "contain",
+             WebkitOverflowScrolling: "touch"
+           }}>
+        
+        <div className= "flex justify-between items-center mb-4">
+          {/* Modal Header */}
+          <h3 className="text-lg font-semibold text-text">Customize Theme</h3>
 
-            {/* Modal Header */}
-            <div className="flex justify-between items-center my-4">
-              <h3 className="text-lg font-semibold">Customize Theme</h3>
-              <button
-                className="text-text hover:text-red-400"
-                onClick={() => setShowCustomModal(false)}
-              >
-                <HiOutlineXMark size={20} />
-              </button>
-            </div>
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              setShowCustomModal(false);
+              setIsEditingMode(false);
+              setEditingTheme(null);
+              setCustomThemeName("");
+              setCustomTheme({
+                background: "#01122B",
+                text: "#BBE1FA",
+                mainBody: "#072141",
+                dullBox: "#1c2f47",
+                hoverIcon: "#FFFFFF",
+                hoverSquare: "#1c2f47",
+                dataText: "#FFFFFF",
+                otherText: "#9CA3AF",
+                border: "#374151",
+                tabActiveBg: '#2A4E75',
+                aiChatBubble: '#2563EB',
+                userChatBubble: '#3B82F6',
+              });
+            }}
+            className="text-xl text-text hover:text-red-400"
+            title="Close Custom Theme"
+          >
+            <HiOutlineXMark size={20} />
+          </button>
 
-            {/* Custom Theme Name  */}
-            <label htmlFor="themeName" className="block text-sm font-medium mb-1">
-              Theme Name
-            </label>
-            <input
-              id="themeName"
-              type="text"
-              className="w-full px-3 py-1 mb-4 rounded bg-mainBody text-text border border-border focus:outline-none focus:ring-2 focus:ring-text"
-              placeholder="My Custom Theme"
-              value={customThemeName}
-              onChange={(e) => setCustomThemeName(e.target.value)}
-            />
+        </div>
 
-            {/* Palette Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-3">
+        {/* Custom Theme Name */}
+        <label htmlFor="themeName" className="block text-sm font-medium mb-1 text-text">
+          Theme Name
+        </label>
+        <input
+          id="themeName"
+          type="text"
+          className="w-full px-3 py-1 mb-4 rounded bg-mainBody text-text border border-border focus:outline-none focus:ring-2 focus:ring-text"
+          placeholder="My Custom Theme"
+          value={customThemeName}
+          onChange={(e) => setCustomThemeName(e.target.value)}
+        />
+
+        {/* Color Selection Section */}
+        <div className="mb-4">
+          <h4 className="text-sm font-medium mb-2 text-text">Colors</h4>
+          <div className="max-h-48 overflow-y-auto" style={{
+            scrollbarColor: "var(--tab-active-bg) var(--main-body)",
+            overscrollBehavior: "auto"
+          }}>
+            {/* Compact Color Grid */}
+            <div className="grid grid-cols-3 gap-2">
               {Object.entries(customTheme).map(([key, value]) => (
-                <div
-                  key={key}
-                  className="flex flex-col items-center relative"
-                >
-                  <p className="capitalize text-sm mb-1">{key}</p>
-
-                  {/* Color Circle with Hex Tooltip */}
+                <div key={key} className="flex flex-col items-center">
+                  <p className="capitalize text-xs mb-1 text-dataText w-full text-center whitespace-nowrap overflow-hidden text-ellipsis" title={key}>{key}</p>
                   <div className="relative">
                     <button
-                      className="w-9 h-9 rounded-full border border-border relative"
+                      className="w-7 h-7 rounded-full border border-border relative hover:scale-110 transition-transform"
                       style={{ backgroundColor: value }}
                       onClick={() => setActiveColor(activeColor === key ? null : key)}
                       onMouseLeave={() => setHoveredColor(null)}
                       onMouseEnter={() => setHoveredColor(key)}
                     />
-                    
                     {/* Hex Tooltip */}
                     {hoveredColor === key && (
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-mainBody text-text text-xs px-2 py-1 rounded shadow">
+                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-background text-dataText text-xs px-1 py-0.5 rounded whitespace-nowrap z-10">
                         {value.toUpperCase()}
                       </div>
                     )}
@@ -1961,56 +2080,152 @@ function IndexPopup() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      
 
-            {/* Floating Color Picker */}
-            {activeColor && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-mainBody p-3 rounded shadow-lg z-50">
-                <HexColorPicker
-                  color={customTheme[activeColor]}
-                  onChange={(color) =>
-                    setCustomTheme((prev) => ({ ...prev, [activeColor]: color }))
+        {/* Compact Color Picker */}
+        {activeColor && (
+          <div className="mb-4 p-3 bg-dullBox rounded border">
+            <p className="text-sm font-medium mb-2 text-text capitalize">Editing: {activeColor}</p>
+            <HexColorPicker
+              color={customTheme[activeColor]}
+              onChange={(color) =>
+                setCustomTheme((prev) => ({ ...prev, [activeColor]: color }))
+              }
+              style={{ width: "100%", height: "120px" }}
+            />
+            <div className="flex justify-between items-center mt-2">
+              <input
+                type="text"
+                value={customTheme[activeColor]}
+                onChange={(e) => {
+                  const color = e.target.value;
+                  // Allow any input, but only update if it's a valid hex color
+                  if (/^#[0-9A-Fa-f]{0,6}$/.test(color) || color === "#") {
+                    setCustomTheme((prev) => ({ ...prev, [activeColor]: color }));
                   }
-                  style={{ width: "250px", height: "180px" }}
-                />
-                <div className="flex justify-end mt-2">
-                  <button
-                    className="px-2 py-1 text-sm bg-dullBox rounded hover:bg-hoverSquare"
-                    onClick={() => setActiveColor(null)}
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Modal Actions */}
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                className="px-3 py-1 bg-mainBody rounded hover:bg-dullBox"
-                onClick={() => setShowCustomModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-3 py-1 bg-green-600 rounded hover:bg-green-700"
-                onClick={() => {
-                  const newTheme = {
-                    name: customThemeName || `Custom Theme ${themes.length + 1}`,
-                    className: `custom-theme-${Date.now()}`,
-                    colors: Object.values(customTheme),
-                  };
-
-                  // Add to theme slider
-                  setThemes((prev) => [...prev, newTheme]);
-                  saveCustomTheme(customThemeName, customTheme);
-                  setShowCustomModal(false);
                 }}
+                onBlur={(e) => {
+                  const color = e.target.value;
+                  // On blur, validate and fix the hex color if needed
+                  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                    // If invalid, revert to previous valid color
+                    const currentColor = customTheme[activeColor];
+                    if (!/^#[0-9A-Fa-f]{6}$/.test(currentColor)) {
+                      setCustomTheme((prev) => ({ ...prev, [activeColor]: "#000000" }));
+                    }
+                  }
+                }}
+                className="px-2 py-1 text-xs bg-mainBody text-text border border-border rounded flex-1 mr-2"
+                placeholder="#000000"
+                maxLength={7}
+              />
+              <button
+                className="px-2 py-1 text-xs bg-tabActiveBg text-dataText rounded hover:bg-dullBox transition-colors duration-200"
+                onClick={() => setActiveColor(null)}
               >
-                Save & Apply
+                Done
               </button>
             </div>
           </div>
+        )}
+
+        {/* Modal Actions */}
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            className="px-3 py-1 bg-tabActiveBg text-dataText hover:bg-dullBox transition rounded"
+            onClick={() => {
+              setShowCustomModal(false);
+              setIsEditingMode(false);
+              setEditingTheme(null);
+              setCustomThemeName("");
+              setCustomTheme({
+                background: "#01122B",
+                text: "#BBE1FA",
+                mainBody: "#072141",
+                dullBox: "#1c2f47",
+                hoverIcon: "#FFFFFF",
+                hoverSquare: "#1c2f47",
+                dataText: "#FFFFFF",
+                otherText: "#9CA3AF",
+                border: "#374151",
+                tabActiveBg: '#2A4E75',
+                aiChatBubble: '#2563EB',
+                userChatBubble: '#3B82F6',
+              });
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+            onClick={() => {
+              if (isEditingMode && editingTheme !== null) {
+                // Update existing theme
+                const updatedThemes = [...themes];
+                updatedThemes[editingTheme] = {
+                  ...updatedThemes[editingTheme],
+                  name: customThemeName || updatedThemes[editingTheme].name,
+                  colors: Object.values(customTheme),
+                };
+                setThemes(updatedThemes);
+                
+                // Save only custom themes to storage
+                const customThemes = updatedThemes.filter(t => t.className.startsWith("custom-theme-"));
+                chrome.storage.local.set({ customThemes });
+                
+                // Apply the updated theme if it's currently active
+                if (appliedTheme === updatedThemes[editingTheme].className) {
+                  // Force re-injection of themes to update CSS
+                  setTimeout(() => {
+                    injectSavedThemes(setThemes, setAppliedTheme);
+                    applyTheme(updatedThemes[editingTheme].className);
+                  }, 100);
+                }
+              } else {
+                // Create new theme
+                const customThemeCount = themes.filter(t => t.className.startsWith("custom-theme-")).length;
+                const newTheme = {
+                  name: customThemeName || `Custom Theme ${customThemeCount + 1}`,
+                  className: `custom-theme-${customThemeCount + 1}`,
+                  colors: Object.values(customTheme),
+                };
+
+                // Add to theme slider
+                setThemes((prev) => [...prev, newTheme]);
+                saveCustomTheme(customThemeName, customTheme);
+                // Force re-injection of themes to update CSS
+                setTimeout(() => {
+                  injectSavedThemes(setThemes, setAppliedTheme);
+                }, 100);
+              }
+              
+              // Reset modal state
+              setShowCustomModal(false);
+              setIsEditingMode(false);
+              setEditingTheme(null);
+              setCustomThemeName("");
+              setCustomTheme({
+                background: "#01122B",
+                text: "#BBE1FA",
+                mainBody: "#072141",
+                dullBox: "#1c2f47",
+                hoverIcon: "#FFFFFF",
+                hoverSquare: "#1c2f47",
+                dataText: "#FFFFFF",
+                otherText: "#9CA3AF",
+                border: "#374151",
+                tabActiveBg: '#2A4E75',
+                aiChatBubble: '#2563EB',
+                userChatBubble: '#3B82F6',
+              });
+            }}
+          >
+            {isEditingMode ? "Update Theme" : "Save & Apply"}
+          </button>
         </div>
+      </div>
     </ModalContainer>
     
 
@@ -2024,8 +2239,8 @@ function IndexPopup() {
        
     {/* Donate Modal */}
     <ModalContainer isOpen={showDonate} onClose={() => setShowDonate(false)}>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-mainBody p-4 rounded-2xl shadow-2xl shadow-black/50 w-96">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100000]">
+        <div className="bg-mainBody p-4 rounded-2xl shadow-2xl shadow-black/50">
           {/* Header */}
           <h2 className="text-xl font-bold mb-3 text-text">❤️ Support the Developer</h2>
           <p className="text-sm mb-4 text-otherText">
@@ -2099,7 +2314,7 @@ function IndexPopup() {
           {/* Close Button */}
           <button
             onClick={() => setShowDonate(false)}
-            className="mt-5 w-full px-4 py-2 text-dataText rounded-lg bg-tabActiveBg text-dataText hover:bg-dullBox transition"
+            className="mt-5 w-full px-4 py-2 rounded-lg bg-tabActiveBg text-dataText hover:bg-dullBox transition"
           >
             Close
           </button>

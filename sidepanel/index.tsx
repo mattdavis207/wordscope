@@ -65,6 +65,10 @@ const SidePanel = () => {
     const [showHistory, setShowHistory] = useState(false)
     const [showContextAI, setShowContextAI] = useState(false)
     const [hoverTrash, setHoverTrash] = useState(false)
+    
+    // Store context data from webpage
+    const [contextSnippet, setContextSnippet] = useState("")
+    const [pageUrl, setPageUrl] = useState("")
 
     // Theme useStates
     const [themes, setThemes] = useState<Theme[]>([]);
@@ -195,6 +199,14 @@ const SidePanel = () => {
                 setSearchInput("") // if you use it
                 setShowContextAI(false)
                 setShowHistory(false)
+                
+                // Store context data from webpage
+                if (msg.contextSnippet) {
+                    setContextSnippet(msg.contextSnippet)
+                }
+                if (msg.url) {
+                    setPageUrl(msg.url)
+                }
             }
         })
     }, [])
@@ -413,8 +425,8 @@ const SidePanel = () => {
             {showContextAI ? (
                 <ContextAIView
                     word={text}
-                    contextSnippet={extractContext(text)}
-                    url={window.location.href}
+                    contextSnippet={contextSnippet}
+                    url={pageUrl}
                 />
             ) : showHistory ? (
                 <div

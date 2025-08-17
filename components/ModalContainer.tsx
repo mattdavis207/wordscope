@@ -18,8 +18,8 @@ export const ModalContainer = ({ isOpen, onClose, type = "modal", children }: Mo
 
   const baseClasses =
     type === "modal"
-      ? "fixed inset-0 flex justify-center items-center z-50 transition-opacity duration-300 ease-out"
-      : ""
+      ? "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 transition-opacity duration-300 ease-out"
+      : "relative z-[100000]"
 
   const overlayClasses = isOpen
     ? "opacity-100 pointer-events-auto"

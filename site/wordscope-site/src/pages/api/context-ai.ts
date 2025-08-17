@@ -103,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const data = await oaRes.json();
         const text = data.choices?.[0]?.message?.content ?? "";
-        const used = data.usage?.total_tokens ?? 0;
+        const used = data.usage?.completion_tokens ?? 0; // Only count output tokens
 
         // Atomic decrement
         const remainingTokens = await redis.eval(DEC_IF_ENOUGH, [key], [String(used)]);

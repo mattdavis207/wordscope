@@ -149,12 +149,15 @@ export function useHistory() {
 
   const exportAsPDF = (exportSource: string, includeAllWords: boolean, selectedWords: string[]) => {
     const doc = new jsPDF();
+    const pageHeight = 280; // Leave margin at bottom
+    const lineHeight = 6; // Standard line height
+    const maxWidth = 190; // Max text width
 
     const wordsToExport = includeAllWords
       ? history
       : history.filter((h) => selectedWords.includes(h.word));
 
-    let y = 10; // Start position on page
+    let y = 20; // Start position on page with more top margin
     let count = 1; // Fix numbering so it only increments for added words
   
     wordsToExport.forEach(({ word, sources }) => {
@@ -165,23 +168,29 @@ export function useHistory() {
       if (!defs) return; // skip if no definition
   
       const firstDef = defs.split("\n")[0]; // Take first definition only
+      
+      // Calculate how much space this entry will need
+      const definitionText = `Definition: ${firstDef}`;
+      const wrappedLines = doc.splitTextToSize(definitionText, maxWidth);
+      const entryHeight = lineHeight + (wrappedLines.length * lineHeight) + 15; // word + definition + spacing
+      
+      // Check if we need a new page before adding this entry
+      if (y + entryHeight > pageHeight) {
+        doc.addPage();
+        y = 20;
+      }
   
-      // Fix numbering (use count, not index)
+      // Add the word number and title
+      doc.setFont("helvetica", "bold");
       doc.text(`${count}. ${word}`, 10, y);
-  
-      y += 7;
-  
-      // Wrap long definition text to prevent cutoff
-      doc.text(`Definition: ${firstDef}`, 10, y, { maxWidth: 190 });
-      y += 12; // Add space between entries
+      y += lineHeight + 3; // Small gap after word
+      
+      // Add the definition with proper wrapping
+      doc.setFont("helvetica", "normal");
+      doc.text(wrappedLines, 10, y);
+      y += (wrappedLines.length * lineHeight) + 12; // Dynamic spacing based on actual lines
   
       count++; // Increment count after adding
-  
-      // Start new page if we reach bottom
-      if (y > 270) {
-        doc.addPage();
-        y = 10;
-      }
     });
   
     doc.save("dictionary_history.pdf");

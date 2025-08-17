@@ -40,22 +40,50 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
   }, []);
 
   // Seed token amount from server once (nice UX on first open)
+  // Always fetch fresh from server to handle subscription status changes
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
-    if (!email) return;
+    const fetchTokens = async () => {
+      // Check localStorage first (works in popup)
+      let email = localStorage.getItem("userEmail");
+      
+      // If not found, check chrome.storage (works in content script)
+      if (!email) {
+        try {
+          const { userEmail } = await chrome.storage.local.get("userEmail");
+          email = typeof userEmail === "string" && userEmail.trim() ? userEmail.trim() : null;
+        } catch (error) {
+          console.warn("Could not access chrome.storage:", error);
+        }
+      }
 
-    fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/usage/balance?email=${encodeURIComponent(email)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (typeof d.remainingTokens === "number") {
-          setTokensLeft(d.remainingTokens);
-          chrome.storage.local.set({ tokens_meta: { remainingTokens: d.remainingTokens } });
+      if (!email) {
+        console.log("No email found in localStorage or chrome.storage, skipping token fetch");
+        return;
+      }
+
+      console.log("📧 Found email for token fetch:", email);
+
+      // Clear any stale token cache first to force fresh data
+      chrome.storage.local.remove("tokens_meta");
+
+      try {
+        const response = await fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/usage/balance?email=${encodeURIComponent(email)}`);
+        const data = await response.json();
+        
+        if (typeof data.remainingTokens === "number") {
+          console.log("🔢 Fetched tokens from server:", data.remainingTokens);
+          setTokensLeft(data.remainingTokens);
+          chrome.storage.local.set({ tokens_meta: { remainingTokens: data.remainingTokens } });
         }
         // prime prevUsed so no initial flash
         setPrevUsed(null) // or a number if you also fetch lastUsed here
         setSeeded(true)
-      })
-      .catch(() => {});
+      } catch (error) {
+        console.warn("Failed to fetch tokens:", error);
+      }
+    };
+
+    fetchTokens();
   }, []);
 
   // Keep in sync with writes from fetchContextAIResponse()
@@ -63,12 +91,14 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
     // Guard: only run in extension context
     if (typeof chrome === "undefined" || !chrome.storage?.onChanged) return
 
-    // Seed from cache once
-    chrome.storage.local.get("tokens_meta", (d) => {
-      const meta = d?.tokens_meta || {}
-      if (typeof meta.remainingTokens === "number") setTokensLeft(meta.remainingTokens)
-      if (typeof meta.lastUsed === "number") setLastUsed(meta.lastUsed)
-    })
+    // Only seed from cache if we haven't already seeded from server
+    if (!seeded) {
+      chrome.storage.local.get("tokens_meta", (d) => {
+        const meta = d?.tokens_meta || {}
+        if (typeof meta.remainingTokens === "number") setTokensLeft(meta.remainingTokens)
+        if (typeof meta.lastUsed === "number") setLastUsed(meta.lastUsed)
+      })
+    }
 
     // Correctly typed listener
     const handleChange: Parameters<typeof chrome.storage.onChanged.addListener>[0] = (
@@ -86,7 +116,7 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
 
     chrome.storage.onChanged.addListener(handleChange)
     return () => chrome.storage.onChanged.removeListener(handleChange)
-  }, [])
+  }, [seeded])
 
   // whenever lastUsed changes, show a brief flash near the token pill
   useEffect(() => {
@@ -180,6 +210,17 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
       }
     });
   }, []);
+
+  // Listen for window focus to refresh tokens when user comes back from payment
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refresh balance when window regains focus (user might have completed payment)
+      refreshBalance();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
   
 
 
@@ -237,9 +278,24 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
 
   // (optional) click-to-refresh balance without reloading
   const refreshBalance = async () => {
-    const email = localStorage.getItem("userEmail")
+    // Check localStorage first (works in popup)
+    let email = localStorage.getItem("userEmail");
+    
+    // If not found, check chrome.storage (works in content script)
+    if (!email) {
+      try {
+        const { userEmail } = await chrome.storage.local.get("userEmail");
+        email = typeof userEmail === "string" && userEmail.trim() ? userEmail.trim() : null;
+      } catch (error) {
+        console.warn("Could not access chrome.storage:", error);
+      }
+    }
+    
     if (!email) return
     try {
+      // Clear cache first to ensure fresh data
+      chrome.storage.local.remove("tokens_meta")
+      
       const r = await fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/usage/balance?email=${encodeURIComponent(email)}`)
       const d = await r.json()
       if (typeof d.remainingTokens === "number") {

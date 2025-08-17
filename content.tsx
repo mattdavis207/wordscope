@@ -11,7 +11,6 @@ import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
 
 import { createRoot } from "react-dom/client"
 
-// import "~/public/styles/tailwind.css"
 import "./assets/styles/tailwind-content.css"
 import "~/public/styles/globals.css";
 import { injectSavedThemes } from "./hooks/injectThemes";
@@ -26,7 +25,7 @@ import { useSourceSettings } from "./hooks/useSourceSettings"
 import { MiniDefinitionView } from "./views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
 import { extractContext } from "./context/contextExtractor"
-import PortalTooltip from "~components/PortalTooltip";
+import PortalTooltip, { hideAllTooltips } from "~components/PortalTooltip";
 
 declare global {
   interface Window {
@@ -71,7 +70,7 @@ export const Bubble = () => {
   const { bubbleSize } = useBubbleSize();
   const [triggerSettings, setTriggerSettings] = useState<{
     triggerMethod: "doubleClick" | "modifierClick" | "keyCombo"
-    modifierCombo?: "altClick" | "cmdClick"
+    modifierCombo?: "altClick" | "cmdClick" | "shiftClick"
     customKeyCombo?: string[]
   } | null>(null)
   
@@ -299,8 +298,25 @@ export const Bubble = () => {
       if (e.altKey) pressedKeysRef.current.add("Alt")
       if (e.ctrlKey) pressedKeysRef.current.add("Control")
       if (e.shiftKey) pressedKeysRef.current.add("Shift")
-      console.log("keys pressed after down", pressedKeysRef.current);
-    }
+
+      // Check if we have a key combo trigger and the combo matches
+      if (triggerSettings?.triggerMethod === "keyCombo" && triggerSettings.customKeyCombo) {
+        const allMatch = triggerSettings.customKeyCombo.every((key) => 
+          pressedKeysRef.current.has(key) || pressedKeysRef.current.has(key.toLowerCase()) || pressedKeysRef.current.has(key.toUpperCase())
+        )
+        console.log("All keys match:", allMatch);
+        
+        if (allMatch) {
+          console.log("Key combo matched! Triggering bubble check");
+          // Prevent default behavior if combo matches
+          e.preventDefault()
+          // Trigger bubble check without a mouse event
+          checkAndShowBubble(undefined, undefined, undefined, true)
+        }
+      } else {
+        // Key combo check failed - triggerMethod or customKeyCombo missing
+      }
+  }
   
     const upHandler = (e: KeyboardEvent) => {
       // Only delete the key that was lifted
@@ -320,166 +336,232 @@ export const Bubble = () => {
       document.removeEventListener("keydown", downHandler)
       document.removeEventListener("keyup", upHandler)
     }
-  }, [])
+  }, [triggerSettings])
 
 
-  // useEffect for calculating bubble coords and rendering on click
-  useEffect(() => {
-    const checkAndShowBubble = (e?: MouseEvent | Event, forcedText?: string, forcedMousePos?: { x: number; y: number }) => {
+  // Check for selection inside bubble
+  function getBubbleEl(): Element | null {
+    // Try light DOM first
+    const el = document.getElementById("wordscope-host");
+    if (el) return el;
+    // If you mount in a shadow root:
+    const host = document.getElementById("wordscope-host");
+    return host?.shadowRoot?.getElementById("wordscope-bubble") ?? null;
+  }
+  
+  function isContextMenuInsideBubble(): boolean {
+    const bubble = getBubbleEl();
+    if (!bubble) {
+      return false;
+    }
+    // Get the element at the last right-click position
+    const elementAtPos = document.elementFromPoint(lastRightClickPos.x, lastRightClickPos.y);
+    if (!elementAtPos) {
+      return false;
+    }
+    // Check if the clicked element is inside the bubble
+    const isInside = bubble.contains(elementAtPos);
+    
+    return isInside;
+  }
 
-      // If side panel open, send word there
-      console.log("isSidePanel", isSidePanel)
-      if (isSidePanel.current){
-        const selectedText = window.getSelection()?.toString().trim();
+  function isTextVisible(): boolean {
+    const range = rangeRef.current;
+    if (!range) return false;
+
+    const rect = range.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+
+    // Check if the text is within the viewport bounds
+    const isInViewport = (
+      rect.bottom > 0 &&  // Not scrolled past top
+      rect.top < vh &&    // Not scrolled past bottom
+      rect.right > 0 &&   // Not scrolled past left
+      rect.left < vw      // Not scrolled past right
+    );
+
+    return isInViewport;
+  }
+
+  function shouldShowArrow(): boolean {
+    const range = rangeRef.current;
+    const bubble = bubbleRef.current;
+    if (!range || !bubble) return false;
+
+    const textRect = range.getBoundingClientRect();
+    const bubbleRect = bubble.getBoundingClientRect();
+
+    // Hide arrow if bubble edge is aligned with or past the selection edge
+    switch (arrowDirection) {
+      case "left":
+        return bubbleRect.bottom-25 >= textRect.bottom;
+      case "right":
+        return bubbleRect.bottom-25 >= textRect.bottom;
+      default:
+        return true;
+    }
+  }
+  
+  // Function for calculating bubble coords and rendering
+  const checkAndShowBubble = React.useCallback((e?: MouseEvent | Event, forcedText?: string, forcedMousePos?: { x: number; y: number }, isKeyComboTrigger?: boolean) => {
+
+    // If side panel open, send word there (only if there's actually a word)
+    console.log("isSidePanel", isSidePanel)
+    if (isSidePanel.current){
+      const selectedText = window.getSelection()?.toString().trim();
+      // Only send message if there's actually a word selected
+      if (selectedText) {
         chrome.runtime.sendMessage({
           type: "word_from_bubble",
-          word: selectedText
+          word: selectedText,
+          contextSnippet: extractContext(selectedText),
+          url: window.location.href
         });
+      }
+      return
+    }
+
+    // If click happened inside bubble ignore, or isLocked
+    if (e instanceof MouseEvent && document.getElementById("wordscope-host")?.contains(e.target as Node) || (isLocked)) {
+      return
+    }
+
+    // If triggered selection inside the bubble from Contextmenu
+    if ((forcedText && isContextMenuInsideBubble()) || (forcedText && isLocked)) {
+      return
+    }
+
+    // 2. Apply logic based on selected trigger
+    if (e instanceof MouseEvent) {
+      if (!triggerSettings) return
+      console.log("inside if");
+    
+      const { triggerMethod, modifierCombo } = triggerSettings
+    
+      if (triggerMethod === "doubleClick") {
+        if (e.detail !== 2) return
+      } else if (triggerMethod === "modifierClick") {
+        const matched =
+          (modifierCombo === "cmdClick" && e.metaKey) ||
+          (modifierCombo === "altClick" && e.altKey) ||
+          (modifierCombo === "shiftClick" && e.shiftKey)
+        if (!matched) return
+      } else if (triggerMethod === "keyCombo") {
+        // For keyCombo, we should only get here if it's NOT a key combo trigger
+        // (i.e., someone clicked while keyCombo mode is active)
         return
-      }
-
-      // If click happened inside bubble ignore, or isLocked
-      if (e instanceof MouseEvent && document.getElementById("wordscope-bubble")?.contains(e.target as Node) || (isLocked)) {
-        return
-      }
-
-      // If triggered selection inside the bubble from Contextmenu
-      if (forcedText && document.getElementById("wordscope-bubble")?.contains(e.target as Node) || forcedText && (isLocked)) {
-        return
-      }
-
-      console.log("📦 click detected", e);
-      console.log("definition sources", definitionSources)
-
-      // 2. Apply logic based on selected trigger
-      if (e instanceof MouseEvent) {
-        if (!triggerSettings) return
-        console.log("inside if");
-      
-        const { triggerMethod, modifierCombo, customKeyCombo } = triggerSettings
-      
-        if (triggerMethod === "doubleClick") {
-          if (e.detail !== 2) return
-        } else if (triggerMethod === "modifierClick") {
-          const matched =
-            (modifierCombo === "cmdClick" && e.metaKey) ||
-            (modifierCombo === "altClick" && e.altKey)
-          if (!matched) return
-        } else if (triggerMethod === "keyCombo") {
-          if (!customKeyCombo || customKeyCombo.length === 0) return
-
-          console.log("inside keycombo with these keys pressed: ", pressedKeysRef);
-        
-          const allMatch = customKeyCombo.every((key) => pressedKeysRef.current.has(key))
-          if (!allMatch) return
-        } else {
-          return
-        }
-      }
-
-      const selection = forcedText || window.getSelection()?.toString().trim();
-      if (!selection) return
-
-      let rect
-
-      // If a forced selection was passed from contextMenu, get selection
-      if (forcedText) {
-        const range = window.getSelection()
-        if (range?.rangeCount) {
-          rangeRef.current = range.getRangeAt(0).cloneRange()
-        }
-        const rects = range?.getRangeAt(0)?.getClientRects()
-        rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
       } else {
-        const range = window.getSelection()
-        if (range?.rangeCount) {
-          rangeRef.current = range.getRangeAt(0).cloneRange()
-        }
-        const rects = range?.getRangeAt(0)?.getClientRects()
-        rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+        return
       }
+    } else if (isKeyComboTrigger) {
+      // This was called from a key combo, allow to proceed
+    }
 
-      if (!rect) return
+    const selection = forcedText || window.getSelection()?.toString().trim();
+    if (!selection) return
 
-      const selectedText = selection?.toString().trim()
-      if (!selectedText) return
+    let rect
 
-      // Smart position setting based on clientRects and bounding boxes
-      const scrollX = window.scrollX
-      const scrollY = window.scrollY
-      const vw = window.innerWidth
-      const vh = window.innerHeight
+    // If a forced selection was passed from contextMenu, get selection
+    if (forcedText) {
+      const range = window.getSelection()
+      if (range?.rangeCount) {
+        rangeRef.current = range.getRangeAt(0).cloneRange()
+      }
+      const rects = range?.getRangeAt(0)?.getClientRects()
+      rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+    } else {
+      const range = window.getSelection()
+      if (range?.rangeCount) {
+        rangeRef.current = range.getRangeAt(0).cloneRange()
+      }
+      const rects = range?.getRangeAt(0)?.getClientRects()
+      rect = rects?.length ? rects[0] : range?.getRangeAt(0)?.getBoundingClientRect()
+    }
 
-      console.log("Rect dimensions", rect.width, rect.height);
+    if (!rect) return
 
-      console.log("Rect top and bottom", rect.top, rect.bottom);
+    const selectedText = selection?.toString().trim()
+    if (!selectedText) return
 
+    // Smart position setting based on clientRects and bounding boxes
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const vw = window.innerWidth
+    const vh = window.innerHeight
 
-      console.log("popupWidth", popupWidth);
-      console.log("popupHeight", popupHeight);
+    console.log("Rect dimensions", rect.width, rect.height);
 
-      const offset = 12
-
-      // Define all possible directions with their coordinates
-      const candidates = [
-        {
-          direction: "right",
-          fits: vw - rect.right >= popupWidth + offset,
-          x: rect.right + scrollX + offset,
-          y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
-        },
-        {
-          direction: "bottom",
-          fits: vh - rect.bottom >= popupHeight + offset,
-          x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
-          y: rect.bottom + scrollY + offset,
-        },
-        {
-          direction: "left",
-          fits: rect.left >= popupWidth + offset,
-          x: rect.left + scrollX - popupWidth - offset,
-          y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
-        },
-        {
-          direction: "top",
-          fits: rect.top >= popupHeight + offset,
-          x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
-          y: rect.top + scrollY - popupHeight - offset,
-        },
-
-      ]
-
-      const bestFit = candidates.find((c) => c.fits) || candidates[0] // default to bottom
-      console.log("bestfit", bestFit.direction)
-
-      const clampedX = Math.max(scrollX, Math.min(bestFit.x, scrollX + vw - popupWidth))
-      const clampedY = Math.max(scrollY, Math.min(bestFit.y, scrollY + vh - popupHeight))
-
-      setBubblePosition({ x: clampedX, y: clampedY })
-      setAnchorPosition({ x: clampedX, y: clampedY })
-      
-
-      setRectLeft(rect.left)
-      setRectRight(rect.right)
-      setRectTop(rect.top)
-      setRectBottom(rect.bottom)
-      setRectWidth(rect.width)
-      setRectHeight(rect.height)
-
-      setArrowDirection(bestFit.direction as "top" | "bottom" | "left" | "right")
-
-      setText(selectedText)
-      lastSelectedWord.current = selectedText
+    console.log("Rect top and bottom", rect.top, rect.bottom);
 
 
-      // Trigger reflow for animation
-      requestAnimationFrame(() => {
-        setShow(true)
-      })
+    console.log("popupWidth", popupWidth);
+    console.log("popupHeight", popupHeight);
+
+    const offset = 12
+
+    // Define all possible directions with their coordinates
+    const candidates = [
+      {
+        direction: "right",
+        fits: vw - rect.right >= popupWidth + offset,
+        x: rect.right + scrollX + offset,
+        y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
+      },
+      {
+        direction: "bottom",
+        fits: vh - rect.bottom >= popupHeight + offset,
+        x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
+        y: rect.bottom + scrollY + offset,
+      },
+      {
+        direction: "left",
+        fits: rect.left >= popupWidth + offset,
+        x: rect.left + scrollX - popupWidth - offset,
+        y: rect.top + scrollY + rect.height / 2 - popupHeight / 2,
+      },
+      {
+        direction: "top",
+        fits: rect.top >= popupHeight + offset,
+        x: rect.left + scrollX + rect.width / 2 - popupWidth / 2,
+        y: rect.top + scrollY - popupHeight - offset,
+      },
+
+    ]
+
+    const bestFit = candidates.find((c) => c.fits) || candidates[0] // default to bottom
+    console.log("bestfit", bestFit.direction)
+
+    const clampedX = Math.max(scrollX, Math.min(bestFit.x, scrollX + vw - popupWidth))
+    const clampedY = Math.max(scrollY, Math.min(bestFit.y, scrollY + vh - popupHeight))
+
+    setBubblePosition({ x: clampedX, y: clampedY })
+    setAnchorPosition({ x: clampedX, y: clampedY })
+    
+
+    setRectLeft(rect.left)
+    setRectRight(rect.right)
+    setRectTop(rect.top)
+    setRectBottom(rect.bottom)
+    setRectWidth(rect.width)
+    setRectHeight(rect.height)
+
+    setArrowDirection(bestFit.direction as "top" | "bottom" | "left" | "right")
+
+    setText(selectedText)
+    lastSelectedWord.current = selectedText
 
 
-    } // end of function
+    // Trigger reflow for animation
+    requestAnimationFrame(() => {
+      setShow(true)
+    })
 
+  }, [triggerSettings, isLocked, popupWidth, popupHeight])
+
+  // useEffect for attaching event listeners
+  useEffect(() => {
     document.addEventListener("click", checkAndShowBubble);
 
     chrome.runtime.onMessage.addListener((msg) => {
@@ -500,13 +582,22 @@ export const Bubble = () => {
       document.removeEventListener("click", checkAndShowBubble)
       document.removeEventListener("selectionchange", checkAndShowBubble)
     }
-  }, [triggerSettings, isLocked])
+  }, [checkAndShowBubble])
 
 
   // Handle Bubble Resize
   const repositionBubble = () => {
-
     if (!bubbleRef.current) return
+
+    // Check if the original text is still visible
+    if (!isTextVisible()) {
+      // Hide the bubble by positioning it off-screen
+      setTargetPosition({ x: -9999, y: -9999 })
+      if (!isDetached) {
+        setAnchorPosition({ x: -9999, y: -9999 })
+      }
+      return
+    }
 
     const width = bubbleRef.current.offsetWidth
     const height = bubbleRef.current.offsetHeight
@@ -520,7 +611,6 @@ export const Bubble = () => {
     const vh = window.innerHeight
     const offset = 12
 
-
     let rect
     const range = rangeRef.current
     if (!range) return
@@ -528,6 +618,7 @@ export const Bubble = () => {
     const rects = range.getClientRects()
     rect = rects?.length ? rects[0] : range.getBoundingClientRect()
 
+    // Update target rect for animation
     targetRect.current = {
       left: rect.left,
       top: rect.top,
@@ -537,30 +628,31 @@ export const Bubble = () => {
       height: rect.height
     }
 
+    // Use current rect values for positioning calculations to avoid lag
     const candidates = [
       {
         direction: "bottom",
-        fits: vh - rectBottom >= height + offset,
-        x: rectLeft + scrollX + rectWidth / 2 - width / 2,
-        y: rectBottom + scrollY + offset
+        fits: vh - rect.bottom >= height + offset,
+        x: rect.left + scrollX + rect.width / 2 - width / 2,
+        y: rect.bottom + scrollY + offset
       },
       {
         direction: "right",
-        fits: vw - rectRight >= width + offset,
-        x: rectRight + scrollX + offset,
-        y: rectTop + scrollY + rectHeight / 2 - height / 2
+        fits: vw - rect.right >= width + offset,
+        x: rect.right + scrollX + offset,
+        y: rect.top + scrollY + rect.height / 2 - height / 2
       },
       {
         direction: "left",
-        fits: rectLeft >= width + offset,
-        x: rectLeft + scrollX - width - offset,
-        y: rectTop + scrollY + rectHeight / 2 - height / 2
+        fits: rect.left >= width + offset,
+        x: rect.left + scrollX - width - offset,
+        y: rect.top + scrollY + rect.height / 2 - height / 2
       },
       {
         direction: "top",
-        fits: rectTop >= height + offset,
-        x: rectLeft + scrollX + rectWidth / 2 - width / 2,
-        y: rectTop + scrollY - height - offset
+        fits: rect.top >= height + offset,
+        x: rect.left + scrollX + rect.width / 2 - width / 2,
+        y: rect.top + scrollY - height - offset
       }
     ]
 
@@ -602,15 +694,30 @@ export const Bubble = () => {
 
 
   
-  // Track scroll and reposition arrow and bubble
+  // Track scroll and reposition arrow and bubble with throttling
   useEffect(() => {
+    let scrollTimeout: NodeJS.Timeout | null = null
+    
     const handleScroll = () => {
       if (isDetached || isDragging.current) return
-      repositionBubble()
+      
+      // Throttle scroll events to reduce jitter
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout)
+      }
+      
+      scrollTimeout = setTimeout(() => {
+        repositionBubble()
+      }, 8) // Small delay to batch scroll events
     }
 
     window.addEventListener("scroll", handleScroll, true) // true = capture scroll from nested containers too
-    return () => window.removeEventListener("scroll", handleScroll, true)
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true)
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout)
+      }
+    }
   }, [isDetached])
 
 
@@ -622,20 +729,21 @@ export const Bubble = () => {
     const animate = () => {
       if (!isDragging.current) {
         setBubblePosition((prev) => {
-          const nextX = lerp(prev.x, targetPosition.x, 0.25)
-          const nextY = lerp(prev.y, targetPosition.y, 0.25)
+          const nextX = lerp(prev.x, targetPosition.x, 0.2)
+          const nextY = lerp(prev.y, targetPosition.y, 0.2)
           return { x: nextX, y: nextY }
         })
 
-        setRectLeft((prev) => prev + (targetRect.current.left - prev) * 0.15)
-        setRectTop((prev) => prev + (targetRect.current.top - prev) * 0.15)
-        setRectRight((prev) => prev + (targetRect.current.right - prev) * 0.15)
-        setRectBottom((prev) => prev + (targetRect.current.bottom - prev) * 0.15)
-        setRectWidth((prev) => prev + (targetRect.current.width - prev) * 0.15)
-        setRectHeight((prev) => prev + (targetRect.current.height - prev) * 0.15)
+        // Use the same lerp factor for rect coordinates to keep them in sync
+        setRectLeft((prev) => prev + (targetRect.current.left - prev) * 0.2)
+        setRectTop((prev) => prev + (targetRect.current.top - prev) * 0.2)
+        setRectRight((prev) => prev + (targetRect.current.right - prev) * 0.2)
+        setRectBottom((prev) => prev + (targetRect.current.bottom - prev) * 0.2)
+        setRectWidth((prev) => prev + (targetRect.current.width - prev) * 0.2)
+        setRectHeight((prev) => prev + (targetRect.current.height - prev) * 0.2)
     
         animationFrame = requestAnimationFrame(animate)
-    }
+      }
     }
 
     animate()
@@ -747,7 +855,9 @@ export const Bubble = () => {
 
     chrome.runtime.sendMessage({ 
       type: "open_side_panel", 
-      word: text
+      word: text,
+      contextSnippet: extractContext(text),
+      url: window.location.href
     });
   }
 
@@ -851,12 +961,18 @@ export const Bubble = () => {
     <div>
 
       {/* Carrot Arrow Rendering */}
-      {!isDetached && arrowDirection === "top" && (
+      {!isDetached && arrowDirection === "top" && rangeRef.current && isTextVisible() && (
         <div
           className="absolute z-[99999]"
           style={{
-            left: `${rectLeft + window.scrollX + rectWidth / 2 - 6}px`, // 6 = half carrot width
-            top: `${rectTop + window.scrollY - 12}px`,
+            left: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.left + window.scrollX + rect.width / 2 - 6
+            })()}px`,
+            top: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.top + window.scrollY - 12
+            })()}px`,
             width: 0,
             height: 0,
             borderLeft: "9px solid transparent",
@@ -866,12 +982,18 @@ export const Bubble = () => {
         />
       )}
 
-      {!isDetached && arrowDirection === "bottom" && (
+      {!isDetached && arrowDirection === "bottom" && rangeRef.current && isTextVisible() && (
         <div
           className="absolute z-[99999]"
           style={{
-            left: `${rectLeft + window.scrollX + rectWidth / 2 - 6}px`,
-            top: `${rectBottom + window.scrollY + 3}px`,
+            left: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.left + window.scrollX + rect.width / 2 - 6
+            })()}px`,
+            top: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.bottom + window.scrollY + 3
+            })()}px`,
             width: 0,
             height: 0,
             borderLeft: "9px solid transparent",
@@ -881,12 +1003,18 @@ export const Bubble = () => {
         />
       )}
 
-      {!isDetached && arrowDirection === "left" && (
+      {!isDetached && arrowDirection === "left" && rangeRef.current && shouldShowArrow() && (
         <div
           className="absolute z-[99999]"
           style={{
-            top: `${rectTop + window.scrollY + rectHeight / 2 - 6}px`,
-            left: `${rectLeft + window.scrollX - 12}px`,
+            top: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.top + window.scrollY + rect.height / 2 - 6
+            })()}px`,
+            left: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.left + window.scrollX - 12
+            })()}px`,
             width: 0,
             height: 0,
             borderTop: "9px solid transparent",
@@ -897,12 +1025,18 @@ export const Bubble = () => {
         />
       )}
 
-      {!isDetached && arrowDirection === "right" && (
+      {!isDetached && arrowDirection === "right" && rangeRef.current && shouldShowArrow() && (
         <div
           className="absolute z-[99999]"
           style={{
-            top: `${rectTop + window.scrollY + rectHeight / 2 - 6}px`,
-            left: `${rectRight + window.scrollX + 3}px`,
+            top: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.top + window.scrollY + rect.height / 2 - 6
+            })()}px`,
+            left: `${(() => {
+              const rect = rangeRef.current.getBoundingClientRect()
+              return rect.right + window.scrollX + 3
+            })()}px`,
             width: 0,
             height: 0,
             borderTop: "9px solid transparent",
@@ -1049,46 +1183,57 @@ export const Bubble = () => {
             )}
 
             {/* Pin */}
-            <button 
-              title={!isDetached ? "Undock bubble" : "Dock to word"}
-              className="p-1 rounded text-text hover:bg-dullBox ml-2"
-              onClick={() => {
-                if (!isDetached) {
-                  // Detach and center
-                  setIsDetached(true)
-                  centerBubbleInViewport()
-                } else {
-                  // Re-dock to word
-                  setText(lastSelectedWord.current);
-                  setIsDetached(false)
-                  setBubblePosition(anchorPosition)
-                }
-              }}
-            >
-              {isDetached ? <IoMdMagnet size= {16} /> : <BsPinAngleFill size= {16}/>}
-            </button>
+            <PortalTooltip text={!isDetached ? "Undock bubble" : "Dock to word"}>
+              <button 
+                title={!isDetached ? "Undock bubble" : "Dock to word"}
+                className="p-1 rounded text-text hover:bg-dullBox ml-2"
+                onClick={() => {
+                  if (!isDetached) {
+                    // Detach and center
+                    hideAllTooltips()
+                    setIsDetached(true)
+                    centerBubbleInViewport()
+                  } else {
+                    // Re-dock to word
+                    hideAllTooltips()
+                    setText(lastSelectedWord.current);
+                    setIsDetached(false)
+                    setBubblePosition(anchorPosition)
+                  }
+                }}
+              >
+                {isDetached ? <IoMdMagnet size= {16} /> : <BsPinAngleFill size= {16}/>}
+              </button>
+            </PortalTooltip>
 
             {/* Lock */}
-            <button
-              title={isLocked ? "Unlock bubble" : "Lock bubble"}
-              className="p-1 rounded text-text hover:bg-dullBox ml-2"
-              onClick={() => setIsLocked(!isLocked)}
-            >
-              {isLocked ? <IoMdLock size={16} /> : <IoMdUnlock size={16} />}
-            </button>
+            <PortalTooltip text={isLocked ? "Unlock bubble" : "Lock bubble"}>
+              <button
+                title={isLocked ? "Unlock bubble" : "Lock bubble"}
+                className="p-1 rounded text-text hover:bg-dullBox ml-2"
+                onClick={() => setIsLocked(!isLocked)}
+              >
+                {isLocked ? <IoMdLock size={16} /> : <IoMdUnlock size={16} />}
+              </button>
+            </PortalTooltip>
 
             {/* History */}
-            <button title="History" className="p-1 rounded text-text hover:bg-dullBox ml-2" onClick={() => {
-              setShowContextAI(false)
-              setShowHistory((prev) => !prev)
-            }}>
-              <IoBook size={16} />
-            </button>
-
+            <PortalTooltip text={"History"}>
+              <button title="History" className="p-1 rounded text-text hover:bg-dullBox ml-2" onClick={() => {
+                setShowContextAI(false)
+                setShowHistory((prev) => !prev)
+              }}>
+                <IoBook size={16} />
+              </button>
+            </PortalTooltip>
+            
+            
             {/* SidePanel */}
-            <button onClick={openPanel} className="p-1 rounded text-text hover:bg-dullBox ml-2">
-              <BiSolidDockRight size = {16} />
-            </button>
+            <PortalTooltip text={"Open SidePanel"}>
+              <button onClick={openPanel} className="p-1 rounded text-text hover:bg-dullBox ml-2">
+                <BiSolidDockRight size = {16} />
+              </button>
+            </PortalTooltip>
           </div>
         </div>
 
@@ -1400,31 +1545,36 @@ export const Bubble = () => {
                         {definitions[activeSource].phoneticText}
                       </h2>
                     )}
-                    <button
-                      title="Play Pronunciation"
-                      className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                      onClick={() => {
-                        const utterance = new SpeechSynthesisUtterance(text);
-                        utterance.lang = "en-US"; // Set language (optional)
-                        window.speechSynthesis.speak(utterance);
-                      }}
-                    >
-                      <IoVolumeMediumSharp size={22} />
-                    </button>
+                    <PortalTooltip text="Synthesizer">
+                      <button
+                        title="Play Pronunciation"
+                        className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                        onClick={() => {
+                          const utterance = new SpeechSynthesisUtterance(text);
+                          utterance.lang = "en-US"; // Set language (optional)
+                          window.speechSynthesis.speak(utterance);
+                        }}
+                      >
+                        <IoVolumeMediumSharp size={22} />
+                      </button>
+                    </PortalTooltip>
+                    
                     
                     { Boolean(definitions['freedictionaryapi']?.pronunciationAudio) && (
-                      <button
-                        title="Free Dictionary API Audio"
-                        className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                        onClick={() => {
-                          const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
+                      <PortalTooltip text="FreeDictionaryAPI Audio">
+                        <button
+                          title="Free Dictionary API Audio"
+                          className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                          onClick={() => {
+                            const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
 
-                          const audio = new Audio(audioUrl)
-                          audio.play().catch((err) => console.warn("Audio failed to play", err))
-                        }}
-                        >
-                          <IoVolumeMediumSharp size={22} />
-                      </button>
+                            const audio = new Audio(audioUrl)
+                            audio.play().catch((err) => console.warn("Audio failed to play", err))
+                          }}
+                          >
+                            <IoVolumeMediumSharp size={22} />
+                        </button>
+                      </PortalTooltip>
                     )}
                     
                   </div>
@@ -1584,7 +1734,7 @@ export const Bubble = () => {
 
 // Inject the component into the page
 const shadowHost = document.createElement("div")
-shadowHost.id = "wordscope-bubble"
+shadowHost.id = "wordscope-host"
 document.body.appendChild(shadowHost)
 const shadow = shadowHost.attachShadow({ mode: "open" })
 
@@ -1594,8 +1744,10 @@ style.rel = "stylesheet"
 style.href = chrome.runtime.getURL("assets/styles/tailwind-content.css")
 shadow.appendChild(style)
 
+// Load into shadow root 
 style.onload = () => {
   const bubbleRoot = document.createElement("div")
+  bubbleRoot.id = "wordscope-bubble"
   shadow.appendChild(bubbleRoot)
   createRoot(bubbleRoot).render(<Bubble/>)
 }

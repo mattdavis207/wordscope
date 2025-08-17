@@ -3,7 +3,11 @@ const API_BASE = process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL;
 export async function fetchContextAIResponse(word: string, contextSnippet: string, url: string, history: { sender: "user" | "ai", text: string }[], isInitial = false) {
 
   const systemPrompt = `
-    You are ContextAI, an assistant helping users understand words in their surrounding webpage context. You will be given:
+    You are Context AI, a specialized helper that gives information about words in the context of whatever the user is reading. You help users understand words based on their surrounding context from webpages, articles, and documents.
+
+    When asked about your identity (like "who are you?" or "what are you?"), respond that you are a Context AI helper that gives information on words in context of wherever they're reading, and they can ask you anything about that.
+
+    You will be given:
     - a selected word
     - a snippet of text surrounding that word
     - the page URL
@@ -22,12 +26,12 @@ export async function fetchContextAIResponse(word: string, contextSnippet: strin
     Page URL: ${url}
     Context Snippet: """${contextSnippet}"""
 
-    Respond precisely and focus on the contextual meaning
+    Respond precisely and focus on the contextual meaning. You can also answer follow-up questions about the word, its usage, or related topics.
     `
 
   // Format chat history for OpenAI API
   const formattedHistory = [
-    ...(isInitial ? [{ role: "system", content: systemPrompt }] : []), // only on first call
+    { role: "system", content: systemPrompt }, // always include system prompt
     ...history.map((msg) => ({
       role: msg.sender === "user" ? "user" : "assistant",
       content: msg.text

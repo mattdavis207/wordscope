@@ -82,8 +82,13 @@ export type Theme = {
           ...savedThemes,
         ];
   
+        // Remove existing theme styles to prevent conflicts
+        const existingStyles = document.querySelectorAll('style[data-theme-style]');
+        existingStyles.forEach(style => style.remove());
+
         allThemes.forEach((theme) => {
           const style = document.createElement("style");
+          style.setAttribute('data-theme-style', theme.className);
           style.innerHTML = `
             .${theme.className} {
               ${theme.colors.map((value, idx) => `--${keys[idx]}: ${value};`).join("\n")}

@@ -6,14 +6,59 @@ console.log(
   "Live now; make now always the most precious time. Now will never come again."
 )
 
-// Add export count
+// Enable extension icon globally
+chrome.action.enable();
+
+// Remove custom icon setting - let Plasmo handle icons from manifest
+// chrome.action.setIcon({
+//   path: {
+//     16: "icons/wordscope-logo16x16.png",
+//     48: "icons/wordscope-logo48x48.png",
+//     128: "icons/wordscope-logo128x128.png"
+//   }
+// });
+
+// Add export count and enable icon globally
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get("exportCount", (result) => {
     if (result.exportCount === undefined) {
       chrome.storage.local.set({ exportCount: 3 })
     }
   })
+  
+  // Ensure icon is enabled globally
+  chrome.action.enable();
+  console.log("Extension installed and icon enabled");
 })
+
+// Enable icon when extension can work on the current page
+const enableIconForTab = async (tabId: number, url?: string) => {
+  if (!url) return;
+  
+  // Enable icon for all web pages (exclude chrome:// and extension pages)
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    chrome.action.enable(tabId);
+  } else {
+    chrome.action.disable(tabId);
+  }
+}
+
+// Listen for tab activation
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    await enableIconForTab(activeInfo.tabId, tab.url);
+  } catch (error) {
+    console.warn('Could not update icon for tab:', error);
+  }
+});
+
+// Listen for tab updates (URL changes)
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url) {
+    await enableIconForTab(tabId, tab.url);
+  }
+});
 
 
 
@@ -132,7 +177,9 @@ chrome.runtime.onMessage.addListener((message, sender) => {
       setTimeout(() => {
         chrome.runtime.sendMessage({
           type: "word_from_bubble",
-          word: message.word
+          word: message.word,
+          contextSnippet: message.contextSnippet,
+          url: message.url
         })
       }, 750) // delay may be necessary
 
