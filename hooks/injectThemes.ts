@@ -79,6 +79,24 @@ export type Theme = {
               "#E879F9"  // user-chat-bubble
             ],
           },
+          {
+            name: "Green Meadows",
+            className: "theme-meadows",
+            colors: [
+              "#F0F9F0", // background
+              "#1F4D1F", // text
+              "#E8F5E8", // main-body
+              "#D1EDC4", // dull-box
+              "#16A34A", // hover-icon
+              "#D1EDC4", // hover-square
+              "#1F4D1F", // data-text
+              "#4B5B4B", // other-text
+              "#A7D4A0", // border
+              "#A7D4A0", // tab-active-bg
+              "#22C55E", // ai-chat-bubble
+              "#15803D"  // user-chat-bubble
+            ],
+          },
           ...savedThemes,
         ];
   

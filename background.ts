@@ -6,17 +6,19 @@ console.log(
   "Live now; make now always the most precious time. Now will never come again."
 )
 
-// Enable extension icon globally
+// Enable extension icon globally and set to active state
 chrome.action.enable();
 
-// Remove custom icon setting - let Plasmo handle icons from manifest
-// chrome.action.setIcon({
-//   path: {
-//     16: "icons/wordscope-logo16x16.png",
-//     48: "icons/wordscope-logo48x48.png",
-//     128: "icons/wordscope-logo128x128.png"
-//   }
-// });
+// Explicitly set the icon to active state
+chrome.action.setIcon({
+  path: {
+    16: "icon16.plasmo.6c567d50.png",
+    32: "icon32.plasmo.76b92899.png", 
+    48: "icon48.plasmo.aced7582.png",
+    64: "icon64.plasmo.8bb5e6e0.png",
+    128: "icon128.plasmo.3c1ed2d2.png"
+  }
+});
 
 // Add export count and enable icon globally
 chrome.runtime.onInstalled.addListener(() => {
@@ -26,39 +28,19 @@ chrome.runtime.onInstalled.addListener(() => {
     }
   })
   
-  // Ensure icon is enabled globally
+  // Ensure icon is enabled globally and set to active
   chrome.action.enable();
+  chrome.action.setIcon({
+    path: {
+      16: "icon16.plasmo.6c567d50.png",
+      32: "icon32.plasmo.76b92899.png", 
+      48: "icon48.plasmo.aced7582.png",
+      64: "icon64.plasmo.8bb5e6e0.png",
+      128: "icon128.plasmo.3c1ed2d2.png"
+    }
+  });
   console.log("Extension installed and icon enabled");
 })
-
-// Enable icon when extension can work on the current page
-const enableIconForTab = async (tabId: number, url?: string) => {
-  if (!url) return;
-  
-  // Enable icon for all web pages (exclude chrome:// and extension pages)
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    chrome.action.enable(tabId);
-  } else {
-    chrome.action.disable(tabId);
-  }
-}
-
-// Listen for tab activation
-chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  try {
-    const tab = await chrome.tabs.get(activeInfo.tabId);
-    await enableIconForTab(activeInfo.tabId, tab.url);
-  } catch (error) {
-    console.warn('Could not update icon for tab:', error);
-  }
-});
-
-// Listen for tab updates (URL changes)
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    await enableIconForTab(tabId, tab.url);
-  }
-});
 
 
 

@@ -31,6 +31,79 @@ export const MiniDefinitionView = ({
 
     const { history, setHistory } = useHistory();
 
+    // Inject CSS enforcement for consistent styling
+    useEffect(() => {
+      const existingStyle = document.getElementById("wordscope-tab-definition-styles")
+      if (existingStyle) return
+
+      const additionalStyle = document.createElement("style")
+      additionalStyle.id = "wordscope-tab-definition-styles"
+      additionalStyle.textContent = `
+        /* Force all Tailwind utility classes to work properly */
+        .w-6 {
+          width: 1.5rem !important; /* 24px */
+        }
+        
+        .h-6 {
+          height: 1.5rem !important; /* 24px */
+        }
+        
+        .w-14 {
+          width: 3.5rem !important; /* 56px */
+        }
+        
+        .h-12 {
+          height: 3rem !important; /* 48px */
+        }
+        
+        .flex {
+          display: flex !important;
+        }
+        
+        .items-center {
+          align-items: center !important;
+        }
+        
+        .justify-center {
+          justify-content: center !important;
+        }
+        
+        .rounded-t-xl {
+          border-top-left-radius: 0.75rem !important;
+          border-top-right-radius: 0.75rem !important;
+        }
+        
+        .rounded-md {
+          border-radius: 0.375rem !important;
+        }
+        
+        .pt-2 {
+          padding-top: 0.5rem !important;
+        }
+        
+        .px-2 {
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+        
+        .py-1 {
+          padding-top: 0.25rem !important;
+          padding-bottom: 0.25rem !important;
+        }
+        
+        img.w-6.h-6 {
+          width: 1.5rem !important; /* 24px */
+          height: 1.5rem !important; /* 24px */
+          object-fit: contain !important;
+        }
+        
+        .object-contain {
+          object-fit: contain !important;
+        }
+      `
+      document.head.appendChild(additionalStyle)
+    }, [])
+
     const entry = useMemo(
         () => history.find((e) => e.word === word),
         [history, word]
@@ -46,6 +119,7 @@ export const MiniDefinitionView = ({
 
     const firstEnabled = sourceOrder.find((key) => enabledSources[key] && sources[key])
     const [activeSource, setActiveSource] = useState<string | null>(firstEnabled || null)
+    const [userSelectedSource, setUserSelectedSource] = useState<boolean>(false)
     const scrollRef = useRef<HTMLDivElement>(null)
     const current = activeSource ? sources[activeSource] : null
 
@@ -62,13 +136,21 @@ export const MiniDefinitionView = ({
 
     // useEffect for updating the active tab on render 
     useEffect(() => {
-        const firstEnabled = sourceOrder.find((key) => enabledSources[key] && sources[key]);
-        if (firstEnabled) {
-          setActiveSource(firstEnabled);
-        } else {
-          setActiveSource(null);
+        // Reset user selection flag when word changes
+        if (word !== entry?.word) {
+          setUserSelectedSource(false);
         }
-    }, [word, sources, enabledSources, sourceOrder]);
+        
+        // Only auto-select if user hasn't manually selected a source
+        if (!userSelectedSource) {
+          const firstEnabled = sourceOrder.find((key) => enabledSources[key] && sources[key]);
+          if (firstEnabled) {
+            setActiveSource(firstEnabled);
+          } else {
+            setActiveSource(null);
+          }
+        }
+    }, [word, sources, enabledSources, sourceOrder, userSelectedSource, entry?.word]);
 
 
     useEffect(() => {
@@ -211,7 +293,10 @@ export const MiniDefinitionView = ({
                       >
                       <PortalTooltip text={source.name}>
                         <button
-                            onClick={() => setActiveSource(key as keyof typeof definitionSources)}
+                            onClick={() => {
+                              setActiveSource(key as keyof typeof definitionSources);
+                              setUserSelectedSource(true);
+                            }}
                             className={`w-full h-full flex items-center justify-center text-dataText text-md transition rounded-md ${
                             isActive
                                 ? "bg-tabActiveBg"
@@ -224,9 +309,10 @@ export const MiniDefinitionView = ({
                                 src={source.icon}
                                 alt={`${source.name} icon`}
                                 className="w-6 h-6 object-contain"
+                                style={{ width: "24px !important", height: "24px !important" }}
                               />
                             ) : (
-                              <span className="text-lg">{source.icon}</span>
+                              <span className="text-lg" style={{ fontSize: "18px !important" }}>{source.icon}</span>
                             )}
                         </button>
                       </PortalTooltip>
@@ -290,43 +376,47 @@ export const MiniDefinitionView = ({
             <div className="flex items-center">
                 
                 <div className="flex items-center flex-1">
-                  <h2 className="font-semibold text-dataText text-lg mr-2">{word}</h2>
+                  <h2 className="font-semibold text-dataText text-lg mr-2" style={{ fontSize: "18px !important" }}>{word}</h2>
                   {current?.phoneticText?.trim() && (
-                    <h2 className="text-sm text-otherText mr-2">
+                    <h2 className="text-sm text-otherText mr-2" style={{ fontSize: "14px !important" }}>
                       {current.phoneticText}
                     </h2>
                   )}
-                  <button
-                    title="Play Pronunciation"
-                    className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                    onClick={() => {
-                      const utterance = new SpeechSynthesisUtterance(word);
-                      utterance.lang = "en-US"; // Set language (optional)
-                      window.speechSynthesis.speak(utterance);
-                    }}
-                  >
-                    <IoVolumeMediumSharp size={22} />
-                  </button>
+                  <PortalTooltip text="Synthesizer">
+                    <button
+                      title="Play Pronunciation"
+                      className="mr-2 rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                      onClick={() => {
+                        const utterance = new SpeechSynthesisUtterance(word);
+                        utterance.lang = "en-US"; // Set language (optional)
+                        window.speechSynthesis.speak(utterance);
+                      }}
+                    >
+                      <IoVolumeMediumSharp size={22} />
+                    </button>
+                  </PortalTooltip>
                   
                   { Boolean(sources['freedictionaryapi']?.pronunciationAudio) && (
-                    <button
-                      title="Free Dictionary API Audio"
-                      className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
-                      onClick={() => {
-                        const audioUrl = sources['freedictionaryapi']?.pronunciationAudio
+                    <PortalTooltip text="FreeDictionaryAPI Audio">
+                      <button
+                        title="Free Dictionary API Audio"
+                        className="rounded-full hover:bg-gray-300 text-text hover:text-dullBox"
+                        onClick={() => {
+                          const audioUrl = sources['freedictionaryapi']?.pronunciationAudio
 
-                        const audio = new Audio(audioUrl)
-                        audio.play().catch((err) => console.warn("Audio failed to play", err))
-                      }}
-                      >
-                        <IoVolumeMediumSharp size={22} />
-                    </button>
+                          const audio = new Audio(audioUrl)
+                          audio.play().catch((err) => console.warn("Audio failed to play", err))
+                        }}
+                        >
+                          <IoVolumeMediumSharp size={22} />
+                      </button>
+                    </PortalTooltip>
                   )}
                   
                 </div>
             </div>
 
-            <p className="text-xs text-otherText">Definition for:</p>
+            <p className="text-xs text-otherText" style={{ fontSize: "12px !important" }}>Definition for:</p>
 
             {/* Data Box */}
             <div className="overflow-y-auto" style={{ flex: 1 }}>
@@ -341,10 +431,10 @@ export const MiniDefinitionView = ({
                             idx === arr.length - 1 ? "" : "border-b border-gray-600"
                           }`}
                         >
-                          <p className="text-sm text-dataText italic">{line}</p>
+                          <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>{line}</p>
                         </div>
                       )) ?? (
-                        <p className="text-sm text-dataText italic">Loading...</p>
+                        <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>Loading...</p>
                       )}
                 </div>
 
@@ -362,9 +452,10 @@ export const MiniDefinitionView = ({
                           src={definitionSources[activeSource].icon}
                           alt={`${definitionSources[activeSource].name} icon`}
                           className="w-6 h-6 object-contain"
+                          style={{ width: "24px !important", height: "24px !important" }}
                         />
                       ) : (
-                        <span className="text-lg">{definitionSources[activeSource].icon}</span>
+                        <span className="text-lg" style={{ fontSize: "18px !important" }}>{definitionSources[activeSource].icon}</span>
                       )}
                       More Info
                     </a>

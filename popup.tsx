@@ -166,6 +166,16 @@ function IndexPopup() {
               "#9D174D", // hover-icon]
               ]
     },
+    {
+      name: "Green Meadows",
+      className: "theme-meadows",
+      colors: ["#F0F9F0", // background
+              "#1F4D1F", // text
+              "#E8F5E8", // main-body
+              "#D1EDC4", // dull-box
+              "#16A34A", // hover-icon]
+              ]
+    },
   ]);
 
   //Info Box Stuff
@@ -1060,30 +1070,30 @@ function IndexPopup() {
             {triggerMethod === "modifierClick" && (
               <div className="flex gap-2 mt-3">
                 <button
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
                     modifierCombo === "cmdClick"
-                      ? "bg-[#2A4E75] text-dataText"
-                      : "bg-gray-700 text-gray-300"
+                      ? "bg-tabActiveBg text-dataText"
+                      : "bg-dullBox text-otherText hover:bg-mainBody hover:text-dataText"
                   }`}
                   onClick={() => setModifierCombo("cmdClick")}
                 >
                   Cmd + Click
                 </button>
                 <button
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
                     modifierCombo === "altClick"
-                      ? "bg-[#2A4E75] text-dataText"
-                      : "bg-gray-700 text-gray-300"
+                      ? "bg-tabActiveBg text-dataText"
+                      : "bg-dullBox text-otherText hover:bg-mainBody hover:text-dataText"
                   }`}
                   onClick={() => setModifierCombo("altClick")}
                 >
                   Alt + Click
                 </button>
                 <button
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
                     modifierCombo === "shiftClick"
-                      ? "bg-[#2A4E75] text-dataText"
-                      : "bg-gray-700 text-gray-300"
+                      ? "bg-tabActiveBg text-dataText"
+                      : "bg-dullBox text-otherText hover:bg-mainBody hover:text-dataText"
                   }`}
                   onClick={() => setModifierCombo("shiftClick")}
                 >
@@ -1105,7 +1115,7 @@ function IndexPopup() {
                     customKeyCombo.map((key) => (
                       <span
                         key={key}
-                        className="bg-[#2A4E75] text-dataText px-2 py-1 rounded-md text-xs font-semibold"
+                        className="bg-tabActiveBg text-dataText px-2 py-1 rounded-md text-xs font-semibold"
                       >
                         {key}
                       </span>
@@ -1169,7 +1179,7 @@ function IndexPopup() {
             ) : (
               <>
                 <p className="text-sm text-otherText mb-3">
-                  Sign in to sync your Pro status across devices and components and manage your subscription.
+                  Sign in to sign up for Pro status and manage your subscription.
                 </p>
                 <button
                   onClick={() => setShowSignInModal(true)}
@@ -1790,7 +1800,7 @@ function IndexPopup() {
                   <div className="flex justify-between items-center cursor-pointer">
                     <div className="flex items-center justify-between w-full">
                       {/* Left side: the word */}
-                        <span className="text-base text-dataText">{entry.word}</span>
+                        <span className="text-base text-dataText mr-2">{entry.word}</span>
 
                       {/* Right side: time, link, etc */}
                       <div className="flex flex-col items-end text-xs text-otherText space-y-2">

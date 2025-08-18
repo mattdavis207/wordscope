@@ -72,3 +72,18 @@
     --ai-chat-bubble: #EC4899;
     --user-chat-bubble: #E879F9;
   }
+
+  .theme-meadows {
+    --background: #F0F9F0;
+    --text: #1F4D1F;
+    --main-body: #E8F5E8;
+    --dull-box: #D1EDC4;
+    --hover-icon: #16A34A;
+    --hover-square: #D1EDC4;
+    --data-text: #1F4D1F;
+    --other-text: #4B5B4B;
+    --border: #A7D4A0;
+    --tab-active-bg: #A7D4A0;
+    --ai-chat-bubble: #22C55E;
+    --user-chat-bubble: #15803D;
+  }

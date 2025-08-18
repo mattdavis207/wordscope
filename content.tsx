@@ -1065,7 +1065,12 @@ export const Bubble = () => {
           minWidth: "315px",
           maxWidth: viewportWidth,
           minHeight: "200px",
-          maxHeight: viewportHeight
+          maxHeight: viewportHeight,
+
+          // Force font properties to prevent website overrides
+          fontSize: "14px !important",
+          fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important",
+          lineHeight: "1.5 !important"
         }}
       >
 
@@ -1393,7 +1398,14 @@ export const Bubble = () => {
 
 
           <div className="flex-col flex overflow-hidden rounded-b-lg h-[100%]">
-            <div className="relative group">
+            <div 
+              className="group"
+              style={{
+                position: "relative",
+                minHeight: "60px !important",
+                width: "100% !important"
+              }}
+            >
               {/* Left Arrow */}
               <button
                 onClick={() => scroll("left")}
@@ -1432,12 +1444,18 @@ export const Bubble = () => {
                 scrollbarWidth: 'none',
                 scrollbarColor: "var(--tab-active-bg) var(--main-body)",
                 overscrollBehavior: "contain",
-                WebkitOverflowScrolling: "touch" }}>  
+                WebkitOverflowScrolling: "touch",
+                display: "flex !important",
+                paddingTop: "8px !important",
+                paddingLeft: "8px !important", 
+                paddingRight: "8px !important",
+                minHeight: "60px !important",
+                width: "100% !important"
+              }}>  
               {sourceOrder
                 .filter((key) => enabledSources[key]) // Only enabled
                 .map((key) => {
                   const source = definitionSources[key]
-                  // console.log("source tabs", source);
                   if (!source) {
                     console.warn(`Missing source for key: ${key}`)
                     return null
@@ -1449,6 +1467,12 @@ export const Bubble = () => {
                       <div
                         className={`rounded-t-xl py-1 px-2 w-14 h-12 flex items-center justify-center ${isActive ? "bg-mainBody" : "bg-background"
                           }`}
+                        style={{ 
+                          width: "56px !important", 
+                          height: "48px !important",
+                          minWidth: "56px !important",
+                          minHeight: "48px !important"
+                        }}
                       >
                         <PortalTooltip text={source.name}>
                           <button
@@ -1458,15 +1482,23 @@ export const Bubble = () => {
                                 : "bg-mainBody hover:bg-dullBox"
                               }`}
                             title={source.name}
+                            style={{ 
+                              width: "100% !important", 
+                              height: "100% !important",
+                              display: "flex !important",
+                              alignItems: "center !important",
+                              justifyContent: "center !important"
+                            }}
                           >
                             {typeof source.icon === "string" ? (
                               <img
                                 src={source.icon}
                                 alt={`${source.name} icon`}
                                 className="w-6 h-6 object-contain"
+                                style={{ width: "24px !important", height: "24px !important" }}
                               />
                             ) : (
-                              <span className="text-lg">{source.icon}</span>
+                              <span className="text-lg" style={{ fontSize: "18px !important" }}>{source.icon}</span>
                             )}
                           </button>
                         </PortalTooltip>
@@ -1539,9 +1571,9 @@ export const Bubble = () => {
 
                   {/* Left side  */}
                   <div className="flex items-center flex-1">
-                    <h2 className="font-semibold text-dataText text-lg mr-2">{text}</h2>
+                    <h2 className="font-semibold text-dataText text-lg mr-2" style={{ fontSize: "18px !important" }}>{text}</h2>
                     {definitions[activeSource]?.phoneticText?.trim() && (
-                      <h2 className="text-sm text-otherText mr-2">
+                      <h2 className="text-sm text-otherText mr-2" style={{ fontSize: "14px !important" }}>
                         {definitions[activeSource].phoneticText}
                       </h2>
                     )}
@@ -1592,7 +1624,7 @@ export const Bubble = () => {
 
                 </div>
 
-                <p className="text-xs text-otherText">Definition for:</p>
+                <p className="text-xs text-otherText" style={{ fontSize: "12px !important" }}>Definition for:</p>
 
                 {/* Definitions */}
                 <div className="space-y-3">
@@ -1605,10 +1637,10 @@ export const Bubble = () => {
                             idx === arr.length - 1 && (activeSource === "duckduckgo" || !hasAvailableExtras) ? "" : "border-b border-border"
                           }`}
                         >
-                          <p className="text-sm text-dataText italic">{line}</p>
+                          <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>{line}</p>
                         </div>
                       )) ?? (
-                        <p className="text-sm text-dataText italic">Loading...</p>
+                        <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>Loading...</p>
                       )}
                 </div>
                 
@@ -1627,6 +1659,7 @@ export const Bubble = () => {
                           ? "bg-dullBox text-red-500 hover:bg-red-600 hover:text-white"
                           : "bg-tabActiveBg text-blue-500 hover:bg-blue-600 hover:text-white"}
                       `}
+                      style={{ fontSize: "14px !important" }}
                     >
                       {showExtras ? "Hide Synonyms & Antonyms" : "Show Synonyms & Antonyms"}
                     </button> 
@@ -1695,9 +1728,10 @@ export const Bubble = () => {
                           src={definitionSources[activeSource].icon}
                           alt={`${definitionSources[activeSource].name} icon`}
                           className="w-6 h-6 object-contain"
+                          style={{ width: "24px !important", height: "24px !important" }}
                         />
                       ) : (
-                        <span className="text-lg">{definitionSources[activeSource].icon}</span>
+                        <span className="text-lg" style={{ fontSize: "18px !important" }}>{definitionSources[activeSource].icon}</span>
                       )}
                       More Info
                     </a>
@@ -1743,6 +1777,169 @@ const style = document.createElement("link")
 style.rel = "stylesheet"
 style.href = chrome.runtime.getURL("assets/styles/tailwind-content.css")
 shadow.appendChild(style)
+
+// Add additional CSS to prevent font size overrides
+const additionalStyle = document.createElement("style")
+additionalStyle.textContent = `
+  /* Force font isolation for WordScope bubble */
+  * {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+  }
+  
+  #wordscope-bubble * {
+    box-sizing: border-box !important;
+  }
+  
+  /* Ensure specific font sizes are never overridden */
+  .text-xs { font-size: 12px !important; line-height: 16px !important; }
+  .text-sm { font-size: 14px !important; line-height: 20px !important; }
+  .text-base { font-size: 16px !important; line-height: 24px !important; }
+  .text-lg { font-size: 18px !important; line-height: 28px !important; }
+  .text-xl { font-size: 20px !important; line-height: 28px !important; }
+  .text-2xl { font-size: 24px !important; line-height: 32px !important; }
+  
+  /* Additional overrides for common interfering selectors */
+  h1, h2, h3, h4, h5, h6, p, span, div, a, button, input {
+    font-size: inherit !important;
+    line-height: inherit !important;
+    font-family: inherit !important;
+  }
+  
+  /* Reset and force all Tailwind utility classes to work properly */
+  #wordscope-bubble * {
+    box-sizing: border-box !important;
+  }
+  
+  /* Force container and layout classes */
+  #wordscope-bubble .relative {
+    position: relative !important;
+  }
+  
+  #wordscope-bubble .group {
+    /* group styles are handled by hover states */
+  }
+  
+  #wordscope-bubble .flex {
+    display: flex !important;
+  }
+  
+  #wordscope-bubble .flex-col {
+    flex-direction: column !important;
+  }
+  
+  #wordscope-bubble .items-center {
+    align-items: center !important;
+  }
+  
+  #wordscope-bubble .justify-center {
+    justify-content: center !important;
+  }
+  
+  #wordscope-bubble .overflow-hidden {
+    overflow: hidden !important;
+  }
+  
+  #wordscope-bubble .overflow-x-auto {
+    overflow-x: auto !important;
+  }
+  
+  #wordscope-bubble .rounded-t-lg {
+    border-top-left-radius: 0.5rem !important;
+    border-top-right-radius: 0.5rem !important;
+  }
+  
+  #wordscope-bubble .rounded-t-xl {
+    border-top-left-radius: 0.75rem !important;
+    border-top-right-radius: 0.75rem !important;
+  }
+  
+  #wordscope-bubble .rounded-b-lg {
+    border-bottom-left-radius: 0.5rem !important;
+    border-bottom-right-radius: 0.5rem !important;
+  }
+  
+  #wordscope-bubble .rounded-md {
+    border-radius: 0.375rem !important;
+  }
+  
+  /* Force specific sizing classes with explicit pixel values */
+  #wordscope-bubble .w-6 {
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+  }
+  
+  #wordscope-bubble .h-6 {
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+  }
+  
+  #wordscope-bubble .w-14 {
+    width: 56px !important;
+    min-width: 56px !important;
+    max-width: 56px !important;
+  }
+  
+  #wordscope-bubble .h-12 {
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+  }
+  
+  #wordscope-bubble .w-full {
+    width: 100% !important;
+  }
+  
+  #wordscope-bubble .h-full {
+    height: 100% !important;
+  }
+  
+  #wordscope-bubble .h-\\[100\\%\\] {
+    height: 100% !important;
+  }
+  
+  /* Force padding classes */
+  #wordscope-bubble .pt-2 {
+    padding-top: 0.5rem !important;
+  }
+  
+  #wordscope-bubble .px-2 {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  
+  #wordscope-bubble .py-1 {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+  
+  /* Force image sizing */
+  #wordscope-bubble img.w-6.h-6 {
+    width: 1.5rem !important; /* 24px */
+    height: 1.5rem !important; /* 24px */
+    object-fit: contain !important;
+  }
+  
+  #wordscope-bubble .object-contain {
+    object-fit: contain !important;
+  }
+`
+shadow.appendChild(additionalStyle)
+
+// Add global CSS for tooltips (which render to document.body, not shadow DOM)
+const globalStyle = document.createElement("style")
+globalStyle.id = "wordscope-global-tooltip-styles"
+globalStyle.textContent = `
+  /* Force consistent tooltip font sizes */
+  [style*="z-index: 99999"].absolute.bg-mainBody.text-text.text-xs,
+  div[style*="position: fixed"][style*="pointer-events: none"] {
+    font-size: 12px !important;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+    line-height: 16px !important;
+  }
+`
+document.head.appendChild(globalStyle)
 
 // Load into shadow root 
 style.onload = () => {

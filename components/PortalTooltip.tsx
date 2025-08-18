@@ -51,6 +51,8 @@ export default function PortalTooltip({
     tempTooltip.style.position = 'absolute'
     tempTooltip.style.top = '-9999px'
     tempTooltip.style.maxWidth = '200px'
+    tempTooltip.style.fontSize = '12px'
+    tempTooltip.style.fontFamily = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif'
     tempTooltip.textContent = text
     document.body.appendChild(tempTooltip)
     
@@ -127,6 +129,8 @@ export default function PortalTooltip({
                 : "translate(-50%, -100%)",
               pointerEvents: "none",
               maxWidth: "200px",
+              fontSize: "12px !important",
+              fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important"
             }}
           >
             {text}

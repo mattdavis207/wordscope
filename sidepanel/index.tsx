@@ -200,6 +200,12 @@ const SidePanel = () => {
                 setShowContextAI(false)
                 setShowHistory(false)
                 
+                // Switch to first enabled source tab when looking up new word
+                const firstEnabled = sourceOrder.find((key) => enabledSources[key])
+                if (firstEnabled) {
+                    setActiveSource(firstEnabled as keyof typeof definitionSources)
+                }
+                
                 // Store context data from webpage
                 if (msg.contextSnippet) {
                     setContextSnippet(msg.contextSnippet)
@@ -209,7 +215,7 @@ const SidePanel = () => {
                 }
             }
         })
-    }, [])
+    }, [sourceOrder, enabledSources])
 
 
     // useEffect for detecting sidepanel close
@@ -511,7 +517,7 @@ const SidePanel = () => {
                                     <div className="flex justify-between items-center cursor-pointer">
                                         <div className="flex items-center justify-between w-full">
                                             {/* Left side: the word */}
-                                            <span className="text-base text-dataText">{entry.word}</span>
+                                            <span className="text-base text-dataText mr-2">{entry.word}</span>
 
                                             {/* Right side: time, link, etc */}
                                             <div className="flex flex-col text-xs text-otherText space-y-2">
