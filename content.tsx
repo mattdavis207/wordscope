@@ -26,6 +26,7 @@ import { MiniDefinitionView } from "./views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
 import { extractContext } from "./context/contextExtractor"
 import PortalTooltip, { hideAllTooltips } from "~components/PortalTooltip";
+import { TutorialModal } from "~components/TutorialModal";
 
 declare global {
   interface Window {
@@ -80,6 +81,8 @@ export const Bubble = () => {
   // Theme useStates
   const [themes, setThemes] = useState<Theme[]>([]);
   const [appliedTheme, setAppliedTheme] = useState<string>("");
+  
+  const [showDonate, setShowDonate] = useState(false);
   
 
   // Source Settings
@@ -571,7 +574,7 @@ export const Bubble = () => {
       }
     })
 
-    // 🚀 Listen for messages from background script (context menu trigger)
+    // Listen for messages from background script (context menu trigger)
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === "LOOKUP_WORDSCOPE" && msg.text) {
         checkAndShowBubble(undefined, msg.text, lastRightClickPos)
@@ -583,6 +586,7 @@ export const Bubble = () => {
       document.removeEventListener("selectionchange", checkAndShowBubble)
     }
   }, [checkAndShowBubble])
+
 
 
   // Handle Bubble Resize
@@ -1762,9 +1766,48 @@ export const Bubble = () => {
         )}
 
       </div>
+
     </div>
   )
 }
+
+// Modal handler component that renders outside shadow DOM
+const ModalHandler = () => {
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showDonate, setShowDonate] = useState(false);
+
+  useEffect(() => {
+    const handler = (msg: any) => {
+      if (msg?.type === "SHOW_TUTORIAL") {
+        console.log("🎯 Modal handler opening tutorial");
+        setShowTutorial(true);
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handler);
+    return () => chrome.runtime.onMessage.removeListener(handler);
+  }, []);
+
+  return (
+    <div style={{ 
+      pointerEvents: showTutorial || showDonate ? 'auto' : 'none',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: 100000
+    }}>
+      {showTutorial && (
+        <TutorialModal 
+          onClose={() => setShowTutorial(false)} 
+          showDonate={showDonate}
+          setShowDonate={setShowDonate}
+        />
+      )}
+    </div>
+  );
+};
 
 // Inject the component into the page
 const shadowHost = document.createElement("div")
@@ -1791,6 +1834,7 @@ additionalStyle.textContent = `
   }
   
   /* Ensure specific font sizes are never overridden */
+  .text-\\[10px\\] { font-size: 10px !important; line-height: 14px !important; }
   .text-xs { font-size: 12px !important; line-height: 16px !important; }
   .text-sm { font-size: 14px !important; line-height: 20px !important; }
   .text-base { font-size: 16px !important; line-height: 24px !important; }
@@ -1927,9 +1971,9 @@ additionalStyle.textContent = `
 `
 shadow.appendChild(additionalStyle)
 
-// Add global CSS for tooltips (which render to document.body, not shadow DOM)
+// Add global CSS for tooltips and modals (which render to document.body, not shadow DOM)
 const globalStyle = document.createElement("style")
-globalStyle.id = "wordscope-global-tooltip-styles"
+globalStyle.id = "wordscope-global-styles"
 globalStyle.textContent = `
   /* Force consistent tooltip font sizes */
   [style*="z-index: 99999"].absolute.bg-mainBody.text-text.text-xs,
@@ -1937,6 +1981,23 @@ globalStyle.textContent = `
     font-size: 12px !important;
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
     line-height: 16px !important;
+  }
+  
+  /* Ensure modals render properly outside shadow DOM */
+  #wordscope-modals * {
+    box-sizing: border-box !important;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+  }
+  
+  #wordscope-modals .fixed {
+    position: fixed !important;
+  }
+  
+  #wordscope-modals .inset-0 {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
   }
 `
 document.head.appendChild(globalStyle)
@@ -1947,4 +2008,61 @@ style.onload = () => {
   bubbleRoot.id = "wordscope-bubble"
   shadow.appendChild(bubbleRoot)
   createRoot(bubbleRoot).render(<Bubble/>)
+  
+  // Create a separate Shadow DOM container for modals
+  const modalHost = document.createElement("div")
+  modalHost.id = "wordscope-modal-host"
+  modalHost.style.position = "fixed"
+  modalHost.style.top = "0"
+  modalHost.style.left = "0"
+  modalHost.style.width = "100vw"
+  modalHost.style.height = "100vh"
+  modalHost.style.pointerEvents = "none"
+  modalHost.style.zIndex = "100000"
+  document.body.appendChild(modalHost)
+  
+  // Create shadow DOM for modal isolation
+  const modalShadow = modalHost.attachShadow({ mode: "open" })
+  
+  // Add CSS to modal shadow DOM
+  const modalStyle = document.createElement("link")
+  modalStyle.rel = "stylesheet"
+  modalStyle.href = chrome.runtime.getURL("assets/styles/tailwind-content.css")
+  modalShadow.appendChild(modalStyle)
+  
+  // Add modal-specific CSS for proper isolation
+  const modalCustomStyle = document.createElement("style")
+  modalCustomStyle.textContent = `
+    /* Force font isolation for modal */
+    * {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+      box-sizing: border-box !important;
+    }
+    
+    /* Ensure modal renders properly */
+    .fixed {
+      position: fixed !important;
+    }
+    
+    .inset-0 {
+      top: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
+    }
+    
+    /* Force z-index for modal elements */
+    div[class*="z-["] {
+      z-index: 100000 !important;
+    }
+  `
+  modalShadow.appendChild(modalCustomStyle)
+  
+  // Wait for CSS to load before rendering modal
+  modalStyle.onload = () => {
+    const modalRoot = document.createElement("div")
+    modalRoot.id = "wordscope-modals"
+    modalShadow.appendChild(modalRoot)
+    createRoot(modalRoot).render(<ModalHandler />)
+  }
 }

@@ -87,3 +87,14 @@
     --ai-chat-bubble: #22C55E;
     --user-chat-bubble: #15803D;
   }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }

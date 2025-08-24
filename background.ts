@@ -12,11 +12,11 @@ chrome.action.enable();
 // Explicitly set the icon to active state
 chrome.action.setIcon({
   path: {
-    16: "icon16.plasmo.6c567d50.png",
-    32: "icon32.plasmo.76b92899.png", 
-    48: "icon48.plasmo.aced7582.png",
-    64: "icon64.plasmo.8bb5e6e0.png",
-    128: "icon128.plasmo.3c1ed2d2.png"
+    16: "./gen-assets/icon16.plasmo.png",
+    32: "./gen-assets/icon32.plasmo.png", 
+    48: "./gen-assets/icon48.plasmo.png",
+    64: "./gen-assets/icon64.plasmo.png",
+    128: "./gen-assets/icon128.plasmo.png"
   }
 });
 
@@ -32,11 +32,11 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.action.enable();
   chrome.action.setIcon({
     path: {
-      16: "icon16.plasmo.6c567d50.png",
-      32: "icon32.plasmo.76b92899.png", 
-      48: "icon48.plasmo.aced7582.png",
-      64: "icon64.plasmo.8bb5e6e0.png",
-      128: "icon128.plasmo.3c1ed2d2.png"
+      16: "./gen-assets/icon16.plasmo.png",
+      32: "./gen-assets/icon32.plasmo.png", 
+      48: "./gen-assets/icon48.plasmo.png",
+      64: "./gen-assets/icon64.plasmo.png",
+      128: "./gen-assets/icon128.plasmo.png"
     }
   });
   console.log("Extension installed and icon enabled");
@@ -198,6 +198,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 })
 
+// Relay listener to send message from popup to content.tsx
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === "RELAY_SHOW_TUTORIAL") {
+    console.log("📥 Background received RELAY_SHOW_TUTORIAL message");
+    
+    chrome.tabs.query({ active: true, lastFocusedWindow: true })
+      .then(([tab]) => {
+        if (!tab?.id) throw new Error("No active tab to message.");
+        console.log("📤 Sending SHOW_TUTORIAL to tab:", tab.id);
+        return chrome.tabs.sendMessage(tab.id, { type: "SHOW_TUTORIAL" });
+      })
+      .then(() => {
+        console.log("✅ Tutorial message sent successfully");
+        sendResponse({ ok: true });
+      })
+      .catch((err) => {
+        console.error("❌ Relay failed:", err, chrome.runtime.lastError);
+        sendResponse({ ok: false, error: String(err) });
+      });
+
+    return true; // keep the channel open for async sendResponse
+  }
+});
 
 
 

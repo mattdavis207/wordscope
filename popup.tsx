@@ -27,7 +27,7 @@ import { MiniDefinitionView } from "~views/tabDefinitionView"
 import ContextAIView from "./views/contextAIView"
 import { SourcesTab } from "./views/sourcesView"
 import { extractContext } from "./context/contextExtractor"
-import { TutorialModal } from "./components/TutorialModal"
+// TutorialModal is now handled by content script
 import { Tooltip } from "~components/Tooltip";
 import PortalTooltip from "~components/PortalTooltip";
 import { useClickOutside } from "~hooks/useClickOutside";
@@ -180,7 +180,7 @@ function IndexPopup() {
 
   //Info Box Stuff
   const [infoOpen, setInfoOpen] = useState(false)
-  const [showTutorial, setShowTutorial] = useState(false)
+  // Tutorial is now handled by content script
   const [showDonate, setShowDonate] = useState(false)
   const [copiedMap, setCopiedMap] = useState<Record<string, boolean>>({})
 
@@ -220,6 +220,20 @@ function IndexPopup() {
       .then((data) => setIsPro(data.isPro))
       .catch((err) => console.error("Error checking Pro:", err))
 
+  }, [])
+
+  // Auto-open tutorial on first install
+  useEffect(() => {
+    chrome.storage.local.get(["hasSeenTutorial"], async (result) => {
+      if (!result.hasSeenTutorial) {
+        chrome.storage.local.set({ hasSeenTutorial: true })
+        // Trigger content script tutorial instead
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+        if (tab.id) {
+          chrome.tabs.sendMessage(tab.id, { type: "SHOW_TUTORIAL" })
+        }
+      }
+    })
   }, [])
 
   //Sign in Logic 
@@ -645,9 +659,20 @@ function IndexPopup() {
                 {/* Tutorial */}
                 <button
                   className="w-full flex items-center space-x-2 text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
-                  onClick={() => {
-                    setInfoOpen(false)
-                    setShowTutorial(true)
+                  onClick={async () => {
+                    try {
+                      console.log("🎯 Tutorial button clicked");
+                      setInfoOpen(false);
+                
+                      // send the message and wait for optional response
+                      console.log("📤 Sending RELAY_SHOW_TUTORIAL message");
+                      const response = await chrome.runtime.sendMessage({ type: "RELAY_SHOW_TUTORIAL" });
+                      console.log("📥 Response from background:", response);
+                      setTimeout(() => window.close(), 50);
+
+                    } catch (err) {
+                      console.error("❌ SHOW_TUTORIAL failed:", err, chrome.runtime.lastError);
+                    }
                   }}
                 >
                   <FaBookOpen size={16} className="text-blue-400" />
@@ -2239,13 +2264,7 @@ function IndexPopup() {
     </ModalContainer>
     
 
-    {/* Tutorial Modal  */}
-    {showTutorial && (
-      <div>
-      <TutorialModal onClose={() => setShowTutorial(false)} showDonate={showDonate}
-        setShowDonate={setShowDonate}/>
-      </div>
-    )}
+    {/* Tutorial is now handled by content script */}
        
     {/* Donate Modal */}
     <ModalContainer isOpen={showDonate} onClose={() => setShowDonate(false)}>

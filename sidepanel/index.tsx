@@ -415,7 +415,7 @@ const SidePanel = () => {
             {/* Return to Bubble Button  */}
             <button
                 className="flex items-center justify-center gap-2 px-2 py-2 mb-2 bg-mainBody rounded text-text hover:bg-dullBox"
-                title="Reeturn to Bubble"
+                title="Return to Bubble"
                 onClick={async () => {
                     await chrome.storage.local.set({ fromSidePanel: { word: text } })
                     // chrome.runtime.sendMessage({ type: "side_panel_closed" })
