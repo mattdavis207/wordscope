@@ -107,7 +107,7 @@ const SidePanel = () => {
         fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
             .then((res) => res.json())
             .then((data) => setIsPro(data.isPro))
-            .catch((err) => console.error("Error checking Pro:", err))
+            .catch((err) => {})
     }, [])
 
 
@@ -166,7 +166,6 @@ const SidePanel = () => {
 
         const timer = setTimeout(() => {
             if (allSourcesReady && autoAddToHistory && !isSaved(currentWord)) {
-                console.log("[SAVE DEBUG] Debounced save for word:", currentWord);
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     const activeTabUrl = tabs[0]?.url;
                     const safeUrl = activeTabUrl?.startsWith("http")
@@ -734,7 +733,7 @@ const SidePanel = () => {
                                         const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
             
                                         const audio = new Audio(audioUrl)
-                                        audio.play().catch((err) => console.warn("Audio failed to play", err))
+                                        audio.play().catch((err) => {})
                                         }}
                                         >
                                         <IoVolumeMediumSharp size={22} />

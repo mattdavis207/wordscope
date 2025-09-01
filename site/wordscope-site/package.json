@@ -9,11 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/nodemailer": "^7.0.1",
     "@upstash/redis": "^1.35.3",
     "@vercel/kv": "^3.0.0",
     "cors": "^2.8.5",
     "micro": "^10.0.1",
     "next": "15.4.1",
+    "nodemailer": "^7.0.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",

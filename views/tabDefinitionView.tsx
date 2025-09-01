@@ -108,10 +108,9 @@ export const MiniDefinitionView = ({
         () => history.find((e) => e.word === word),
         [history, word]
       );
-    console.log(`[MiniDefinitionView] word: ${word}, entry:`, entry);
+    // Loading definition view for word
   
     const sources = entry?.sources || {};
-    console.log("entry.sources:", entry?.sources);
 
     //Theme useStates
     const [themes, setThemes] = useState<Theme[]>([]);
@@ -156,7 +155,7 @@ export const MiniDefinitionView = ({
     useEffect(() => {
         const listener = (changes, area) => {
           if (area === "local" && changes[HISTORY_KEY]) {
-            console.log("[useHistory] Storage changed:", changes[HISTORY_KEY].newValue);
+            // History storage updated
             setHistory(changes[HISTORY_KEY].newValue || []);
           }
         };
@@ -405,7 +404,7 @@ export const MiniDefinitionView = ({
                           const audioUrl = sources['freedictionaryapi']?.pronunciationAudio
 
                           const audio = new Audio(audioUrl)
-                          audio.play().catch((err) => console.warn("Audio failed to play", err))
+                          audio.play().catch((err) => {/* Audio failed to play */})
                         }}
                         >
                           <IoVolumeMediumSharp size={22} />

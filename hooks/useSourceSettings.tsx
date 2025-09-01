@@ -17,12 +17,12 @@ export function useSourceSettings() {
   useEffect(() => {
     chrome.storage.local.get(SOURCE_SETTINGS_KEY, (result) => {
       const settings = result[SOURCE_SETTINGS_KEY] || {}
-      console.log("get settings from history", settings)
+      // Loading settings from storage
       const allKeys = Object.keys(definitionSources)
 
       // No saved settings found — initialize on first run
       if (!settings || Object.keys(settings).length === 0) {
-        console.log("No settings found — initializing default settings")
+        // No settings found - initializing defaults
         const defaultOrder = allKeys
         const defaultEnabled = Object.fromEntries(allKeys.map((key) => [key, true]))
 
@@ -32,9 +32,7 @@ export function useSourceSettings() {
         }
 
         // Save to chrome.storage
-        chrome.storage.local.set({ [SOURCE_SETTINGS_KEY]: defaultSettings }, () => {
-          console.log("Default settings saved")
-        })
+        chrome.storage.local.set({ [SOURCE_SETTINGS_KEY]: defaultSettings })
 
         // Update local state
         setSourceOrder(defaultOrder)
@@ -61,7 +59,7 @@ export function useSourceSettings() {
         ...allKeys.filter((key) => !cleanedOrder.includes(key))
       ]
       
-      console.log("persisted order after remapping", persistedOrder)
+      // Order remapped and persisted
   
       const fixedEnabled = {
         ...Object.fromEntries(allKeys.map((key) => [key, true])), // default all to true
@@ -88,7 +86,7 @@ export function useSourceSettings() {
       if (changes[SOURCE_SETTINGS_KEY]) {
         const newSettings = changes[SOURCE_SETTINGS_KEY].newValue
         if (newSettings) {
-          console.log("🔄 Source settings changed, updating:", newSettings)
+          // Source settings updated
           
           const allKeys = Object.keys(definitionSources)
           const cleanedOrder = newSettings.order?.map((item) => {
@@ -118,7 +116,7 @@ export function useSourceSettings() {
       if (changes[DEFAULT_EXPORT_SOURCE_KEY]) {
         const newDefaultSource = changes[DEFAULT_EXPORT_SOURCE_KEY].newValue
         if (newDefaultSource) {
-          console.log("🔄 Default export source changed:", newDefaultSource)
+          // Default export source updated
           setDefaultExportSource(newDefaultSource)
         }
       }
@@ -159,7 +157,7 @@ export function useSourceSettings() {
     await chrome.storage.local.set({
       [SOURCE_SETTINGS_KEY]: { order, enabled }
     })
-    console.log("Saved settings:", { order, enabled })
+    // Settings saved to storage
   }
 
 

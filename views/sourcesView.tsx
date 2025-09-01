@@ -9,7 +9,7 @@ import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
 
-console.log("definitionSources keys:", Object.keys(definitionSources))
+// Definition sources loaded
 
 const SortableWrapper = (props) => <Sortable {...props} />
 

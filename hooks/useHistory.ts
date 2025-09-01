@@ -35,15 +35,13 @@ export function useHistory() {
   
   const setAutoAdd = (val: boolean) => {
     setAutoAddToHistory(val)
-    chrome.storage.local.set({ [AUTO_ADD_KEY]: val }, () => {
-        console.log("Saved autoAddToHistory to storage:", val) 
-    });
+    chrome.storage.local.set({ [AUTO_ADD_KEY]: val });
   }
 
   // Load history on mount
   useEffect(() => {
     chrome.storage.local.get([HISTORY_KEY, AUTO_ADD_KEY], (result) => {
-      console.log("[useHistory] Loaded history from storage:", result[HISTORY_KEY]);
+      // History loaded from storage
       setHistory(result[HISTORY_KEY] || [])
       setAutoAddToHistory(result[AUTO_ADD_KEY] ?? true)
       setLoading(false)
@@ -62,14 +60,11 @@ export function useHistory() {
     // Update local variable
     const updated = [newEntry, ...history.filter((e) => e.word !== word)];
 
-    console.log("[useHistory] Saving new word:", newEntry);
-    console.log("[useHistory] Updated history before storage:", updated);
+    // Saving new word to history
   
     // Save to state and storage together
     setHistory(updated);
-    chrome.storage.local.set({ [HISTORY_KEY]: updated }, () => {
-      console.log("History updated in storage:", updated);
-    });
+    chrome.storage.local.set({ [HISTORY_KEY]: updated });
   };
 
   const deleteWord = (word: string) => {

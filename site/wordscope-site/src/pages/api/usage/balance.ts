@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
-import { redis } from "@/../lib/redis"; // <-- fix the import
+import { redis } from "@/../lib/redis";
+import { withCORS } from "@/../lib/corsMiddleware";
 
 // optional: env-based key prefix so dev/prod don’t collide
 const ENV = process.env.VERCEL_ENV || process.env.NODE_ENV || "development";
@@ -12,45 +13,38 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-06-30.basil",
 })
 
-// CORS for extension
-function setCORS(res: NextApiResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Vary", "Origin");
-}
+// CORS handled by withCORS wrapper
 
 // find Stripe customer by email (no DB needed)
 async function customerIdByEmail(email: string): Promise<string | null> {
-  console.log(`🔍 Looking up customer for email: ${email}`);
+  // Looking up customer
   
   // 1) Get fresh customer ID from Stripe (don't trust cache for balance checks)
   const safe = email.replace(/'/g, "\\'");
   const r = await stripe.customers.search({ query: `email:'${safe}'`, limit: 1 });
 
   let id = r.data?.[0]?.id ?? null;
-  console.log(`🔎 Stripe search result for ${email}: ${id}`);
+  // Search completed
   
   if (!id) {
     // Try fallback list method
-    console.log(`🔄 Trying fallback list method for ${email}`);
+    // Trying fallback method
     const listResult = await stripe.customers.list({ email, limit: 1 });
     id = listResult.data?.[0]?.id ?? null;
-    console.log(`📋 List result: ${id}`);
+    // Fallback completed
   }
   
   if (id) {
     // Update cache with current customer ID
     await redis.set(emailCacheKey(email), id, { ex: 86400 });
-    console.log(`💾 Updated cached customer ID ${id} for ${email}`);
+    // Cache updated
   }
   
   return id;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  setCORS(res);
-  if (req.method === "OPTIONS") return res.status(200).end();
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // CORS handled by withCORS wrapper
   if (req.method !== "GET")   return res.status(405).json({ error: "Method Not Allowed" });
 
   try {
@@ -65,14 +59,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Convert to numbers explicitly (Redis returns strings)
     const tokensRemaining = data?.tokensRemaining ? Number(data.tokensRemaining) : 0;
     const periodEnd = data?.periodEnd ? Number(data.periodEnd) : null;
-    
-    console.log(`💰 Balance check for ${customerId}:`, {
-      rawData: data,
-      tokensRemaining,
-      periodEnd,
-      periodEndDate: periodEnd ? new Date(periodEnd) : null,
-      redisKey: quotaKey(customerId)
-    });
 
     return res.status(200).json({
       remainingTokens: tokensRemaining,
@@ -91,4 +77,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || "Internal Server Error" });
   }
 }
+
+export default withCORS(handler);
 

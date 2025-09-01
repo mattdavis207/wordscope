@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { redis } from "@/../lib/redis";
 import { DEC_IF_ENOUGH } from "@/../lib/redisScripts";
+import { withCORS } from "@/../lib/corsMiddleware";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-06-30.basil",
@@ -43,12 +44,8 @@ async function resolveCustomerIdByEmail(email: string): Promise<string | null> {
     return e.length ? e : null;
   }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // (Optional) CORS for extension
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    if (req.method === "OPTIONS") return res.status(200).end();
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+    // CORS handled by withCORS wrapper
     if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
     try {
@@ -59,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             temperature?: number;
         };
 
-        console.log("body email typeof/value:", typeof req.body?.email, req.body?.email);
+        // Processing email parameter
 
         const email = normalizeEmail(req.body?.email);
         if (!email) return res.status(400).json({ error: "email is required" });
@@ -128,3 +125,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: e.message || "Internal Server Error" });
     }
 }
+
+export default withCORS(handler);

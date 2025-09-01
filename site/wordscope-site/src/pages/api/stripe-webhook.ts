@@ -2,6 +2,7 @@ import { buffer } from "micro";
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { redis } from "@/../lib/redis";
+import { emailService } from "@/../lib/emailService";
 
 export const config = { api: { bodyParser: false } };
 
@@ -14,7 +15,6 @@ const quotaKey = (customerId: string) => `${PREFIX}:ws:quota:${customerId}`;
 
 
 async function topUp(customerId: string, periodEndMs: number) {
-    console.log(`🔋 Granting 50k tokens to customer ${customerId}, period ends: ${new Date(periodEndMs)}`);
     const redisKey = quotaKey(customerId);
     
     await redis.hmset(redisKey, {
@@ -24,7 +24,6 @@ async function topUp(customerId: string, periodEndMs: number) {
     
     // Verify the data was stored correctly
     const verification = await redis.hgetall(redisKey);
-    console.log(`✅ Tokens granted to ${customerId}, verification:`, verification);
 }
 
 async function zeroOut(customerId: string) {
@@ -73,10 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    console.log(`🔔 Webhook received: ${event.type}`, { 
-      eventId: event.id,
-      customerId: readCustomerId(event.data.object)
-    });
+    // Webhook processing started
     
     switch (event.type) {
       // First purchase via Checkout — grant immediately with a soft 30d anchor.
@@ -88,6 +84,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (customerId) {
           const soft30Days = Date.now() + 30 * 24 * 60 * 60 * 1000;
           await topUp(customerId, soft30Days);
+          
+          // Send welcome email for new subscriptions
+          if (session.customer_email && session.mode === 'subscription') {
+            try {
+              const customerName = session.customer_details?.name || undefined;
+              await emailService.sendSubscriptionWelcomeEmail(session.customer_email, customerName);
+            } catch (error) {
+              console.error('❌ Failed to send welcome email:', error);
+              // Don't fail the webhook for email issues
+            }
+          }
         }
         break;
       }
@@ -114,6 +121,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const customerId = readCustomerId(sub);
         if (customerId) {
           await zeroOut(customerId);
+          
+          // Send cancellation email
+          try {
+            // Get customer details to send email
+            const customer = await stripe.customers.retrieve(customerId);
+            if (customer && !customer.deleted && customer.email) {
+              const customerName = customer.name || undefined;
+              await emailService.sendSubscriptionCancellationEmail(customer.email, customerName);
+            }
+          } catch (error) {
+            console.error('❌ Failed to send cancellation email:', error);
+            // Don't fail the webhook for email issues
+          }
         }
         break;
       }

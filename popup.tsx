@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import ReactDOM from "react-dom";
 import { IoClose, IoSearch, IoSettings, IoVolumeMediumSharp, IoSettingsOutline, IoTimeOutline, IoTrashSharp, IoTrashOutline, IoColorPaletteSharp } from "react-icons/io5"
 import { HiOutlineClock, HiOutlineEyeDropper, HiOutlineChatBubbleBottomCenterText, HiOutlineDocumentArrowDown, HiOutlineSparkles, HiOutlineArrowDownTray, HiOutlineXMark, 
-         HiOutlineTrash, HiOutlineCheck, HiOutlinePlus, HiOutlineExclamationCircle, HiOutlineUserCircle, HiOutlinePencil} from "react-icons/hi2"
+         HiOutlineTrash, HiOutlineCheck, HiOutlinePlus, HiOutlineExclamationCircle, HiOutlineUserCircle, HiOutlinePencil, HiOutlineArrowTopRightOnSquare} from "react-icons/hi2"
 import { FaRegPlusSquare, FaChevronLeft, FaChevronRight, FaEthereum, FaBitcoin,
   FaBookOpen, FaStar, FaTwitter, FaRedditAlien, FaHeart, FaRegCopy, FaCheck, FaCrown} from "react-icons/fa";
 import { AiOutlineInfoCircle } from "react-icons/ai"
@@ -33,6 +33,7 @@ import PortalTooltip from "~components/PortalTooltip";
 import { useClickOutside } from "~hooks/useClickOutside";
 import { ModalContainer } from "~components/ModalContainer";
 import { SignInModal } from "~components/SignInModal";
+import { DonateModal } from "~components/DonateModal";
 
 // Source imports
 import { definitionSources } from "~sources/definitionSources"
@@ -182,7 +183,6 @@ function IndexPopup() {
   const [infoOpen, setInfoOpen] = useState(false)
   // Tutorial is now handled by content script
   const [showDonate, setShowDonate] = useState(false)
-  const [copiedMap, setCopiedMap] = useState<Record<string, boolean>>({})
 
   // Modal Outside Clicks
   const infoRef = useRef<HTMLDivElement>(null)
@@ -212,13 +212,12 @@ function IndexPopup() {
   // Check their pro status and add tokens if not done already
   useEffect(() => {
     const email = localStorage.getItem("userEmail")
-    console.log("📦 chrome.storage.local.get from isPro useEffect, userEmail:", email)
     if (!email) return
     
     fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
       .then((res) => res.json())
       .then((data) => setIsPro(data.isPro))
-      .catch((err) => console.error("Error checking Pro:", err))
+      .catch((err) => {})
 
   }, [])
 
@@ -239,9 +238,70 @@ function IndexPopup() {
   //Sign in Logic 
   useEffect(() => {
     const email = localStorage.getItem("userEmail")
-    console.log("📦 chrome.storage.local.get from sign in useEffect, userEmail:", email)
     setUserEmail(email)
     
+    // Check for auth success from chrome.storage - this will catch success even when popup wasn't open
+    const checkAuthSuccess = async () => {
+      try {
+        const result = await chrome.storage.local.get(['AUTH_SUCCESS_EMAIL', 'AUTH_SUCCESS_TIMESTAMP'])
+        const authEmail = result.AUTH_SUCCESS_EMAIL
+        const authTimestamp = result.AUTH_SUCCESS_TIMESTAMP
+        
+        console.log('🔍 Popup checking auth success:', { authEmail, authTimestamp })
+        
+        if (authEmail && authTimestamp) {
+          const timestamp = parseInt(authTimestamp)
+          const now = Date.now()
+          
+          console.log('⏱️ Auth timestamp check:', { timestamp, now, diff: now - timestamp })
+          
+          // Process if timestamp is recent (within 5 minutes to allow for delays)
+          if (now - timestamp < 300000) {
+            console.log('✅ Processing recent auth success for:', authEmail)
+            localStorage.setItem("userEmail", authEmail)
+            chrome.storage.local.set({ "userEmail": authEmail })
+            setUserEmail(authEmail)
+            
+            // Clean up the auth success markers
+            chrome.storage.local.remove(['AUTH_SUCCESS_EMAIL', 'AUTH_SUCCESS_TIMESTAMP'])
+            
+            // Reload to refresh Pro status
+            setTimeout(() => window.location.reload(), 500)
+          } else {
+            console.log('🧹 Cleaning up stale auth markers')
+            // Clean up stale markers
+            chrome.storage.local.remove(['AUTH_SUCCESS_EMAIL', 'AUTH_SUCCESS_TIMESTAMP'])
+          }
+        } else {
+          console.log('❌ No auth success data found')
+        }
+      } catch (error) {
+        console.error('Error checking auth success:', error)
+      }
+    }
+    
+    // Check immediately when popup opens
+    checkAuthSuccess()
+    
+    // Listen for messages from content scripts (e.g., auth success)
+    const messageListener = (message: any, sender: any, sendResponse: any) => {
+      console.log('📨 Popup received message:', message)
+      if (message.type === 'AUTH_SUCCESS' && message.email) {
+        console.log('✅ Processing AUTH_SUCCESS message for:', message.email)
+        localStorage.setItem("userEmail", message.email)
+        chrome.storage.local.set({ "userEmail": message.email })
+        setUserEmail(message.email)
+        // Reload to refresh Pro status
+        setTimeout(() => window.location.reload(), 500)
+      }
+    }
+    
+    chrome.runtime.onMessage.addListener(messageListener)
+    
+    // Cleanup listener on component unmount
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener)
+    }
   }, [])
 
   const handleSignOut = () => {
@@ -255,7 +315,6 @@ function IndexPopup() {
 
   const handleUpgrade = async () => {
     const email = localStorage.getItem("userEmail")
-    console.log("email", email);
     if (!email){
       setShowSettings(true) // Open Settings screen
         setTimeout(() => {
@@ -334,8 +393,6 @@ function IndexPopup() {
       const savedThemes = res.customThemes || [];
       const savedThemeClass = res.appliedTheme;
 
-      console.log("Applying theme:", savedThemeClass);
-      console.log("Injected styles:", savedThemes);
 
       const keys = [
         "background", "text", "main-body", "dull-box", "hover-icon",
@@ -385,7 +442,6 @@ function IndexPopup() {
 
     const timer = setTimeout(() => {
       if (allSourcesReady && autoAddToHistory && !isSaved(currentWord)) {
-        console.log("[SAVE DEBUG] Debounced save for word:", currentWord);
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           const activeTabUrl = tabs[0]?.url;
           const safeUrl = activeTabUrl?.startsWith("http")
@@ -539,28 +595,6 @@ function IndexPopup() {
       }
     };
 
-    // Copy to clipboard helper function for donate modal
-    const copyToClipboard = async (text: string) => {
-      try {
-        await navigator.clipboard.writeText(text)
-        console.log("Copied to clipboard:", text)
-        // Optionally show a toast or tooltip success message
-      } catch (err) {
-        console.error("Failed to copy:", err)
-      }
-    }
-
-    const handleCopy = async (address: string) => {
-      await copyToClipboard(address)
-    
-      // Set copied for this address only
-      setCopiedMap((prev) => ({ ...prev, [address]: true }))
-    
-      setTimeout(() => {
-        setCopiedMap((prev) => ({ ...prev, [address]: false }))
-      }, 1500)
-    }
-    
 
   return (
     <div className="flex flex-col shadow-lg w-[330px] h-[600px] overflow-hidden">
@@ -631,7 +665,7 @@ function IndexPopup() {
             </button>
           )}
 
-          <div className="relative">
+          <div ref={infoRef} className="relative">
             {/* Info Button */}
             <button
               onClick={(e) => {
@@ -654,30 +688,38 @@ function IndexPopup() {
             </button>
 
             {/* Dropdown Menu */}
-            <ModalContainer isOpen={infoOpen} onClose={() => setInfoOpen(false)} type= "dropdown">
-              <div ref={infoRef} className="absolute right-0 w-52 bg-mainBody rounded-2xl shadow-2xl shadow-black/50 p-2 space-y-2 z-[99999]">
+            <ModalContainer isOpen={infoOpen} onClose={() => setInfoOpen(false)} type="dropdown">
+              <div className="absolute right-0 w-52 bg-mainBody rounded-2xl shadow-2xl shadow-black/50 p-2 space-y-2 z-[99999]">
                 {/* Tutorial */}
                 <button
                   className="w-full flex items-center space-x-2 text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
                   onClick={async () => {
                     try {
-                      console.log("🎯 Tutorial button clicked");
                       setInfoOpen(false);
                 
                       // send the message and wait for optional response
-                      console.log("📤 Sending RELAY_SHOW_TUTORIAL message");
                       const response = await chrome.runtime.sendMessage({ type: "RELAY_SHOW_TUTORIAL" });
-                      console.log("📥 Response from background:", response);
                       setTimeout(() => window.close(), 50);
 
                     } catch (err) {
-                      console.error("❌ SHOW_TUTORIAL failed:", err, chrome.runtime.lastError);
+                      // Silent error handling - tutorial failed
                     }
                   }}
                 >
                   <FaBookOpen size={16} className="text-blue-400" />
                   <span>Tutorial</span>
                 </button>
+                {/* Website */}
+                <a
+                  href="https://wordscope-extension.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 w-full text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
+                  onClick={() => setInfoOpen(false)}
+                >
+                  <HiOutlineArrowTopRightOnSquare size={16} className="text-green-400" />
+                  <span>Website</span>
+                </a>
                 {/* Reddit */}
                 <a
                   href="https://www.reddit.com/r/wordscope_55/"
@@ -1216,26 +1258,47 @@ function IndexPopup() {
             )}
 
             {showSignInModal && (
-              <SignInModal
-                onClose={() => setShowSignInModal(false)}
-                onSignIn={(email) => {
-                  localStorage.setItem("userEmail", email)
-
-                  // Save email to chrome.storage.local if not already
-                  chrome.storage.local.get("userEmail", (result) => {
-                    if (!result.userEmail) {
-                      chrome.storage.local.set({ userEmail: email }, () => {
-                        console.log("✅ userEmail saved:", email)
-                      })
-                    } else {
-                      console.log("🔁 userEmail already exists:", result.userEmail)
-                    }
-                  })
-
-                  setUserEmail(email)
-                  window.location.reload()
-                  }}
-              />
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                <div className="bg-mainBody p-6 rounded-xl shadow-lg w-80 relative">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold text-text">Sign In Required</h2>
+                    <button
+                      onClick={() => setShowSignInModal(false)}
+                      className="text-xl text-otherText hover:text-red-500 transition-colors"
+                      title="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  <p className="text-sm text-dataText mb-4">
+                    To verify your email and access Pro features, we'll open a new tab where you can complete the sign-in process.
+                  </p>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      className="flex-1 px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                      onClick={() => setShowSignInModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      onClick={async () => {
+                        // Open authentication in new tab
+                        await chrome.tabs.create({
+                          url: 'https://wordscope-extension.vercel.app/auth',
+                          active: true
+                        })
+                        setShowSignInModal(false)
+                        window.close()
+                      }}
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </section>
 
@@ -1564,7 +1627,7 @@ function IndexPopup() {
                             const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
 
                             const audio = new Audio(audioUrl)
-                            audio.play().catch((err) => console.warn("Audio failed to play", err))
+                            audio.play().catch((err) => {/* Audio failed to play */})
                           }}
                           >
                             <IoVolumeMediumSharp size={22} />
@@ -2267,89 +2330,9 @@ function IndexPopup() {
     {/* Tutorial is now handled by content script */}
        
     {/* Donate Modal */}
-    <ModalContainer isOpen={showDonate} onClose={() => setShowDonate(false)}>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100000]">
-        <div className="bg-mainBody p-4 rounded-2xl shadow-2xl shadow-black/50">
-          {/* Header */}
-          <h2 className="text-xl font-bold mb-3 text-text">❤️ Support the Developer</h2>
-          <p className="text-sm mb-4 text-otherText">
-            Support this extension’s growth! Every crypto donation helps fund new features, bug fixes, and ongoing improvements.
-          </p>
-
-          {/* Donation Addresses */}
-          <div className="space-y-3">
-            {[
-              { 
-                name: "Bitcoin", 
-                symbol: "BTC", 
-                icon: <FaBitcoin size={20} className="text-yellow-400" />, 
-                address: "1PQEEsLfYr2cyLz1K7TyDedXeqy1xxhCJ6" 
-              },
-              { 
-                name: "Ethereum", 
-                symbol: "ETH", 
-                icon: <FaEthereum size={20} className="text-purple-400" />, 
-                address: "0xd47FC586Bd8843a6c44FB112c844A5ac83909C52" 
-              },
-              { 
-                name: "Solana", 
-                symbol: "SOL", 
-                icon: <SiSolana size={20} className="text-green-400" />, 
-                address: "HqKfNYdtuw3f8PScJpaKQR3CgC4DrWHeGfzEMQacWGaL" 
-              }
-            ].map((coin) => (
-              <div key={coin.symbol} className="flex items-center space-x-3 bg-dullBox rounded-lg p-3">
-                {/* Crypto Icon */}
-                <Tooltip text={coin.name}>
-                  <div className="text-xl cursor-pointer">
-                    {coin.icon}
-                  </div>
-                </Tooltip>
-
-                {/* Address Text Box */}
-                <input
-                  type="text"
-                  readOnly
-                  value={coin.address}
-                  className="flex-1 px-2 py-1 bg-mainBody rounded text-sm text-text cursor-default"
-                />
-
-                {/* Copy Button */}
-                <div className="relative">
-                  <Tooltip text="Copy">
-                    <button
-                      onClick={() => handleCopy(coin.address)}
-                      className="p-2 rounded-lg bg-tabActiveBg text-white hover:bg-dullBox transition"
-                    >
-                      {copiedMap?.[coin.address] ? (
-                        <FaCheck size={16} className="text-green-400" />
-                      ) : (
-                        <FaRegCopy size={16} />
-                      )}
-                    </button>
-                  </Tooltip>
-
-                  {/* Tooltip */}
-                  {copiedMap[coin.address] && (
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-mainBody text-text text-xs px-2 py-1 rounded shadow">
-                      Copied!
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Close Button */}
-          <button
-            onClick={() => setShowDonate(false)}
-            className="mt-5 w-full px-4 py-2 rounded-lg bg-tabActiveBg text-dataText hover:bg-dullBox transition"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </ModalContainer>
+    {showDonate && (
+      <DonateModal onClose={() => setShowDonate(false)} />
+    )}
     
 
 

@@ -52,16 +52,16 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
           const { userEmail } = await chrome.storage.local.get("userEmail");
           email = typeof userEmail === "string" && userEmail.trim() ? userEmail.trim() : null;
         } catch (error) {
-          console.warn("Could not access chrome.storage:", error);
+          // Could not access chrome.storage
         }
       }
 
       if (!email) {
-        console.log("No email found in localStorage or chrome.storage, skipping token fetch");
+        // No email found, skipping token fetch
         return;
       }
 
-      console.log("📧 Found email for token fetch:", email);
+      // Email found for token fetch
 
       // Clear any stale token cache first to force fresh data
       chrome.storage.local.remove("tokens_meta");
@@ -71,7 +71,7 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
         const data = await response.json();
         
         if (typeof data.remainingTokens === "number") {
-          console.log("🔢 Fetched tokens from server:", data.remainingTokens);
+          // Tokens fetched from server
           setTokensLeft(data.remainingTokens);
           chrome.storage.local.set({ tokens_meta: { remainingTokens: data.remainingTokens } });
         }
@@ -79,7 +79,7 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
         setPrevUsed(null) // or a number if you also fetch lastUsed here
         setSeeded(true)
       } catch (error) {
-        console.warn("Failed to fetch tokens:", error);
+        // Failed to fetch tokens
       }
     };
 
@@ -271,7 +271,7 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
 
     // Remove this specific chat key from storage
     chrome.storage.local.remove("contextAI_history", () => {
-      console.log(`Cleared chat history for "contextAI_history"`);
+      // Chat history cleared
       setLoading(false);
     });
   }
@@ -287,7 +287,7 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
         const { userEmail } = await chrome.storage.local.get("userEmail");
         email = typeof userEmail === "string" && userEmail.trim() ? userEmail.trim() : null;
       } catch (error) {
-        console.warn("Could not access chrome.storage:", error);
+        // Could not access chrome.storage
       }
     }
     

@@ -790,7 +790,7 @@ export default function Home() {
               icon: <FaBook size = {30} className="text-xl" />,
               items: sources,
               hasDemo: true,
-              demoGif: "/Sources Demo.gif",
+              demoGif: "/Sources%20Demo.gif",
               demoDescription: "See how Wordscope instantly pulls definitions from multiple trusted sources, giving you comprehensive word information at a glance.",
               configFeatures: [
                 "Fully local settings in chrome.storage.local",

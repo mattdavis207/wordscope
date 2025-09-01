@@ -70,16 +70,20 @@
         "resources": [
           "assets/styles/tailwind-content.css",
           "assets/Wordscope-Demo-Video.mp4",
-          "assets/Settings Demo.mp4",
+          "assets/SettingsDemo.mp4",
           "assets/definitions/*.png",
           "assets/contextai/*.png",
           "assets/contextai/*.gif",
           "assets/sidepanel/*.gif",
           "assets/sidepanel/*.png",
-          "assets/history/*.gif"
+          "assets/history/*.gif",
+          "assets/util-buttons/*.gif"
         ],
         "matches": ["<all_urls>"]
       }
-    ]
+    ],
+    "content_security_policy": {
+      "extension_pages": "script-src 'self'; object-src 'none'; font-src 'self' data:; img-src 'self' data: chrome-extension: blob:; style-src 'self' 'unsafe-inline'; media-src 'self' data: blob: https://api.dictionaryapi.dev https://*.dictionaryapi.dev; child-src 'self'; frame-src 'self'; connect-src 'self' https://wordscope-extension.vercel.app https://api.openai.com https://api.dictionaryapi.dev https://wordsapiv1.p.rapidapi.com https://en.wiktionary.org https://www.dictionaryapi.com https://api.datamuse.com https://api.duckduckgo.com https://lingua-robot.p.rapidapi.com ws://localhost:1815 ws://localhost:1816; worker-src 'self'; form-action 'none';"
+    }
   }
 }

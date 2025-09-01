@@ -2,7 +2,7 @@ import {useState, useEffect } from "react"
 
 import { IoMdLock, IoMdUnlock, IoMdMagnet } from "react-icons/io"
 import { IoSearch, IoBook } from "react-icons/io5"
-import { FaCog, FaHandsHelping, FaGlobe, FaHeart, FaStar, FaHandHoldingUsd, FaBolt, FaBrain, FaPalette, FaChartLine, FaWindowMaximize } from "react-icons/fa"
+import { FaCog, FaHandsHelping, FaGlobe, FaHeart, FaStar, FaHandHoldingUsd, FaBolt, FaBrain, FaPalette, FaChartLine, FaWindowMaximize, FaHistory, FaDownload, FaTools, FaHandPointer } from "react-icons/fa"
 import { HiOutlineSparkles } from "react-icons/hi"
 import { HiOutlineArrowTopRightOnSquare, HiOutlineXMark, HiChevronLeft, HiChevronRight } from "react-icons/hi2" 
 import { BiSolidDockRight } from "react-icons/bi"
@@ -13,7 +13,6 @@ import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
 
 // Import demo assets - GIFs work with require, videos use URL paths
-const sources_demo = chrome.runtime.getURL("assets/Sources Demo.gif")
 const sidepanel_demo = chrome.runtime.getURL("assets/sidepanel/Sidepanel Demo.gif")
 const history_demo = chrome.runtime.getURL("assets/history/History Demo.gif")
 const export_demo = chrome.runtime.getURL("assets/history/Export Demo.gif")
@@ -43,10 +42,29 @@ const def9 = chrome.runtime.getURL("assets/definitions/Definitions 9.png")
 
 // Video files use Chrome extension URLs since require doesn't work with .mp4
 const wordscope_demo_video = chrome.runtime.getURL("assets/Wordscope-Demo-Video.mp4")
-const settings_demo = chrome.runtime.getURL("assets/Settings Demo.mp4")
+const settings_demo = chrome.runtime.getURL("assets/SettingsDemo.mp4")
+
+// Utility button demo videos
+const search_button_demo = chrome.runtime.getURL("assets/util-buttons/Search Button Demo.gif")
+const history_button_demo = chrome.runtime.getURL("assets/util-buttons/History Button Demo.gif")
+const sidepanel_button_demo = chrome.runtime.getURL("assets/util-buttons/Sidepanel Button Demo.gif")
+const dock_button_demo = chrome.runtime.getURL("assets/util-buttons/Dock Button Demo.gif")
+const lock_button_demo = chrome.runtime.getURL("assets/util-buttons/Lock Button Demo.gif")
+const context_ai_button_demo = chrome.runtime.getURL("assets/util-buttons/Context AI Button Demo.gif")
 
 import wordscopeLogo from "assets/icon.png"
 
+// Helper function to create title with icon
+const TitleWithIcon = ({ icon: Icon, title, color = "var(--text)" }: { 
+  icon: React.ComponentType<any>; 
+  title: string; 
+  color?: string; 
+}) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
+    <Icon size={24} style={{ color }} />
+    <span>{title}</span>
+  </div>
+);
 
 // Component for utility buttons with hover dropdowns
 const UtilityButton = ({ icon: Icon, name, desc, gif, hoveredButton, setHoveredButton }: {
@@ -58,7 +76,7 @@ const UtilityButton = ({ icon: Icon, name, desc, gif, hoveredButton, setHoveredB
   setHoveredButton: (name: string | null) => void;
 }) => (
   <div 
-    style={{ position: 'relative' }}
+    className="group relative"
     onMouseEnter={() => setHoveredButton(name)}
     onMouseLeave={() => setHoveredButton(null)}
   >
@@ -110,72 +128,37 @@ const UtilityButton = ({ icon: Icon, name, desc, gif, hoveredButton, setHoveredB
       }} />
     </div>
     
-    {/* Enhanced hover dropdown with GIF */}
-    {hoveredButton === name && (
-      <div style={{
-        position: 'absolute',
-        top: '100%',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 1000,
-        backgroundColor: 'var(--main-body)',
-        border: '2px solid var(--tab-active-bg)',
-        borderRadius: '16px',
-        padding: '20px',
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4)',
-        marginTop: '12px',
-        width: '360px',
-        animation: 'modalSlideIn 0.3s ease-out'
-      }}>
-        <div style={{
-          textAlign: 'center',
-          marginBottom: '16px'
-        }}>
-          <h4 style={{
-            fontSize: '18px',
-            fontWeight: '600',
-            color: 'var(--text)',
-            marginBottom: '8px'
-          }}>
-            {name} Feature Demo
-          </h4>
-          <div style={{
-            width: '40px',
-            height: '2px',
-            backgroundColor: 'var(--tab-active-bg)',
-            margin: '0 auto'
-          }} />
-        </div>
-        <img
-          src={gif}
-          alt={`${name} Demo`}
-          style={{
-            width: '100%',
-            height: '200px',
-            objectFit: 'contain',
-            borderRadius: '12px',
-            backgroundColor: 'var(--dull-box)',
-            marginBottom: '16px',
-            border: '1px solid var(--border)'
-          }}
-        />
-        <div style={{
-          textAlign: 'center',
-          fontSize: '15px',
-          color: 'var(--data-text)',
-          lineHeight: '1.5',
-          padding: '12px',
-          backgroundColor: 'var(--dull-box)',
-          borderRadius: '8px'
-        }}>
-          See how the {name.toLowerCase()} feature enhances your Wordscope experience
-        </div>
-      </div>
-    )}
+    {/* Enhanced hover dropdown with GIF - proper expanding container like page.tsx */}
+    <div 
+      style={{
+        maxHeight: hoveredButton === name ? '500px' : '0px',
+        opacity: hoveredButton === name ? 1 : 0,
+        overflow: 'hidden',
+        transition: 'all 0.5s ease-in-out',
+        backgroundColor: 'var(--dull-box)',
+        borderRadius: '12px',
+        marginTop: hoveredButton === name ? '12px' : '0px',
+        padding: hoveredButton === name ? '20px' : '0px',
+        border: hoveredButton === name ? '1px solid var(--border)' : 'none'
+      }}
+    >
+      <img
+        src={gif}
+        alt={`${name} Demo`}
+        style={{
+          width: '100%',
+          height: '300px',
+          objectFit: 'contain',
+          borderRadius: '8px',
+          backgroundColor: 'var(--main-body)',
+          border: '1px solid var(--border)'
+        }}
+      />
+    </div>
   </div>
 );
 
-export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: () => void, showDonate: boolean, setShowDonate: React.Dispatch<React.SetStateAction<boolean>> }) => {
+export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, onShowDonate: () => void }) => {
 
     // Theme useStates
     const [themes, setThemes] = useState<Theme[]>([]);
@@ -188,72 +171,130 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
 
     const steps = [
         {
-          title: "Welcome to Wordscope",
+          title: "Welcome to Wordscope!",
           description: "The ultimate dictionary companion that transforms how you understand language while browsing the web.",
           custom: (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              textAlign: 'center',
               height: '300px',
-              justifyContent: 'center',
-              gap: '40px'
+              justifyContent: 'space-between',
+              padding: '10px 0'
             }}>
+              {/* Feature highlights grid */}
               <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '24px'
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '20px',
+                width: '100%',
+                maxWidth: '420px'
               }}>
-                <p style={{
-                  fontSize: '18px',
-                  color: 'var(--data-text)',
-                  lineHeight: '1.6',
-                  textAlign: 'center',
-                  maxWidth: '580px',
-                  margin: 0
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}>
-                  Transform your browsing experience with instant word definitions, AI-powered context analysis, and comprehensive learning tools. Simply double-click any word to unlock its full meaning and usage.
-                </p>
+                  <FaBolt size={32} style={{ color: '#f59e0b' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--data-text)', textAlign: 'center' }}>Quick Lookup</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <FaBrain size={32} style={{ color: '#8b5cf6' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--data-text)', textAlign: 'center' }}>Context AI</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <BiSolidDockRight size={32} style={{ color: '#06b6d4' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--data-text)', textAlign: 'center' }}>Sidepanel</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <FaHistory size={32} style={{ color: '#10b981' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--data-text)', textAlign: 'center' }}>History & Export</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <FaTools size={32} style={{ color: '#f97316' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--data-text)', textAlign: 'center' }}>Utility Buttons</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <FaCog size={32} style={{ color: '#6b7280' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--data-text)', textAlign: 'center' }}>Smart Settings</span>
+                </div>
               </div>
+
+              {/* Simplified description */}
+              <p style={{
+                fontSize: '15px',
+                color: 'var(--data-text)',
+                lineHeight: '1.4',
+                textAlign: 'center',
+                maxWidth: '480px',
+                margin: 0
+              }}>
+                Transform your browsing with instant definitions, AI context, and comprehensive learning tools.
+              </p>
               
+              {/* Demo button */}
               <button
                 onClick={() => window.open(wordscope_demo_video, '_blank')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '16px',
-                  padding: '18px 36px',
+                  gap: '12px',
+                  padding: '12px 24px',
                   backgroundColor: 'var(--tab-active-bg)',
                   color: 'white',
-                  fontSize: '20px',
+                  fontSize: '16px',
                   fontWeight: '600',
-                  borderRadius: '14px',
+                  borderRadius: '10px',
                   border: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                  boxShadow: '0 3px 10px rgba(0, 0, 0, 0.1)'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'var(--dull-box)'
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'var(--tab-active-bg)'
                   e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
+                  e.currentTarget.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.1)'
                 }}
               >
-                <HiOutlineArrowTopRightOnSquare size={24} />
-                <span>Watch Full Demo</span>
+                <HiOutlineArrowTopRightOnSquare size={20} />
+                <span>Watch Demo</span>
               </button>
             </div>
           )
         },
         {
-          title: "⚡ Quick Lookup Features", 
+          title: <TitleWithIcon icon={FaBolt} title="Quick Lookup Features" color="#f59e0b" />, 
           description: "Discover the comprehensive suite of tools available with every word lookup. Navigate through different features using the carousel below to see how Wordscope enhances your reading experience.",
           type: "slider",
           slides: [def1, def2, def3, def4, def5, def6, def7, def8, def9],
@@ -270,7 +311,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
           ]
         },
         {
-          title: "🧠 Smart Context AI",
+          title: <TitleWithIcon icon={FaBrain} title="Smart Context AI" color="#8b5cf6" />,
           description: "Experience AI-powered context analysis that explains exactly how words are used in their specific sentences. Go beyond basic definitions to understand nuanced meanings, idioms, and contextual usage patterns.",
           type: "slider",
           slides: [context_ai_demo, contextai1, contextai2, contextai3],
@@ -283,7 +324,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
           isPro: true
         },
         {
-          title: "🗂️ Sidepanel Mode",
+          title: <TitleWithIcon icon={BiSolidDockRight} title="Sidepanel Mode" color="#06b6d4" />,
           description: "Transform your research workflow with a dedicated sidepanel that stays open while you browse. Perfect for academic reading, language learning, or exploring new topics without losing your place.",
           type: "slider",
           slides: [sidepanel_demo, sidepanel1, sidepanel2, sidepanel3, return_to_bubble], 
@@ -296,7 +337,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
           ]
         },
         {
-          title: "📊 History & Export",
+          title: <TitleWithIcon icon={FaHistory} title="History & Export" color="#10b981" />,
           description: "Never lose a word again with automatic lookup history. Search through your discoveries, track your learning progress, and export personalized vocabulary lists in multiple formats for study sessions.",
           type: "slider",
           slides: [history_demo, export_demo],
@@ -306,7 +347,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
           ]
         },
         {
-          title: "🛠️ Bubble Utility Buttons",
+          title: <TitleWithIcon icon={FaTools} title="Bubble Utility Buttons" color="#f97316" />,
           description: "Master the powerful toolbar that appears with every lookup. Each button unlocks different capabilities to streamline your vocabulary exploration and learning process.",
           custom: (
             <div style={{ 
@@ -319,7 +360,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 icon={IoSearch} 
                 name="Search" 
                 desc="Enter a word manually for instant lookup" 
-                gif={sources_demo}
+                gif={search_button_demo}
                 hoveredButton={hoveredButton}
                 setHoveredButton={setHoveredButton}
               />
@@ -327,7 +368,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 icon={IoBook} 
                 name="History" 
                 desc="View and revisit recently looked-up words" 
-                gif={history_demo}
+                gif={history_button_demo}
                 hoveredButton={hoveredButton}
                 setHoveredButton={setHoveredButton}
               />
@@ -335,7 +376,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 icon={BiSolidDockRight} 
                 name="Side Panel" 
                 desc="Open the extension as a persistent sidebar" 
-                gif={sidepanel_demo}
+                gif={sidepanel_button_demo}
                 hoveredButton={hoveredButton}
                 setHoveredButton={setHoveredButton}
               />
@@ -343,7 +384,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 icon={IoMdMagnet} 
                 name="Anchor" 
                 desc="Dock or undock bubble to webpage position" 
-                gif={sources_demo}
+                gif={dock_button_demo}
                 hoveredButton={hoveredButton}
                 setHoveredButton={setHoveredButton}
               />
@@ -351,7 +392,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 icon={IoMdLock} 
                 name="Lock" 
                 desc="Prevent accidental closing or moving" 
-                gif={sources_demo}
+                gif={lock_button_demo}
                 hoveredButton={hoveredButton}
                 setHoveredButton={setHoveredButton}
               />
@@ -359,7 +400,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 icon={HiOutlineSparkles} 
                 name="Context AI (Pro)" 
                 desc="AI-powered contextual word analysis" 
-                gif={context_ai_demo}
+                gif={context_ai_button_demo}
                 hoveredButton={hoveredButton}
                 setHoveredButton={setHoveredButton}
               />
@@ -367,9 +408,93 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
           )
         },
         {
-          title: "⚙️ Smart Settings",
+          title: <TitleWithIcon icon={FaCog} title="Smart Settings" color="#6b7280" />,
           description: "Tailor Wordscope to your exact preferences. Fine-tune trigger methods, select from multiple dictionary sources, customize the visual appearance, and configure advanced features to match your reading style.",
-          image: settings_demo
+          custom: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* Settings Demo Video */}
+              <video 
+                className="w-full rounded-lg shadow-md"
+                controls
+                autoPlay
+                muted
+                loop
+                style={{ maxHeight: '320px' }}
+              >
+                <source src={settings_demo} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              
+              {/* Settings Flow with Gradient Lines - Two Rows */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                padding: '20px',
+                backgroundColor: 'var(--dull-box)',
+                borderRadius: '12px',
+                border: '1px solid var(--border)'
+              }}>
+                {/* First Row - Main Settings */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FaHistory size={18} style={{ color: '#3b82f6' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>Auto Save</span>
+                  </div>
+                  <div style={{ width: '20px', height: '2px', background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }} />
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FaPalette size={18} style={{ color: '#8b5cf6' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>Themes</span>
+                  </div>
+                  <div style={{ width: '20px', height: '2px', background: 'linear-gradient(to right, #8b5cf6, #10b981)' }} />
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FaWindowMaximize size={18} style={{ color: '#10b981' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>Bubble Size</span>
+                  </div>
+                  <div style={{ width: '20px', height: '2px', background: 'linear-gradient(to right, #10b981, #f59e0b)' }} />
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FaDownload size={18} style={{ color: '#f59e0b' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>Export Source</span>
+                  </div>
+                </div>
+
+                {/* Second Row - Keyboard Shortcuts */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FaHandPointer size={18} style={{ color: '#ef4444' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>Double Click</span>
+                  </div>
+                  <div style={{ width: '20px', height: '2px', background: 'linear-gradient(to right, #ef4444, #ec4899)' }} />
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FaCog size={18} style={{ color: '#ec4899' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>Modifier Key</span>
+                  </div>
+                  <div style={{ width: '20px', height: '2px', background: 'linear-gradient(to right, #ec4899, #8b5cf6)' }} />
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FaTools size={18} style={{ color: '#8b5cf6' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>Custom Hotkeys</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
         },
         {
           title: "Support the Developer",
@@ -380,8 +505,8 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
               flexDirection: 'column',
               alignItems: 'center',
               height: '300px',
-              justifyContent: 'center',
-              gap: '32px'
+              justifyContent: 'flex-start',
+              paddingTop: '10px'
             }}>
               {/* Top section with heart and message */}
               <div style={{
@@ -389,16 +514,17 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 flexDirection: 'column',
                 alignItems: 'center',
                 textAlign: 'center',
-                gap: '20px'
+                gap: '12px',
+                marginBottom: 'auto'
               }}>
-                <FaHeart size={200} style={{ color: '#f472b6' }} />
+                <FaHeart size={300} style={{ color: '#f472b6' }} />
                 <p style={{
                   textAlign: 'center',
-                  fontSize: '17px',
+                  fontSize: '15px',
                   color: 'var(--data-text)',
-                  lineHeight: '1.5',
-                  maxWidth: '520px',
-                  margin: 0
+                  lineHeight: '1.4',
+                  maxWidth: '460px',
+                  marginBottom: '20px'
                 }}>
                   Help us keep Wordscope free and continuously improving. Your support enables new features, bug fixes, and ongoing development that benefits everyone.
                 </p>
@@ -409,13 +535,13 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: '20px'
+                gap: '20px',
+                paddingBottom: '15px'
               }}>
                 {/* Donate Button */}
                 <button
                   onClick={() => {
-                      onClose() // Close tutorial before opening donate modal
-                      setShowDonate(true)
+                      onShowDonate() // Show donate modal
                   }}
                   style={{
                     display: 'flex',
@@ -557,16 +683,14 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
             {step === 0 && (
                 <div style={{ 
                   display: 'flex', 
-                  justifyContent: 'center',
-                  marginBottom: '40px',
-                  marginTop: '20px'
+                  justifyContent: 'center'
                 }}>
                     <img
                         src={wordscopeLogo}
                         alt="Wordscope Logo"
                         style={{
-                          width: '120px',
-                          height: '120px',
+                          width: '200px',
+                          height: '200px',
                           objectFit: 'contain'
                         }}
                     />
@@ -648,7 +772,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                               cursor: 'pointer',
                               transition: 'all 0.2s ease',
                               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                              marginRight: '6px'
+                              marginRight: '8px'
                             }}
                             title="Previous image"
                             onMouseEnter={(e) => {
@@ -700,7 +824,7 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                               cursor: 'pointer',
                               transition: 'all 0.2s ease',
                               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                              marginLeft: '6px'
+                              marginLeft: '8px'
                             }}
                             title="Next image"
                             onMouseEnter={(e) => {
@@ -725,10 +849,10 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                         </div>
                     )}
                 </div>
-            ) : steps[step].image ? (
+            ) : 'image' in steps[step] && steps[step].image ? (
                 <div className="mb-4">
                     {(() => {
-                        const image = steps[step].image as any;
+                        const image = (steps[step] as any).image;
                         return typeof image === 'string' && image.includes('.mp4') ? (
                             <video 
                                 className="w-full rounded-lg shadow-md"
@@ -736,9 +860,10 @@ export const TutorialModal = ({ onClose, setShowDonate, showDonate}: { onClose: 
                                 autoPlay
                                 muted
                                 loop
-                                style={{ maxHeight: '300px' }}
+                                style={{ maxHeight: '500px' }}
                             >
                                 <source src={image} type="video/mp4" />
+                                Your browser does not support the video tag.
                             </video>
                         ) : (
                             <img

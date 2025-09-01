@@ -29,8 +29,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const periodEnd = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
     const redisKey = quotaKey(customerId);
     
-    console.log(`🛠️ MANUAL: Granting ${tokens} tokens to customer ${customerId}`);
-    
     await redis.hmset(redisKey, {
       tokensRemaining: tokens,
       periodEnd: periodEnd
@@ -38,8 +36,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Verify it was set
     const verification = await redis.hgetall(redisKey);
-    
-    console.log(`✅ MANUAL: Verification for ${customerId}:`, verification);
 
     return res.json({
       success: true,

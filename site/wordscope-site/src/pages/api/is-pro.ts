@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import Stripe from "stripe"
+import { redis } from "@/../lib/redis"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-06-30.basil",
@@ -12,7 +13,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const email = req.query.email as string
     if (!email) return res.status(400).json({ error: "Email is required" })
 
-    console.log("📩 Checking Pro status for email:", email)
+    // First, check if email is verified
+    const verifiedKey = `verified:${email}`
+    const verificationStatus = await redis.get<string>(verifiedKey)
+    
+    if (!verificationStatus) {
+      return res.status(200).json({ 
+        isPro: false, 
+        reason: "email_not_verified",
+        message: "Please verify your email address first" 
+      })
+    }
 
     // Find customer by email
     const customers = await stripe.customers.list({
@@ -21,8 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     if (!customers.data.length) {
-      console.log("No customer found for email:", email)
-      return res.status(200).json({ isPro: false })
+      return res.status(200).json({ isPro: false, reason: "no_customer" })
     }
 
     const customerId = customers.data[0].id
@@ -38,9 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       (sub) => sub.status === "active" || sub.status === "trialing"
     )
 
-    console.log("📦 Active subscription found:", !!activeSubscription)
-
-    res.status(200).json({ isPro: !!activeSubscription })
+    res.status(200).json({ 
+      isPro: !!activeSubscription,
+      reason: activeSubscription ? "active_subscription" : "no_subscription",
+      isVerified: true
+    })
   } catch (err) {
     console.error("❌ API error in is-pro:", err)
     res.status(500).json({ error: "Internal Server Error" })

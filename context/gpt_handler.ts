@@ -46,7 +46,6 @@ export async function fetchContextAIResponse(word: string, contextSnippet: strin
     email = typeof userEmail === "string" && userEmail.trim() ? userEmail.trim() : undefined;
   }
 
-  console.log("email used:", email);
   
 
   try {
@@ -81,7 +80,6 @@ export async function fetchContextAIResponse(word: string, contextSnippet: strin
 
     return data.text?.trim?.() || "No response from AI.";
   } catch (err) {
-    console.error("Context AI Error: ", err)
     return "Error fetching AI response. Please try again."
   }
 }

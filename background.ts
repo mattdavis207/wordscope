@@ -2,23 +2,9 @@
 
 export {}
 
-console.log(
-  "Live now; make now always the most precious time. Now will never come again."
-)
 
-// Enable extension icon globally and set to active state
+// Enable extension icon globally
 chrome.action.enable();
-
-// Explicitly set the icon to active state
-chrome.action.setIcon({
-  path: {
-    16: "./gen-assets/icon16.plasmo.png",
-    32: "./gen-assets/icon32.plasmo.png", 
-    48: "./gen-assets/icon48.plasmo.png",
-    64: "./gen-assets/icon64.plasmo.png",
-    128: "./gen-assets/icon128.plasmo.png"
-  }
-});
 
 // Add export count and enable icon globally
 chrome.runtime.onInstalled.addListener(() => {
@@ -28,18 +14,8 @@ chrome.runtime.onInstalled.addListener(() => {
     }
   })
   
-  // Ensure icon is enabled globally and set to active
+  // Ensure icon is enabled globally
   chrome.action.enable();
-  chrome.action.setIcon({
-    path: {
-      16: "./gen-assets/icon16.plasmo.png",
-      32: "./gen-assets/icon32.plasmo.png", 
-      48: "./gen-assets/icon48.plasmo.png",
-      64: "./gen-assets/icon64.plasmo.png",
-      128: "./gen-assets/icon128.plasmo.png"
-    }
-  });
-  console.log("Extension installed and icon enabled");
 })
 
 
@@ -56,7 +32,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, isPro: data.isPro })
       })
       .catch((err) => {
-        console.error("Error checking isPro:", err)
         sendResponse({ success: false })
       })
 
@@ -75,7 +50,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, url: data.url })
       })
       .catch((err) => {
-        console.error("❌ Error creating checkout session:", err)
         sendResponse({ success: false })
       })
 
@@ -87,17 +61,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Create chrome contextMenu 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("Background installed")
     chrome.contextMenus.create({
       id: "lookup-wordscope",
       title: "Look up with Wordscope",
       contexts: ["selection"]
-    }, ()=> {
-      if (chrome.runtime.lastError) {
-        console.error("Context menu failed:", chrome.runtime.lastError)
-      } else {
-        console.log("Context menu created successfully")
-      }
     })
   })
 
@@ -121,7 +88,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           }
         });
       }
-    }).catch((err) => console.warn("Script injection failed:", err));
+    }).catch((err) => {});
   }
 });
 
@@ -172,10 +139,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 // Add Listener for sidepanel close
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === "sidepanel") {
-    console.log("📥 Side panel connected")
 
     port.onDisconnect.addListener(() => {
-      console.log("❌ Side panel closed (disconnected)")
       // Send a message to content.tsx when side panel is closed
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tabId = tabs[0]?.id
@@ -193,7 +158,6 @@ chrome.runtime.onConnect.addListener((port) => {
 // Listener for opening popup on 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "OPEN_POPUP") {
-    console.log("trying open")
     chrome.action.openPopup()
   }
 })
@@ -201,20 +165,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Relay listener to send message from popup to content.tsx
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "RELAY_SHOW_TUTORIAL") {
-    console.log("📥 Background received RELAY_SHOW_TUTORIAL message");
     
     chrome.tabs.query({ active: true, lastFocusedWindow: true })
       .then(([tab]) => {
         if (!tab?.id) throw new Error("No active tab to message.");
-        console.log("📤 Sending SHOW_TUTORIAL to tab:", tab.id);
         return chrome.tabs.sendMessage(tab.id, { type: "SHOW_TUTORIAL" });
       })
       .then(() => {
-        console.log("✅ Tutorial message sent successfully");
         sendResponse({ ok: true });
       })
       .catch((err) => {
-        console.error("❌ Relay failed:", err, chrome.runtime.lastError);
         sendResponse({ ok: false, error: String(err) });
       });
 

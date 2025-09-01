@@ -364,8 +364,6 @@ export const definitionSources = {
         }
         
         const json = await res.json()
-
-        console.log("json for MW:", json);
     
         if (!Array.isArray(json) || !json[0]) {
           return { definition: "No definition found." }
@@ -482,9 +480,6 @@ export const definitionSources = {
         new Set(definitions.flatMap((def) => def.antonyms || []))
       )
 
-      console.log(synonyms);
-      console.log(antonyms);
-
       // Origin / Etymology
       const origin = data.origin || ""
 
@@ -544,7 +539,6 @@ export const definitionSources = {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`)
         }
         const json = await res.json()
-        console.log("duckduckgo reponse: ", json);
 
         const definition =
           json.AbstractText ||

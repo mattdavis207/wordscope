@@ -1,4 +1,12 @@
 
+export const config = {
+  matches: [
+    "https://*/*",
+    "http://*/*", 
+    "https://wordscope-extension.vercel.app/*"
+  ]
+}
+
 import React, { useEffect, useState, useRef } from "react"
 import { IoVolumeMediumSharp, IoTimeOutline, IoSearch, IoBook, IoSettings, IoTrashSharp, IoTrashOutline } from "react-icons/io5"
 import { BiSolidDockRight } from "react-icons/bi"
@@ -27,6 +35,7 @@ import ContextAIView from "./views/contextAIView"
 import { extractContext } from "./context/contextExtractor"
 import PortalTooltip, { hideAllTooltips } from "~components/PortalTooltip";
 import { TutorialModal } from "~components/TutorialModal";
+import { DonateModal } from "~components/DonateModal";
 
 declare global {
   interface Window {
@@ -44,10 +53,39 @@ document.addEventListener("contextmenu", (e) => {
     x: e.clientX,
     y: e.clientY
   }
-  console.log(" updated lastRightClickPos:", lastRightClickPos)
 })
 
-chrome.storage.local.get("userEmail", (result) => console.log("Got from storage", result))
+chrome.storage.local.get("userEmail", (result) => {})
+
+// Auth communication bridge for wordscope-extension.vercel.app
+if (window.location.hostname === 'wordscope-extension.vercel.app') {
+  console.log('🔗 Content script loaded on auth domain');
+  
+  // Listen for auth success messages from the auth page
+  window.addEventListener('message', (event) => {
+    console.log('📨 Content script received message:', event.data);
+    
+    if (event.data.type === 'AUTH_SUCCESS' && event.data.email) {
+      console.log('✅ Processing AUTH_SUCCESS for email:', event.data.email);
+      
+      // Store in chrome.storage.local for the extension popup to access
+      chrome.storage.local.set({
+        'AUTH_SUCCESS_EMAIL': event.data.email,
+        'AUTH_SUCCESS_TIMESTAMP': Date.now().toString()
+      }, () => {
+        console.log('💾 Auth success stored in chrome.storage.local');
+        
+        // Also send runtime message to popup if it's open
+        chrome.runtime.sendMessage({
+          type: 'AUTH_SUCCESS',
+          email: event.data.email
+        }).catch(() => {
+          console.log('📭 Popup not open, that\'s okay');
+        })
+      })
+    }
+  })
+}
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
@@ -172,7 +210,6 @@ export const Bubble = () => {
   useEffect( () => {
     const checkIsPro = async () => {
       const email = await getUserEmail()
-      console.log("✅ email from chrome.storage.local:", email)
       if (!email) return
     
       // Send message to background.ts for fetching from isPro endpoint
@@ -180,10 +217,7 @@ export const Bubble = () => {
         { type: "CHECK_IS_PRO", email },
         (response) => {
           if (response?.success) {
-            console.log("✅ isPro status:", response.isPro)
             setIsPro(response.isPro)
-          } else {
-            console.error("❌ Failed to fetch isPro status")
           }
         }
       )
@@ -201,7 +235,6 @@ export const Bubble = () => {
     ) => {
       if (areaName === "local") {
         if (changes.isPro) {
-          console.log("changing isPro to", changes.isPro.newValue)
           setIsPro(changes.isPro.newValue)
         }
         if (changes.exportCount) {
@@ -218,7 +251,6 @@ export const Bubble = () => {
 
   const handleUpgrade = async () => {
     const email = await getUserEmail()
-    console.log("✅ email from chrome.storage.local:", email)
     
     // Direct user to sign in if no email
     if (!email){
@@ -268,7 +300,6 @@ export const Bubble = () => {
   useEffect(() => {
     chrome.storage.local.get("triggerSettings", (res) => {
       const settings = res.triggerSettings
-      console.log("Loaded triggerSettings from storage:", settings)
       setTriggerSettings(
         settings ?? {
           triggerMethod: "doubleClick", // fallback default
@@ -307,10 +338,8 @@ export const Bubble = () => {
         const allMatch = triggerSettings.customKeyCombo.every((key) => 
           pressedKeysRef.current.has(key) || pressedKeysRef.current.has(key.toLowerCase()) || pressedKeysRef.current.has(key.toUpperCase())
         )
-        console.log("All keys match:", allMatch);
         
         if (allMatch) {
-          console.log("Key combo matched! Triggering bubble check");
           // Prevent default behavior if combo matches
           e.preventDefault()
           // Trigger bubble check without a mouse event
@@ -324,7 +353,6 @@ export const Bubble = () => {
     const upHandler = (e: KeyboardEvent) => {
       // Only delete the key that was lifted
       pressedKeysRef.current.delete(e.key)
-      console.log("keys pressed after up", pressedKeysRef.current);
   
       // Also clean up modifier keys *only* if that specific key was released
       if (["Meta", "Alt", "Control", "Shift"].includes(e.key)) {
@@ -410,7 +438,6 @@ export const Bubble = () => {
   const checkAndShowBubble = React.useCallback((e?: MouseEvent | Event, forcedText?: string, forcedMousePos?: { x: number; y: number }, isKeyComboTrigger?: boolean) => {
 
     // If side panel open, send word there (only if there's actually a word)
-    console.log("isSidePanel", isSidePanel)
     if (isSidePanel.current){
       const selectedText = window.getSelection()?.toString().trim();
       // Only send message if there's actually a word selected
@@ -438,7 +465,6 @@ export const Bubble = () => {
     // 2. Apply logic based on selected trigger
     if (e instanceof MouseEvent) {
       if (!triggerSettings) return
-      console.log("inside if");
     
       const { triggerMethod, modifierCombo } = triggerSettings
     
@@ -494,13 +520,9 @@ export const Bubble = () => {
     const vw = window.innerWidth
     const vh = window.innerHeight
 
-    console.log("Rect dimensions", rect.width, rect.height);
-
-    console.log("Rect top and bottom", rect.top, rect.bottom);
 
 
-    console.log("popupWidth", popupWidth);
-    console.log("popupHeight", popupHeight);
+
 
     const offset = 12
 
@@ -534,7 +556,6 @@ export const Bubble = () => {
     ]
 
     const bestFit = candidates.find((c) => c.fits) || candidates[0] // default to bottom
-    console.log("bestfit", bestFit.direction)
 
     const clampedX = Math.max(scrollX, Math.min(bestFit.x, scrollX + vw - popupWidth))
     const clampedY = Math.max(scrollY, Math.min(bestFit.y, scrollY + vh - popupHeight))
@@ -567,23 +588,37 @@ export const Bubble = () => {
   useEffect(() => {
     document.addEventListener("click", checkAndShowBubble);
 
-    chrome.runtime.onMessage.addListener((msg) => {
+    // Define message handlers
+    const pdfHandler = (msg: any) => {
       if (msg.type === "PDF_SELECTION" && msg.text) {
-        // Show bubble at fixed top-left (or wherever)
         checkAndShowBubble(undefined, msg.text, { x: 24, y: 24 })
       }
-    })
+    }
 
-    // Listen for messages from background script (context menu trigger)
-    chrome.runtime.onMessage.addListener((msg) => {
+    const lookupHandler = (msg: any) => {
       if (msg.type === "LOOKUP_WORDSCOPE" && msg.text) {
         checkAndShowBubble(undefined, msg.text, lastRightClickPos)
       }
-    })
+    }
+
+    const donateHandler = (msg: any) => {
+      if (msg.type === "SHOW_DONATE") {
+        setShowDonate(true)
+      }
+    }
+
+    // Add message listeners
+    chrome.runtime.onMessage.addListener(pdfHandler)
+    chrome.runtime.onMessage.addListener(lookupHandler)
+    chrome.runtime.onMessage.addListener(donateHandler)
 
     return () => {
       document.removeEventListener("click", checkAndShowBubble)
       document.removeEventListener("selectionchange", checkAndShowBubble)
+      // Clean up message listeners
+      chrome.runtime.onMessage.removeListener(pdfHandler)
+      chrome.runtime.onMessage.removeListener(lookupHandler)
+      chrome.runtime.onMessage.removeListener(donateHandler)
     }
   }, [checkAndShowBubble])
 
@@ -761,7 +796,6 @@ export const Bubble = () => {
 
     const handleClickOutside = (e: MouseEvent) => {
       const box = bubbleRef.current?.getBoundingClientRect()
-      console.log(box);
       if (!box) return;
 
       const isInside =
@@ -769,8 +803,6 @@ export const Bubble = () => {
         e.clientX <= box.right &&
         e.clientY >= box.top &&
         e.clientY <= box.bottom
-
-      console.log("Inside?", isInside);
 
       if (!isInside) {
         setShow(false);
@@ -827,7 +859,6 @@ export const Bubble = () => {
 
     const timer = setTimeout(() => {
       if (allSourcesReady && autoAddToHistory && !isSaved(currentWord)) {
-        console.log("[SAVE DEBUG] Debounced save for word:", currentWord, definitions);
         saveWord(text, definitions, window.location.href);
       }
     }, 300); // Wait 300ms after last change
@@ -867,7 +898,6 @@ export const Bubble = () => {
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "sidepanel_closed") {
-      console.log("Side panel was closed");
       isSidePanel.current = false;
     }
   });  
@@ -896,7 +926,6 @@ export const Bubble = () => {
   
         setTimeout(() => {
           setText(word)
-          console.log("show bubble again after close");
           setShow(true);
           setIsDetached(true);
           isSidePanel.current = false
@@ -1461,8 +1490,7 @@ export const Bubble = () => {
                 .map((key) => {
                   const source = definitionSources[key]
                   if (!source) {
-                    console.warn(`Missing source for key: ${key}`)
-                    return null
+                      return null
                   }
                   const isActive = key === activeSource
 
@@ -1605,7 +1633,7 @@ export const Bubble = () => {
                             const audioUrl = definitions['freedictionaryapi']?.pronunciationAudio
 
                             const audio = new Audio(audioUrl)
-                            audio.play().catch((err) => console.warn("Audio failed to play", err))
+                            audio.play().catch((err) => {})
                           }}
                           >
                             <IoVolumeMediumSharp size={22} />
@@ -1779,8 +1807,9 @@ const ModalHandler = () => {
   useEffect(() => {
     const handler = (msg: any) => {
       if (msg?.type === "SHOW_TUTORIAL") {
-        console.log("🎯 Modal handler opening tutorial");
         setShowTutorial(true);
+      } else if (msg?.type === "SHOW_DONATE") {
+        setShowDonate(true);
       }
     };
 
@@ -1801,8 +1830,12 @@ const ModalHandler = () => {
       {showTutorial && (
         <TutorialModal 
           onClose={() => setShowTutorial(false)} 
-          showDonate={showDonate}
-          setShowDonate={setShowDonate}
+          onShowDonate={() => setShowDonate(true)}
+        />
+      )}
+      {showDonate && (
+        <DonateModal 
+          onClose={() => setShowDonate(false)} 
         />
       )}
     </div>

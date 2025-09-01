@@ -9,17 +9,14 @@ export function extractContext(word: string, charLimit = 800): string {
   let content = ""
 
   if (article?.textContent) {
-    console.log("Readability found article")
     content = article.textContent
   } else {
-    console.log("⚠️ Readability failed, falling back to body text")
     content = document.body.innerText || ""
   }
 
   // Find the first occurrence of the word
   const index = content.toLowerCase().indexOf(word.toLowerCase())
   if (index === -1) {
-    console.warn("Word not found in page content")
     return content.slice(0, charLimit)
   }
 
