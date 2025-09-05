@@ -8,7 +8,7 @@ import { FaRegPlusSquare, FaChevronLeft, FaChevronRight, FaEthereum, FaBitcoin,
 import { AiOutlineInfoCircle } from "react-icons/ai"
 import { IoMdArrowDropdown, IoMdArrowDropup} from "react-icons/io";
 import { GoHeart, GoHeartFill } from "react-icons/go"
-import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
+import { BiChevronRight, BiChevronLeft } from "react-icons/bi";
 import { SiSolana } from "react-icons/si";
 import { RxCrossCircled } from "react-icons/rx"
 import { HexColorPicker } from "react-colorful";
@@ -216,9 +216,28 @@ function IndexPopup() {
     
     fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
       .then((res) => res.json())
-      .then((data) => setIsPro(data.isPro))
+      .then((data) => {
+        setIsPro(data.isPro)
+        // Persist isPro state to chrome.storage.local
+        chrome.storage.local.set({ isPro: data.isPro })
+      })
       .catch((err) => {})
 
+  }, [])
+
+  // Listen for storage changes to update isPro state in real-time
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes.isPro) {
+        setIsPro(changes.isPro.newValue ?? false)
+      }
+    }
+
+    chrome.storage.local.onChanged.addListener(handleStorageChange)
+    
+    return () => {
+      chrome.storage.local.onChanged.removeListener(handleStorageChange)
+    }
   }, [])
 
   // Auto-open tutorial on first install
@@ -247,17 +266,12 @@ function IndexPopup() {
         const authEmail = result.AUTH_SUCCESS_EMAIL
         const authTimestamp = result.AUTH_SUCCESS_TIMESTAMP
         
-        console.log('🔍 Popup checking auth success:', { authEmail, authTimestamp })
-        
         if (authEmail && authTimestamp) {
           const timestamp = parseInt(authTimestamp)
           const now = Date.now()
           
-          console.log('⏱️ Auth timestamp check:', { timestamp, now, diff: now - timestamp })
-          
           // Process if timestamp is recent (within 5 minutes to allow for delays)
           if (now - timestamp < 300000) {
-            console.log('✅ Processing recent auth success for:', authEmail)
             localStorage.setItem("userEmail", authEmail)
             chrome.storage.local.set({ "userEmail": authEmail })
             setUserEmail(authEmail)
@@ -268,12 +282,9 @@ function IndexPopup() {
             // Reload to refresh Pro status
             setTimeout(() => window.location.reload(), 500)
           } else {
-            console.log('🧹 Cleaning up stale auth markers')
             // Clean up stale markers
             chrome.storage.local.remove(['AUTH_SUCCESS_EMAIL', 'AUTH_SUCCESS_TIMESTAMP'])
           }
-        } else {
-          console.log('❌ No auth success data found')
         }
       } catch (error) {
         console.error('Error checking auth success:', error)
@@ -285,9 +296,7 @@ function IndexPopup() {
     
     // Listen for messages from content scripts (e.g., auth success)
     const messageListener = (message: any, sender: any, sendResponse: any) => {
-      console.log('📨 Popup received message:', message)
       if (message.type === 'AUTH_SUCCESS' && message.email) {
-        console.log('✅ Processing AUTH_SUCCESS message for:', message.email)
         localStorage.setItem("userEmail", message.email)
         chrome.storage.local.set({ "userEmail": message.email })
         setUserEmail(message.email)
@@ -819,7 +828,7 @@ function IndexPopup() {
           />
         </div>
       ) : showSettings ? (  // Conditionally show settings
-        <div className="space-y-6 p-4 text-dataText bg-mainBody w-full max-w-md mx-auto overflow-y-auto" style = {{scrollbarWidth: 'none'}}>
+        <div className="space-y-6 p-4 text-dataText bg-mainBody w-full max-w-md mx-auto overflow-y-auto">
 
           {/* General Settings Title  */}
           <section>
@@ -1554,7 +1563,7 @@ function IndexPopup() {
           </div>
 
             {/* Main Definition Box */}
-            <div className="flex-1 rounded-b-lg px-2 pt-2 overflow-y-auto bg-mainBody" style={{scrollbarWidth: 'none'}}>
+            <div className="flex-1 rounded-b-lg px-2 pt-2 overflow-y-auto bg-mainBody">
               {activeSource === "youglish" ? (
                 <div className="flex flex-col justify-between h-full p-4 text-dataText">
                   {/* Header */}

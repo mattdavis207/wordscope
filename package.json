@@ -1,6 +1,6 @@
 {
   "name": "word-scope",
-  "displayName": "Word scope",
+  "displayName": "Wordscope",
   "version": "0.0.1",
   "description": "Instantly understand any word, anywhere.",
   "author": "Matthew Davis <matthewdavis207gmail.com>",
@@ -55,8 +55,7 @@
   "manifest": {
     "host_permissions": [
       "https://*/*",
-      "https://wordscope-extension.vercel.app/*",
-      "chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/*"
+      "https://wordscope-extension.vercel.app/*"
     ],
     "permissions": [
       "contextMenus",

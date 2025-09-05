@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react"
 import { IoVolumeMediumSharp } from "react-icons/io5"
-import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
+import { BiChevronRight, BiChevronLeft } from "react-icons/bi";
 import { definitionSources } from "../sources/definitionSources"
 import { useSourceSettings } from "~hooks/useSourceSettings"
 import { useHistory } from "../hooks/useHistory";

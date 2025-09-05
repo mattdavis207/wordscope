@@ -4,7 +4,7 @@ import { IoMdArrowDropdown, IoMdArrowDropup } from "react-icons/io";
 import { HiMiniChatBubbleBottomCenterText, HiOutlineSparkles, HiOutlineTrash, HiOutlineArrowDownTray, HiOutlineXMark } from "react-icons/hi2";
 import { GoHeart, GoHeartFill } from "react-icons/go"
 import { FaCrown } from "react-icons/fa"
-import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
+import { BiChevronRight, BiChevronLeft } from "react-icons/bi";
 import React from "react"
 
 import "~/public/styles/tailwind.css"
@@ -30,9 +30,6 @@ declare global {
 
 const HISTORY_KEY = "history"
 const DEFAULT_EXPORT_SOURCE_KEY = "defaultExportSource"
-
-// Define the port for listening for close
-const port = chrome.runtime.connect({ name: "sidepanel" })
 
 const SidePanel = () => {
     // History hook useStates
@@ -698,7 +695,7 @@ const SidePanel = () => {
                     ) : (
                         <div
                             className="flex-1 flex-col overflow-y-auto space-y-2 mb-2 rounded-b-lg p-2 h-[100%] bg-mainBody"
-                            style={{ scrollbarWidth: 'none' }}>
+>
                             {/* Word and Phonetic Text */}
                             <div className="flex items-center">
 

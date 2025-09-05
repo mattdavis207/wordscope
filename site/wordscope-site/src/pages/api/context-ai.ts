@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { redis } from "@/../lib/redis";
 import { DEC_IF_ENOUGH } from "@/../lib/redisScripts";
-import { withCORS } from "@/../lib/corsMiddleware";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-06-30.basil",
@@ -45,7 +44,16 @@ async function resolveCustomerIdByEmail(email: string): Promise<string | null> {
   }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // CORS handled by withCORS wrapper
+    // Set CORS headers to allow all origins
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    
+    if (req.method === 'OPTIONS') {
+        res.status(200).end()
+        return
+    }
+    
     if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
     try {
@@ -126,4 +134,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-export default withCORS(handler);
+export default handler;

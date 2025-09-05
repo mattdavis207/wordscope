@@ -103,8 +103,8 @@ class EmailService {
                     ${code}
                   </div>
                   <p style="color: #ef4444; font-size: 14px; margin: 15px 0 0 0; font-weight: 600;">
-                    <span style="display: inline-block; width: 16px; height: 16px; background-color: #ef4444; border-radius: 50%; margin-right: 8px; position: relative; text-align: center; line-height: 16px;">
-                      <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 10px; font-weight: bold; line-height: 1;">!</span>
+                    <span style="display: inline-block; width: 16px; height: 16px; background-color: #ef4444; border-radius: 50%; margin-right: 8px; position: relative; line-height: 16px; alihn-items: center; justify-content: center;">
+                      <span style="transform: translate(-50%, -50%); color: white; font-size: 10px; font-weight: bold; line-height: 1;">!</span>
                     </span>
                     Expires in 5 minutes
                   </p>
@@ -202,7 +202,7 @@ Security Notice: We sent this code because you requested email verification for 
           address: process.env.EMAIL_USER || 'wordscope55@gmail.com'
         },
         to: email,
-        subject: '🎉 Welcome to Wordscope Pro!',
+        subject: 'Welcome to Wordscope Pro!',
         html: `
           <!DOCTYPE html>
           <html>
@@ -224,9 +224,14 @@ Security Notice: We sent this code because you requested email verification for 
 
               <!-- Main Content -->
               <div style="padding: 40px 30px; background-color: #072141;">
-                <h2 style="color: #BBE1FA; font-size: 24px; margin: 0 0 20px 0; text-align: center;">
-                  Hi${customerName ? ` ${customerName}` : ''}! 🎉
-                </h2>
+                <div style="text-align: center; margin: 0 0 20px 0;">
+                  <div style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: #10b981; border-radius: 50%; margin: 0 auto 15px auto; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                    <span style="color: white; font-size: 24px; font-weight: bold; line-height: 0; vertical-align: middle;">✓</span>
+                  </div>
+                  <h2 style="color: #BBE1FA; font-size: 24px; margin: 0;">
+                    Hi${customerName ? ` ${customerName}` : ''}!
+                  </h2>
+                </div>
                 
                 <p style="color: #9CA3AF; font-size: 16px; line-height: 1.6; margin-bottom: 30px; text-align: center;">
                   Thank you for subscribing to Wordscope Pro! Your subscription is now active and you have access to all premium features.
@@ -248,7 +253,7 @@ Security Notice: We sent this code because you requested email verification for 
 
                 <div style="background: #1c2f47; border-left: 4px solid #48bb78; border-radius: 0 8px 8px 0; padding: 20px; margin: 30px 0;">
                   <div style="display: flex; align-items: flex-start;">
-                    <div style="color: #48bb78; font-size: 20px; margin-right: 12px; width: 24px; height: 24px; border: 2px solid #48bb78; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                    <div style="color: #48bb78; font-size: 20px; margin-right: 12px; width: 24px; height: 24px; border: 2px solid #48bb78; border-radius: 4px; display: flex;">
                       <span style="color: #48bb78; font-size: 14px; font-weight: bold;">✓</span>
                     </div>
                     <div>
@@ -338,9 +343,14 @@ Questions? Reply to this email or visit our support center.
 
               <!-- Main Content -->
               <div style="padding: 40px 30px; background-color: #072141;">
-                <h2 style="color: #BBE1FA; font-size: 24px; margin: 0 0 20px 0; text-align: center;">
-                  Hi${customerName ? ` ${customerName}` : ''}! 😔
-                </h2>
+                <div style="text-align: center; margin: 0 0 20px 0;">
+                  <div style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: #ef4444; border-radius: 50%; margin: 0 auto 15px auto; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
+                    <span style="color: white; font-size: 20px; font-weight: bold; line-height: 0; vertical-align: middle;">×</span>
+                  </div>
+                  <h2 style="color: #BBE1FA; font-size: 24px; margin: 0;">
+                    Hi${customerName ? ` ${customerName}` : ''}!
+                  </h2>
+                </div>
                 
                 <p style="color: #9CA3AF; font-size: 16px; line-height: 1.6; margin-bottom: 25px; text-align: center;">
                   We're sorry to see you go! Your Wordscope Pro subscription has been cancelled and will remain active until the end of your current billing period.
@@ -349,8 +359,8 @@ Questions? Reply to this email or visit our support center.
                 <!-- What Happens Next -->
                 <div style="background: #1c2f47; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 20px; margin: 30px 0;">
                   <div style="display: flex; align-items: flex-start;">
-                    <div style="color: #ef4444; font-size: 20px; margin-right: 12px; width: 24px; height: 24px; border: 2px solid #ef4444; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-                      <span style="color: #ef4444; font-size: 14px; font-weight: bold;">!</span>
+                    <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 2px solid #ef4444; border-radius: 4px; margin-right: 12px;">
+                      <span style="color: #ef4444; font-size: 14px; font-weight: bold; line-height: 0; vertical-align: middle;">!</span>
                     </div>
                     <div>
                       <p style="color: #BBE1FA; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">

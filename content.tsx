@@ -12,10 +12,10 @@ import { IoVolumeMediumSharp, IoTimeOutline, IoSearch, IoBook, IoSettings, IoTra
 import { BiSolidDockRight } from "react-icons/bi"
 import { IoMdArrowDropdown, IoMdArrowDropup, IoMdMagnet, IoMdLock, IoMdUnlock} from "react-icons/io";
 import { HiOutlineSparkles, HiOutlineTrash, HiOutlineArrowDownTray, HiOutlineXMark} from "react-icons/hi2" 
-import { FaCrown } from "~node_modules/react-icons/fa";
+import { FaCrown } from "react-icons/fa";
 import { BsPinAngleFill } from "react-icons/bs";
 import { GoHeart, GoHeartFill } from "react-icons/go"
-import { BiChevronRight, BiChevronLeft } from "~node_modules/react-icons/bi";
+import { BiChevronRight, BiChevronLeft } from "react-icons/bi";
 
 import { createRoot } from "react-dom/client"
 
@@ -59,29 +59,36 @@ chrome.storage.local.get("userEmail", (result) => {})
 
 // Auth communication bridge for wordscope-extension.vercel.app
 if (window.location.hostname === 'wordscope-extension.vercel.app') {
-  console.log('🔗 Content script loaded on auth domain');
-  
   // Listen for auth success messages from the auth page
   window.addEventListener('message', (event) => {
-    console.log('📨 Content script received message:', event.data);
-    
     if (event.data.type === 'AUTH_SUCCESS' && event.data.email) {
-      console.log('✅ Processing AUTH_SUCCESS for email:', event.data.email);
       
       // Store in chrome.storage.local for the extension popup to access
       chrome.storage.local.set({
         'AUTH_SUCCESS_EMAIL': event.data.email,
         'AUTH_SUCCESS_TIMESTAMP': Date.now().toString()
       }, () => {
-        console.log('💾 Auth success stored in chrome.storage.local');
-        
         // Also send runtime message to popup if it's open
         chrome.runtime.sendMessage({
           type: 'AUTH_SUCCESS',
           email: event.data.email
-        }).catch(() => {
-          console.log('📭 Popup not open, that\'s okay');
-        })
+        }).catch(() => {})
+      })
+    }
+
+    if (event.data.type === 'PRO_ACTIVATED' && event.data.email) {
+      // Store isPro state and email in chrome.storage.local
+      chrome.storage.local.set({
+        'isPro': true,
+        'userEmail': event.data.email,
+        'PRO_ACTIVATED_TIMESTAMP': Date.now().toString()
+      }, () => {
+        // Also send runtime message to popup if it's open
+        chrome.runtime.sendMessage({
+          type: 'PRO_ACTIVATED',
+          email: event.data.email,
+          isPro: true
+        }).catch(() => {})
       })
     }
   })

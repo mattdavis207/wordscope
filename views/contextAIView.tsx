@@ -430,7 +430,7 @@ const ContextAIView = ({ word, contextSnippet, url }: { word: string, contextSni
       </div>
 
       {/* Chat Area */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ paddingBottom: "4rem", scrollbarWidth: "none" }}>
+      <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ paddingBottom: "4rem" }}>
         {messages.map((msg, idx) => (
           <ChatBubble key={idx} sender={msg.sender} text={msg.text} />
         ))}

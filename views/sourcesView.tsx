@@ -40,7 +40,7 @@ export function SourcesTab() {
   if (loading || sourceOrder.length === 0) return null
 
   return (
-    <div className="flex flex-1 flex-col p-4 space-y-4 overflow-y-auto" style = {{scrollbarWidth: 'none'}}>
+    <div className="flex flex-1 flex-col p-4 space-y-4 overflow-y-auto">
       <h2 className="text-lg font-semibold text-text flex items-center gap-2 mb-3">
         <RxDragHandleDots2 size={20} /> Content Sources
       </h2>

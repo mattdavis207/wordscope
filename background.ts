@@ -69,28 +69,28 @@ chrome.runtime.onInstalled.addListener(() => {
   })
 
 // Scripting for getting selection from chrome's pdf viewer
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (typeof tabId !== "number" || tabId < 0) return;
-  if (changeInfo.status !== "complete") return;
-  if (!tab || !tab.url) return;
+// chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+//   if (typeof tabId !== "number" || tabId < 0) return;
+//   if (changeInfo.status !== "complete") return;
+//   if (!tab || !tab.url) return;
 
-  if (tab.url?.startsWith("chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai")) {
-    chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-        document.addEventListener("selectionchange", () => {
-          const selectedText = window.getSelection()?.toString().trim()
-          if (selectedText) {
-            chrome.runtime.sendMessage({
-              type: "PDF_SELECTION",
-              text: selectedText
-            })
-          }
-        });
-      }
-    }).catch((err) => {});
-  }
-});
+//   if (tab.url?.startsWith("chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai")) {
+//     chrome.scripting.executeScript({
+//       target: { tabId },
+//       func: () => {
+//         document.addEventListener("selectionchange", () => {
+//           const selectedText = window.getSelection()?.toString().trim()
+//           if (selectedText) {
+//             chrome.runtime.sendMessage({
+//               type: "PDF_SELECTION",
+//               text: selectedText
+//             })
+//           }
+//         });
+//       }
+//     }).catch((err) => {});
+//   }
+// });
 
 
 

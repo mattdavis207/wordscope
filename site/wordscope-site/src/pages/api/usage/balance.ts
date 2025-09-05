@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { redis } from "@/../lib/redis";
-import { withCORS } from "@/../lib/corsMiddleware";
 
 // optional: env-based key prefix so dev/prod don’t collide
 const ENV = process.env.VERCEL_ENV || process.env.NODE_ENV || "development";
@@ -44,7 +43,16 @@ async function customerIdByEmail(email: string): Promise<string | null> {
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // CORS handled by withCORS wrapper
+  // Set CORS headers to allow all origins
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return
+  }
+  
   if (req.method !== "GET")   return res.status(405).json({ error: "Method Not Allowed" });
 
   try {
@@ -78,5 +86,5 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-export default withCORS(handler);
+export default handler;
 

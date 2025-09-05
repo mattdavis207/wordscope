@@ -6,8 +6,8 @@ const ALLOWED_ORIGINS = [
   'https://wordscope-extension.vercel.app',
   'https://wordscope-site.vercel.app', 
   
-  // Chrome extension origins (extension ID will be here)
-  'chrome-extension://your-extension-id-here', // Replace with actual ID
+  // Chrome extension origins (allow any extension ID)
+  'chrome-extension://*', // Allow any chrome extension
   
   // Local development
   ...(process.env.NODE_ENV === 'development' ? [
@@ -24,13 +24,14 @@ export function applyCORS(req: NextApiRequest, res: NextApiResponse): boolean {
   const origin = req.headers.origin
   const referer = req.headers.referer
   
-  // Allow requests with no origin (like Stripe webhooks, server-to-server)
+  // Allow requests with no origin (like Stripe webhooks, server-to-server, chrome extensions)
   if (!origin && !referer) {
     // Additional validation for webhooks
     const userAgent = req.headers['user-agent']
     if (userAgent?.includes('Stripe')) {
       return true // Allow Stripe webhooks
     }
+    
     // For debugging APIs, allow if in development
     if (process.env.NODE_ENV === 'development') {
       return true
@@ -47,7 +48,10 @@ export function applyCORS(req: NextApiRequest, res: NextApiResponse): boolean {
     return origin === allowed
   })
   
-  if (isAllowed) {
+  // Allow chrome-extension origins
+  const isChromeExtension = origin && origin.startsWith('chrome-extension://');
+  
+  if (isAllowed || isChromeExtension) {
     // Set CORS headers for allowed origins
     res.setHeader('Access-Control-Allow-Origin', origin!)
     res.setHeader('Access-Control-Allow-Credentials', 'true')
@@ -58,9 +62,17 @@ export function applyCORS(req: NextApiRequest, res: NextApiResponse): boolean {
   }
   
   // Reject unauthorized requests
+  console.log('CORS REJECTED:', { 
+    origin: origin || 'none',
+    referer: referer || 'none',
+    userAgent: req.headers['user-agent'] || 'none',
+    allowedOrigins: ALLOWED_ORIGINS
+  });
   res.status(403).json({ 
     error: 'CORS: Origin not allowed',
-    origin: origin || 'none'
+    origin: origin || 'none',
+    referer: referer || 'none',
+    debug: true
   })
   return false
 }
