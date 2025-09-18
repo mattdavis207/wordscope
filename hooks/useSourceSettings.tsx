@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { definitionSources } from "../sources/definitionSources"
+import { showToast } from "../toast";
 
 const SOURCE_SETTINGS_KEY = "sourceSettings"
 const DEFAULT_EXPORT_SOURCE_KEY = "defaultExportSource"
@@ -143,7 +144,7 @@ export function useSourceSettings() {
     
     // Prevent disabling if this is the last enabled source
     if (isCurrentlyEnabled && currentlyEnabled === 1) {
-      alert("At least one source needs to be enabled")
+      showToast("At least one source needs to be enabled", "warning")
       return
     }
     

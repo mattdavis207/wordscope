@@ -225,8 +225,8 @@ Security Notice: We sent this code because you requested email verification for 
               <!-- Main Content -->
               <div style="padding: 40px 30px; background-color: #072141;">
                 <div style="text-align: center; margin: 0 0 20px 0;">
-                  <div style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: #10b981; border-radius: 50%; margin: 0 auto 15px auto; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-                    <span style="color: white; font-size: 24px; font-weight: bold; line-height: 0; vertical-align: middle;">✓</span>
+                  <div style="width: 48px; height: 48px; line-height: 48px; text-align: center; background: #10b981; border-radius: 50%; margin: 0 auto 15px auto; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                    <span style="display: inline-block; color: white; font-size: 24px; font-weight: bold; line-height: 1; vertical-align: middle;">✓</span>
                   </div>
                   <h2 style="color: #BBE1FA; font-size: 24px; margin: 0;">
                     Hi${customerName ? ` ${customerName}` : ''}!
@@ -344,8 +344,8 @@ Questions? Reply to this email or visit our support center.
               <!-- Main Content -->
               <div style="padding: 40px 30px; background-color: #072141;">
                 <div style="text-align: center; margin: 0 0 20px 0;">
-                  <div style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: #ef4444; border-radius: 50%; margin: 0 auto 15px auto; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
-                    <span style="color: white; font-size: 20px; font-weight: bold; line-height: 0; vertical-align: middle;">×</span>
+                  <div style="width: 48px; height: 48px; line-height: 48px; text-align: center; background: #ef4444; border-radius: 50%; margin: 0 auto 15px auto; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
+                    <span style="display: inline-block; color: white; font-size: 20px; font-weight: bold; line-height: 1; vertical-align: middle;">×</span>
                   </div>
                   <h2 style="color: #BBE1FA; font-size: 24px; margin: 0;">
                     Hi${customerName ? ` ${customerName}` : ''}!
@@ -359,8 +359,8 @@ Questions? Reply to this email or visit our support center.
                 <!-- What Happens Next -->
                 <div style="background: #1c2f47; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 20px; margin: 30px 0;">
                   <div style="display: flex; align-items: flex-start;">
-                    <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 2px solid #ef4444; border-radius: 4px; margin-right: 12px;">
-                      <span style="color: #ef4444; font-size: 14px; font-weight: bold; line-height: 0; vertical-align: middle;">!</span>
+                  <div style="width: 24px; height: 24px; line-height: 24px; text-align: center; border: 2px solid #ef4444; border-radius: 4px; margin-right: 12px;">
+                      <span style="display: inline-block; color: #ef4444; font-size: 14px; font-weight: bold; line-height: 1; vertical-align: middle;">!</span>
                     </div>
                     <div>
                       <p style="color: #BBE1FA; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">

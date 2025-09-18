@@ -620,39 +620,43 @@ export const definitionSources = {
         }
   
       const json = await res.json()
-      const entry = json.entries?.[0]
-      const lexemes = entry?.lexemes
-  
-      const lex = lexemes[0]
-      const pos = lex.partOfSpeech || ""
-      const senses = lex.senses ?? []
+      const entry = json?.entries?.[0] ?? null
 
-    const formattedDefinitions = senses.map(
-        (sense: any) => `(${pos}) ${sense.definition}`
-    )
+      // Safely derive definitions
+      const lexemes: any[] = Array.isArray(entry?.lexemes) ? entry.lexemes : []
+      let definition = "No definition found."
 
-    const definition =
-        formattedDefinitions.length > 0
-        ? formattedDefinitions.join("\n")
-        : pos
-  
-      const pronunciationData = entry?.pronunciations || []
-  
-      // Try to find US pronunciation first
-      const usPron = pronunciationData.find((p: any) =>
-        p.context?.regions?.includes("United States") && p.audio?.url
+      if (lexemes.length > 0) {
+        const lex = lexemes[0] || {}
+        const pos = lex?.partOfSpeech || ""
+        const senses: any[] = Array.isArray(lex?.senses) ? lex.senses : []
+
+        const formattedDefinitions = senses
+          .filter((s: any) => !!s?.definition)
+          .map((sense: any) => `(${pos}) ${sense.definition}`)
+
+        if (formattedDefinitions.length > 0) {
+          definition = formattedDefinitions.join("\n")
+        } else if (pos) {
+          // Provide at least part of speech if available
+          definition = pos
+        }
+      }
+
+      // Safely derive pronunciation
+      const pronunciationData: any[] = Array.isArray(entry?.pronunciations) ? entry.pronunciations : []
+
+      const usPron = pronunciationData.find(
+        (p: any) => p?.context?.regions?.includes("United States") && p?.audio?.url
       )
-  
-      const fallbackPron = pronunciationData.find((p: any) => p.audio?.url)
-  
+      const fallbackPron = pronunciationData.find((p: any) => p?.audio?.url)
+
       const audioUrl = usPron?.audio?.url || fallbackPron?.audio?.url || ""
-  
-      // Find IPA transcription (preferring US)
       const transcription =
-        usPron?.transcriptions?.find((t: any) => t.notation === "IPA")?.transcription ??
-        fallbackPron?.transcriptions?.find((t: any) => t.notation === "IPA")?.transcription ??
+        usPron?.transcriptions?.find((t: any) => t?.notation === "IPA")?.transcription ??
+        fallbackPron?.transcriptions?.find((t: any) => t?.notation === "IPA")?.transcription ??
         ""
-  
+
       return {
         definition,
         phoneticText: transcription,

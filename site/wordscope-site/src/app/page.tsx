@@ -19,6 +19,7 @@ import {
 // import { Bubble } from "../../../content.tsx"
 import "./tailwind.css"
 import './globals.css'
+import { showToast } from "../lib/toast";
 
 // Simple themed modal
 function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
@@ -97,21 +98,21 @@ function PrivacyContent() {
       <p className="text-[#9CA3AF]"><strong className="text-[#BBE1FA]">Wordscope</strong> (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) operates the Wordscope website and browser extension. This Privacy Policy explains how we collect, use, disclose, and protect your information when you use our site and extension.</p>
 
       <h4 className="text-[#BBE1FA] font-semibold mt-2">Information We Collect</h4>
-      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+      <ul className="list-disc pl-12 md:pl-14 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
         <li><span className="text-[#BBE1FA] font-medium">Extension data (local only):</span> We store your lookup history (words, definitions metadata, and source preferences) and, if you choose, your email <em>locally</em> via <code>chrome.storage.local</code> on your device. This data does not leave your device unless you export it.</li>
         <li><span className="text-[#BBE1FA] font-medium">Payment:</span> Subscriptions and payments are handled by Stripe on their hosted pages. We do not collect or store your full payment details. Stripe may process basic info (e.g., email) per their policy.</li>
         <li><span className="text-[#BBE1FA] font-medium">Website basics:</span> Our site collects standard logs (e.g., IP, user agent) necessary to serve pages and combat abuse.</li>
       </ul>
 
       <h4 className="text-[#BBE1FA] font-semibold mt-6">How We Use Information</h4>
-      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+      <ul className="list-disc pl-12 md:pl-14 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
         <li>Provide core functionality (definitions, history, export).</li>
         <li>Remember your settings and preferences.</li>
         <li>Communicate service updates you request (e.g., subscription status).</li>
       </ul>
 
       <h4 className="text-[#BBE1FA] font-semibold mt-6">Sharing & Disclosure</h4>
-      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+      <ul className="list-disc pl-12 md:pl-14 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
         <li><span className="text-[#BBE1FA] font-medium">Service providers:</span> Stripe for payments. Data shared is limited to what’s necessary for checkout and receipts.</li>
         <li>We do not sell your personal information.</li>
         <li>We may disclose information to comply with the law or protect rights and safety.</li>
@@ -121,7 +122,7 @@ function PrivacyContent() {
       <p className="text-[#9CA3AF]">Extension data is stored locally until you clear it or uninstall the extension. If you delete your account or request deletion of server-side records (e.g., billing email), we will delete them within 30 days unless retention is required by law.</p>
 
       <h4 className="text-[#BBE1FA] font-semibold mt-6">Security</h4>
-      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+      <ul className="list-disc pl-12 md:pl-14 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
         <li>Data in transit uses HTTPS/TLS on our website and Stripe checkout pages.</li>
         <li>Local extension data resides on your device; protect access to your browser profile.</li>
       </ul>
@@ -133,7 +134,7 @@ function PrivacyContent() {
       <p className="text-[#9CA3AF]">Definitions and examples are retrieved from multiple providers. We respect and comply with each source’s license and attribution requirements. Content from sources remains the property of its respective owners and is displayed for personal use within Wordscope. Exported data should be used consistent with those licenses.</p>
 
       <h4 className="text-[#BBE1FA] font-semibold mt-6">Your Choices</h4>
-      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+      <ul className="list-disc pl-12 md:pl-14 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
         <li>View, export, or clear your local history in the extension.</li>
         <li>Contact us to update or delete server-side records tied to billing.</li>
       </ul>
@@ -154,13 +155,13 @@ function TermsContent() {
       <p className="text-[#9CA3AF]">These Terms of Service (&quot;Terms&quot;) govern your use of the Wordscope website and browser extension (the &quot;Service&quot;) provided by Wordscope (&quot;we&quot;, &quot;us&quot;). By accessing or using the Service, you agree to these Terms.</p>
 
       <h4 className="text-[#BBE1FA] font-semibold mt-2">Use of the Service</h4>
-      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+      <ul className="list-disc pl-12 md:pl-14 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
         <li>Use the Service only for lawful purposes and in accordance with these Terms.</li>
         <li>You are responsible for safeguarding your browser profile and any credentials used with Stripe checkout.</li>
       </ul>
 
       <h4 className="text-[#BBE1FA] font-semibold mt-6">Accounts & Subscriptions</h4>
-      <ul className="list-disc pl-6 md:pl-7 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
+      <ul className="list-disc pl-12 md:pl-14 space-y-2 marker:text-[#2A4E75] text-[#9CA3AF]">
         <li>Some features (e.g., Pro) require a paid subscription processed by Stripe.</li>
         <li>We may associate a subscription with your email. Keep it accurate to avoid access issues.</li>
       </ul>
@@ -1302,7 +1303,7 @@ export default function Home() {
                     if (!res.ok) {
                       const text = await res.text();
                       console.error("Checkout fetch failed:", res.status, text);
-                      alert(`Checkout failed: ${res.status}\n${text}`);
+                      showToast(`Checkout failed: ${res.status}`, "error");
                       return;
                     }
                 
@@ -1311,11 +1312,11 @@ export default function Home() {
                       window.location.href = data.url;
                     } else {
                       console.error("No URL in response:", data);
-                      alert("No checkout URL returned.");
+                      showToast("No checkout URL returned.", "warning");
                     }
                   } catch (e) {
                     console.error("Network error:", e);
-                    alert("Network error – see console for details.");
+                    showToast("Network error – see console for details.", "error");
                   }
                 }}
                 className="inline-block w-full bg-gradient-to-r from-[#2563EB] to-[#7c3aed] 

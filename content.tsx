@@ -3,8 +3,15 @@ export const config = {
   matches: [
     "https://*/*",
     "http://*/*", 
-    "https://wordscope-extension.vercel.app/*"
+    "https://wordscope-extension.vercel.app/*",
+    "*://*/*.pdf"
   ]
+}
+
+// Plasmo expects a default export for content scripts. We manage our own
+// rendering via Shadow DOM below, so export a no-op component to satisfy it.
+export default function Content() {
+  return null
 }
 
 import React, { useEffect, useState, useRef } from "react"
@@ -23,6 +30,7 @@ import "./assets/styles/tailwind-content.css"
 import "~/public/styles/globals.css";
 import { injectSavedThemes } from "./hooks/injectThemes";
 import type { Theme } from "./hooks/injectThemes"
+import { showToast } from "./toast";
 
 //Dependency imports
 import { definitionSources } from "./sources/definitionSources"
@@ -278,7 +286,7 @@ export const Bubble = () => {
           if (response?.success && response.url) {
             window.open(response.url, "_blank")
           } else {
-            alert("❌ Failed to create checkout session")
+            showToast("Failed to create checkout session", "error")
           }
         }
       )
@@ -598,7 +606,9 @@ export const Bubble = () => {
     // Define message handlers
     const pdfHandler = (msg: any) => {
       if (msg.type === "PDF_SELECTION" && msg.text) {
-        checkAndShowBubble(undefined, msg.text, { x: 24, y: 24 })
+        // Use mouse position if available, otherwise use a default position
+        const mousePos = lastRightClickPos.x > 0 ? lastRightClickPos : { x: 100, y: 100 }
+        checkAndShowBubble(undefined, msg.text, mousePos)
       }
     }
 
@@ -1207,7 +1217,7 @@ export const Bubble = () => {
                 onClick={() => {
                   const selection = window.getSelection()?.toString().trim()
                   if ((!selection && !showContextAI) && !text) {
-                    alert("Please select a word first!")
+                    showToast("Please select a word first!", "warning")
                     return
                   }
                   setShowContextAI((prev) => !prev)

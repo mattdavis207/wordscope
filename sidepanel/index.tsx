@@ -11,6 +11,7 @@ import "~/public/styles/tailwind.css"
 import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
+import { showToast } from "../toast";
 
 //Dependency imports
 import { definitionSources } from "~sources/definitionSources"
@@ -133,7 +134,7 @@ const SidePanel = () => {
             if (data.url) {
                 window.open(data.url, "_blank")
             } else {
-                alert("Failed to create checkout session.")
+                showToast("Failed to create checkout session.", "error")
             }
         }
     }
@@ -385,7 +386,7 @@ const SidePanel = () => {
                             onClick={() => {
                                 const selection = window.getSelection()?.toString().trim();
                                 if (!selection && !text) {
-                                    alert("Please select a word first!");
+                                    showToast("Please select a word first!", "warning");
                                     return;
                                 }
                                 setShowContextAI((prev) => !prev);
@@ -892,8 +893,8 @@ const SidePanel = () => {
             )}
 
             {showExportModal && (
-                <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="bg-background text-text rounded-lg shadow-lg w-96 p-6">
+                <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center rouded-lg">
+                    <div className="bg-background text-text rounded-lg shadow-lg w-88 p-6">
                         {/* Modal Header */}
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold">Export History</h3>
@@ -1009,7 +1010,7 @@ const SidePanel = () => {
                                 onClick={async () => {
                                     const { exportCount } = await chrome.storage.local.get("exportCount")
                                     if (!exportCount || exportCount <= 0) {
-                                      alert("You've reached your free export limit!")
+                                      showToast("You've reached your free export limit!", "warning")
                                       return
                                     }
                     

@@ -16,6 +16,7 @@ import { injectSavedThemes } from "~hooks/injectThemes";
 import wordscopeLogo from "assets/wordscope-logo.png"
 import "~/public/styles/tailwind.css"
 import "~/public/styles/globals.css";
+import { showToast } from "./toast";
 
 
 import { useBubbleSize } from "~hooks/useBubbleSize";
@@ -315,9 +316,25 @@ function IndexPopup() {
 
   const handleSignOut = () => {
     setShowSignInModal(false)
+    // Clear localStorage
     localStorage.removeItem("userEmail")
-    chrome.storage.local.remove("userEmail")
+    
+    // Clear user-related data from chrome.storage.local
+    chrome.storage.local.remove([
+      "userEmail",
+      "isPro", 
+      "tokens_meta",
+      "contextAI_history"
+    ])
+    
+    // Reset exportCount to free user limit
+    chrome.storage.local.set({ exportCount: 3 })
+    
+    // Reset state
     setUserEmail(null)
+    setIsPro(false)
+    
+    // Reload to ensure all components reflect the signed out state
     window.location.reload()
   }
 
@@ -334,7 +351,7 @@ function IndexPopup() {
     }
 
     if (isPro) {
-      alert("🎉 You already have an active Pro subscription!")
+      showToast("You already have an active Pro subscription!", "info")
       return
     }
   
@@ -349,7 +366,7 @@ function IndexPopup() {
 
       window.open(data.url, "_blank")
     } else {
-      alert("Failed to create checkout session.")
+      showToast("Failed to create checkout session.", "error")
     }
   }
 
@@ -663,7 +680,7 @@ function IndexPopup() {
               onClick={() => {
                 const selection = window.getSelection()?.toString().trim();
                 if (!selection && !text) {
-                  alert("Please select a word first!");
+                  showToast("Please select a word first!", "warning");
                   return;
                 }
                 setShowContextAI((prev) => !prev);
@@ -1268,7 +1285,7 @@ function IndexPopup() {
 
             {showSignInModal && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-                <div className="bg-mainBody p-6 rounded-xl shadow-lg w-80 relative">
+                <div className="bg-mainBody p-6 rounded-xl shadow-lg w-72 relative">
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-semibold text-text">Sign In Required</h2>
                     <button
@@ -1368,14 +1385,14 @@ function IndexPopup() {
                         body: JSON.stringify({ email }),
                       })
                       if (res.ok) {
-                        alert("Your subscription has been cancelled.")
+                        showToast("Your subscription has been cancelled.", "success")
                         setIsPro(false)
                         setShowCancelModal(false)
                         // Clear token cache when subscription is cancelled
                         chrome.storage.local.remove("tokens_meta")
                         window.open(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_CLIENT_URL}/cancel`)
                       } else {
-                        alert("Failed to cancel subscription. Please try again.")
+                        showToast("Failed to cancel subscription. Please try again.", "error")
                       }
                     }}
                   >
@@ -1966,8 +1983,8 @@ function IndexPopup() {
       )}
 
     {showExportModal && (
-      <div className="fixed inset-0 z-[100000] bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div className="bg-background text-text rounded-2xl shadow-2xl shadow-black/50 w-full max-w-sm max-h-[80vh] p-6">
+      <div className="fixed inset-0 z-[100000] bg-black bg-opacity-30 flex items-center justify-center p-4">
+        <div className="bg-background text-text rounded-2xl shadow-2xl shadow-black/70 w-full max-w-sm max-h-[80vh] p-6 ring-1 ring-white/10">
           {/* Modal Header */}
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Export History</h3>
@@ -2084,7 +2101,7 @@ function IndexPopup() {
               onClick={async () => {
                 const { exportCount } = await chrome.storage.local.get("exportCount")
                 if ((!exportCount || exportCount <= 0) && !isPro) {
-                  alert("You've reached your free export limit!")
+                  showToast("You've reached your free export limit!", "warning")
                   return
                 }
 
@@ -2350,5 +2367,4 @@ function IndexPopup() {
 }
 
 export default IndexPopup
-
 
