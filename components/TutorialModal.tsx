@@ -260,6 +260,7 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
               
               {/* Demo button */}
               <button
+                className="wordscope-tutorial-btn wordscope-tutorial-btn-inverse"
                 onClick={() => window.open(wordscope_demo_video, '_blank')}
                 style={{
                   display: 'flex',
@@ -540,6 +541,7 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
               }}>
                 {/* Donate Button */}
                 <button
+                  className="wordscope-tutorial-btn wordscope-tutorial-btn-inverse"
                   onClick={() => {
                       onShowDonate() // Show donate modal
                   }}
@@ -570,6 +572,7 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
               
                 {/* Review Button */}
                 <a
+                    className="wordscope-tutorial-btn wordscope-tutorial-btn-inverse"
                     href="https://chrome.google.com/webstore/detail/your-extension-id"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -617,7 +620,9 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
     }, []);
   
     return (
-      <div style={{
+      <div
+        className="wordscope-tutorial-overlay"
+        style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -629,8 +634,11 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
         alignItems: 'center',
         zIndex: 100000,
         padding: '40px'
-      }}>
-        <div style={{
+      }}
+      >
+        <div
+          className="wordscope-tutorial-root"
+          style={{
           backgroundColor: 'var(--main-body)',
           padding: '0',
           borderRadius: '20px',
@@ -643,6 +651,7 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
         }}>
             {/* Close Button */}
             <button
+                className="wordscope-tutorial-btn"
                 onClick={onClose}
                 style={{
                   position: 'absolute',
@@ -703,13 +712,16 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
               gap: '16px', 
               marginBottom: '16px' 
             }}>
-                <h2 style={{
+                <h2
+                  className="wordscope-tutorial-title"
+                  style={{
                   fontSize: '26px',
                   fontWeight: 'bold',
                   color: 'var(--text)',
                   textAlign: 'center',
                   margin: 0
-                }}>{steps[step].title}</h2>
+                }}
+                >{steps[step].title}</h2>
                 {steps[step].isPro && (
                     <span style={{
                       display: 'inline-flex',

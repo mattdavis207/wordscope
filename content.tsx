@@ -154,6 +154,7 @@ export const Bubble = () => {
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
   const lastSelectedWord = useRef<string>("")
+  const lockNoticeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Flags and other state hooks
   const [show, setShow] = useState(false)
@@ -188,6 +189,7 @@ export const Bubble = () => {
   const [targetPosition, setTargetPosition] = useState({ x: 0, y: 0 }) // for animation
   const [anchorPosition, setAnchorPosition] = useState({ x: 0, y: 0 }) // word location
   const [isLocked, setIsLocked] = useState(false);
+  const [showLockNotice, setShowLockNotice] = useState(false)
   const [isCompactView, setIsCompactView] = useState(false)
   const [isCompactHistoryView, setIsCompactHistoryView] = useState(false)
   const isSidePanel = useRef(false);
@@ -198,6 +200,13 @@ export const Bubble = () => {
   // Pro flag
   const [isPro, setIsPro] = useState(false)
   const [exportCount, setExportCount] = useState<number | null>(null)
+
+  const activeDefinitionData = activeSource ? definitions[activeSource] : undefined
+  const definitionStatus = activeDefinitionData?.status
+  const definitionLines = activeDefinitionData?.definition
+    ?.split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
 
   const scroll = (dir: "left" | "right") => {
     scrollRef.current?.scrollBy({
@@ -809,8 +818,6 @@ export const Bubble = () => {
 
   // Handle event click anywhere else on screen
   useEffect(() => {
-    if (isLocked) return;
-
     const handleClickOutside = (e: MouseEvent) => {
       const box = bubbleRef.current?.getBoundingClientRect()
       if (!box) return;
@@ -821,15 +828,49 @@ export const Bubble = () => {
         e.clientY >= box.top &&
         e.clientY <= box.bottom
 
-      if (!isInside) {
-        setShow(false);
-        setIsDetached(false);
+      if (isInside) return
+
+      if (isLocked) {
+        if (lockNoticeTimeoutRef.current) {
+          clearTimeout(lockNoticeTimeoutRef.current)
+        }
+
+        setShowLockNotice(true)
+        lockNoticeTimeoutRef.current = setTimeout(() => {
+          setShowLockNotice(false)
+          lockNoticeTimeoutRef.current = null
+        }, 2400)
+        return
       }
-    };
-    // Delay adding the listener to avoid triggering it on the same event
+
+      setShow(false);
+      setIsDetached(false);
+    }
+
     document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
   }, [isLocked]);
+
+  useEffect(() => {
+    if (!isLocked && lockNoticeTimeoutRef.current) {
+      clearTimeout(lockNoticeTimeoutRef.current)
+      lockNoticeTimeoutRef.current = null
+    }
+
+    if (!isLocked) {
+      setShowLockNotice(false)
+    }
+  }, [isLocked])
+
+  useEffect(() => {
+    return () => {
+      if (lockNoticeTimeoutRef.current) {
+        clearTimeout(lockNoticeTimeoutRef.current)
+      }
+    }
+  }, [])
 
   
   // Drag handler functions
@@ -925,10 +966,16 @@ export const Bubble = () => {
     const centerX = window.scrollX + window.innerWidth / 2
     const centerY = window.scrollY + window.innerHeight / 2
   
-    setBubblePosition({
-      x: centerX - popupWidth / 2,
-      y: centerY - popupHeight / 2
-    })
+    const width = popupWidth ?? bubbleRef.current?.offsetWidth ?? 320
+    const height = popupHeight ?? bubbleRef.current?.offsetHeight ?? 240
+
+    const nextPosition = {
+      x: centerX - width / 2,
+      y: centerY - height / 2
+    }
+
+    setBubblePosition(nextPosition)
+    setTargetPosition(nextPosition)
   }
 
 
@@ -973,14 +1020,21 @@ export const Bubble = () => {
 
   // For tracking animation between tabs and synonyms/antonyms
   useEffect(() => {
+    const data = definitions?.[activeSource]
+
+    if (!data || (data.status && data.status !== "ok")) {
+      setHasAvailableExtras(false)
+      setShowExtras(false)
+      return
+    }
+
     handleSynonymAntonyms()
-    const data = definitions?.[activeSource];
 
-    const hasSynonyms = Array.isArray(data?.synonyms) && data.synonyms.length > 0;
-    const hasAntonyms = Array.isArray(data?.antonyms) && data.antonyms.length > 0;
+    const hasSynonyms = Array.isArray(data?.synonyms) && data.synonyms.length > 0
+    const hasAntonyms = Array.isArray(data?.antonyms) && data.antonyms.length > 0
 
-    const hasExtras = hasSynonyms || hasAntonyms;
-    setHasAvailableExtras(hasExtras); // <- this is a new state variable you can use
+    const hasExtras = hasSynonyms || hasAntonyms
+    setHasAvailableExtras(hasExtras)
     
     if (activeSource !== prevSource) {
       setPrevSource(activeSource)
@@ -1132,6 +1186,20 @@ export const Bubble = () => {
         >
 
         </div>
+
+        {showLockNotice && (
+          <div
+            className="mx-2 mb-3 rounded-lg px-3 py-2 text-sm font-medium"
+            style={{
+              backgroundColor: "var(--tab-active-bg)",
+              color: "var(--text)",
+              border: "1px solid var(--border)",
+            }}
+            role="status"
+          >
+            Bubble is locked. Unlock it to hide.
+          </div>
+        )}
 
 
         {/* Utility Buttons Row */}
@@ -1677,20 +1745,26 @@ export const Bubble = () => {
 
                 {/* Definitions */}
                 <div className="space-y-3">
-                  {definitions[activeSource]?.definition
-                      ?.split("\n")
-                      .map((line, idx, arr) => (
+                  {definitions[activeSource] ? (
+                    definitionLines && definitionLines.length > 0 ? (
+                      definitionLines.map((line, idx) => (
                         <div
                           key={idx}
                           className={`pb-3 ${
-                            idx === arr.length - 1 && (activeSource === "duckduckgo" || !hasAvailableExtras) ? "" : "border-b border-border"
+                            idx === definitionLines.length - 1 && (activeSource === "duckduckgo" || !hasAvailableExtras) ? "" : "border-b border-border"
                           }`}
                         >
                           <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>{line}</p>
                         </div>
-                      )) ?? (
-                        <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>Loading...</p>
-                      )}
+                      ))
+                    ) : (
+                      <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>
+                        {definitionStatus === "ok" ? "No definition found." : "No definition found."}
+                      </p>
+                    )
+                  ) : (
+                    <p className="text-sm text-dataText italic" style={{ fontSize: "14px !important" }}>Loading...</p>
+                  )}
                 </div>
                 
 

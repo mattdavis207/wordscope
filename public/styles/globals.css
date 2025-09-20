@@ -98,3 +98,32 @@
       transform: translateY(0);
     }
   }
+
+.wordscope-tutorial-root {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif !important;
+    color: var(--text) !important;
+    line-height: 1.5 !important;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.wordscope-tutorial-root *,
+.wordscope-tutorial-root *::before,
+.wordscope-tutorial-root *::after {
+    font-family: inherit !important;
+    color: inherit;
+    box-sizing: border-box;
+}
+
+.wordscope-tutorial-title {
+    color: var(--text) !important;
+}
+
+.wordscope-tutorial-btn {
+    font-family: inherit !important;
+    color: inherit;
+}
+
+.wordscope-tutorial-btn-inverse {
+    color: #ffffff !important;
+}

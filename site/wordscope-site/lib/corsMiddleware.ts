@@ -62,12 +62,6 @@ export function applyCORS(req: NextApiRequest, res: NextApiResponse): boolean {
   }
   
   // Reject unauthorized requests
-  console.log('CORS REJECTED:', { 
-    origin: origin || 'none',
-    referer: referer || 'none',
-    userAgent: req.headers['user-agent'] || 'none',
-    allowedOrigins: ALLOWED_ORIGINS
-  });
   res.status(403).json({ 
     error: 'CORS: Origin not allowed',
     origin: origin || 'none',

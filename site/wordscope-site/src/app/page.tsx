@@ -488,11 +488,6 @@ export default function Home() {
       logo: "/sources/merriam-webster-logo.png"
     },
     {
-      name: "WordsAPI",
-      description: "Provides structured definitions, examples, synonyms, and hierarchy-based word relationships. Used as a robust semantic source for word understanding.",
-      logo: "/sources/wordsapi-logo.png"
-    },
-    {
       name: "FreeDictionaryAPI",
       description: "Sourced from Wiktionary, this provides both definitions and pronunciation audio.",
       logo: "/sources/freedictionaryapi-logo.png"
@@ -553,6 +548,7 @@ export default function Home() {
     {
       name: "Custom hotkey configuration",
       description: "Set up personalized keyboard shortcuts for opening the bubble. Highlight a word and use your keyboard shortcuts to lookup definitions.",
+      helper: "Highlight a word and use your configured hotkeys to open the bubble automatically.",
       logo: ""
     }
   ];
@@ -787,7 +783,7 @@ export default function Home() {
             {
               title: "Dictionary Sources",
               desc: "Access definitions from multiple trusted sources",
-              details: "Get instant definitions from 8 comprehensive dictionary sources including Google Dictionary, Wiktionary, Merriam-Webster, and WordAPI. Customize priority order, enable/disable sources, and set default export sources with full license compliance.",
+              details: "Get instant definitions from seven comprehensive dictionary sources including Google Dictionary, Wiktionary, and Merriam-Webster. Customize priority order, enable/disable sources, and set default export sources with full license compliance.",
               icon: <FaBook size = {30} className="text-xl" />,
               items: sources,
               hasDemo: true,
@@ -868,6 +864,11 @@ export default function Home() {
                                     </p>
                                   </div>
                                 )}
+                                {typeof item === 'object' && 'helper' in item && item.helper && (
+                                  <p className="text-[#E0E7FF] text-[11px] mt-2 tracking-wide">
+                                    {item.helper}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -939,6 +940,11 @@ export default function Home() {
                                   {item.description}
                                 </p>
                               </div>
+                            )}
+                            {typeof item === 'object' && 'helper' in item && item.helper && (
+                              <p className="text-[#E0E7FF] text-[11px] mt-3 tracking-wide">
+                                {item.helper}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -1259,7 +1265,7 @@ export default function Home() {
           <p className="text-[#9CA3AF] max-w-3xl mx-auto mb-12 text-lg leading-relaxed">
             Wordscope Pro gives you everything you need to take your word exploration to the next level. 
             Unlock access to Context AI with 50,000 tokens per month for intelligent explanations of words in their real-world usage. 
-            Get unlimited exports of your entire lookup history in CSV, TSV, JSON, or PDF formats to study, share, or save for later. 
+            Export your entire lookup history in CSV, TSV, JSON, or PDF formats without worrying about monthly limits, perfect for studying or sharing.
             Enjoy a premium experience with faster responses, unlimited use of core features, and early access to upcoming tools and enhancements.
           </p>
 
@@ -1279,7 +1285,6 @@ export default function Home() {
                   "Context AI - 50,000 tokens/month",
                   "Unlimited exports (CSV, TSV, JSON, PDF)",
                   "Unlimited history storage", 
-                  "Premium themes & customization",
                   "Priority customer support",
                   "Early access to new features"
                 ].map((feature, index) => (

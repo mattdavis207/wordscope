@@ -32,8 +32,19 @@ export function useTriggerSettings() {
     chrome.storage.local.set({ [TRIGGER_SETTINGS_KEY]: updated })
   }
 
-  const setTriggerMethod = (method: TriggerSettings["triggerMethod"]) =>
-    updateSettings({ triggerMethod: method })
+  useEffect(() => {
+    if (!loading && settings.triggerMethod === "modifierClick" && !settings.modifierCombo) {
+      updateSettings({ modifierCombo: "cmdClick" })
+    }
+  }, [loading, settings.triggerMethod, settings.modifierCombo])
+
+  const setTriggerMethod = (method: TriggerSettings["triggerMethod"]) => {
+    if (method === "modifierClick" && !settings.modifierCombo) {
+      updateSettings({ triggerMethod: method, modifierCombo: "cmdClick" })
+    } else {
+      updateSettings({ triggerMethod: method })
+    }
+  }
 
   const setModifierCombo = (combo: TriggerSettings["modifierCombo"]) =>
     updateSettings({ modifierCombo: combo })

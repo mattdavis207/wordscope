@@ -4,7 +4,6 @@ import duckduckgoIcon from "../assets/duckduckgo-logo.png"
 import freedictionaryapiIcon from "../assets/freedictionaryapi-logo.png"
 import merriamwebsterIcon from "../assets/merriam-webster-logo.png"
 import wordnikapiIcon from "../assets/wordnik_logo.png"
-import wordsapiIcon from "../assets/wordsapi-logo.png"
 import youglishapiIcon from "../assets/youglishapi-logo.png"
 import linguarobotapiIcon from "../assets/linguarobotapi-logo.png"
 import googledictionaryIcon from "../assets/google-dictionary-api-logo.png"
@@ -12,7 +11,6 @@ import googledictionaryIcon from "../assets/google-dictionary-api-logo.png"
 
 
 //Api keys
-const WORDS_API_KEY = process.env.PLASMO_PUBLIC_WORDS_API_KEY
 const MW_API_KEY = process.env.PLASMO_PUBLIC_MERRIAM_WEBSTER_DICT_API_KEY
 const LR_API_KEY = process.env.PLASMO_PUBLIC_LINGUA_API_KEY
 const WORDNIK_API_KEY = process.env.PLASMO_PUBLIC_WORDNIK_API_KEY
@@ -58,7 +56,6 @@ const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout:
 
 // Initialize rate limiters for all sources
 createRateLimiter('google', 500)
-createRateLimiter('wordsapi', 1000)
 createRateLimiter('wiktionary', 1000)
 createRateLimiter('merriamwebsterapi', 1000)
 createRateLimiter('freedictionaryapi', 500)
@@ -129,14 +126,13 @@ export const definitionSources = {
           extrasFetched: true
         }
       } catch (error) {
-        console.error("Google Dictionary Fetch Error:", error)
         return {
-          definition: "Error fetching definition.",
+          definition: "",
           synonyms: [],
           antonyms: [],
           phoneticText: "",
           pronunciationAudio: "",
-          extrasFetched: true
+          extrasFetched: false
         }
       }
     },
@@ -151,90 +147,6 @@ export const definitionSources = {
       url: "https://www.gnu.org/licenses/gpl-3.0.html",
       attribution: "Content sourced from the Google Dictionary API"
     },
-  },
-
-
-  // 
-  //WORDSAPI
-  //
-  'wordsapi': {
-    name: "WordsAPI",
-    description:
-      "Provides structured definitions, examples, synonyms, and hierarchy-based word relationships. Used as a robust semantic source for word understanding.",
-    icon: wordsapiIcon, // or use a proper icon URL
-    fetchDefinition: async (word: string) => {
-      try {
-        await waitForRateLimit('wordsapi')
-        
-        const headers = {
-          "x-rapidapi-key": WORDS_API_KEY,
-          "x-rapidapi-host": "wordsapiv1.p.rapidapi.com",
-        }
-
-        const res = await fetchWithTimeout(`https://wordsapiv1.p.rapidapi.com/words/${word}/definitions`, {
-          method: "GET",
-          headers,
-        })
-        
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-        }
-        
-        const json = await res.json()
-
-        const definition = json.definitions
-          ?.map((d: any) => `(${d.partOfSpeech}) ${d.definition}`)
-          .join("\n") || "No definition found."
-
-        return { definition }
-      } catch (error) {
-        console.error("WordsAPI Fetch Error:", error)
-        return { definition: "Error fetching definition." }
-      }
-    },
-    fetchExtras: async (word: string) => {
-      try {
-        await waitForRateLimit('wordsapi')
-        
-        const headers = {
-          "x-rapidapi-key": WORDS_API_KEY,
-          "x-rapidapi-host": "wordsapiv1.p.rapidapi.com",
-        }
-
-        const [synRes, antRes] = await Promise.all([
-          fetchWithTimeout(`https://wordsapiv1.p.rapidapi.com/words/${word}/synonyms`, { method: "GET", headers }),
-          fetchWithTimeout(`https://wordsapiv1.p.rapidapi.com/words/${word}/antonyms`, { method: "GET", headers }),
-        ])
-
-        if (!synRes.ok || !antRes.ok) {
-          throw new Error(`HTTP Error: ${synRes.status} or ${antRes.status}`)
-        }
-
-        const synJson = await synRes.json()
-        const antJson = await antRes.json()
-
-        return {
-          synonyms: synJson?.synonyms ?? [],
-          antonyms: antJson?.antonyms ?? [],
-          extrasFetched: true
-        }
-      } catch (error) {
-        console.error("WordsAPI Extras Fetch Error:", error)
-        return {
-          synonyms: [],
-          antonyms: [],
-          extrasFetched: false
-        }
-      }
-    },
-    getMoreInfoUrl: (word: string) =>
-    `https://www.wordsapi.com/`,
-    exportable: false,
-    license: {
-      name: "Proprietary (API Terms)",
-      url: "https://www.wordsapi.com/docs/#terms",
-      attribution: "Data provided by WordsAPI; export not permitted"
-    }
   },
 
   //
@@ -258,14 +170,13 @@ export const definitionSources = {
         }
       )
       if (!res.ok) {
-        console.error(`Wiktionary API error: ${res.status} ${res.statusText}`)
         return {
-          definition: "No definition found.",
+          definition: "",
           synonyms: [],
           antonyms: [],
           phoneticText: "",
           pronunciationAudio: "",
-          extrasFetched: true
+          extrasFetched: false
         }
       }
 
@@ -318,9 +229,8 @@ export const definitionSources = {
         extrasFetched: true
       }
     } catch (error) {
-      console.error("Error fetching from Wiktionary:", error)
       return {
-        definition: "Error fetching definition.",
+        definition: "",
         synonyms: [],
         antonyms: [],
         phoneticText: "",
@@ -374,7 +284,6 @@ export const definitionSources = {
     
         return { definition }
       } catch (error) {
-        console.error("Merriam-Webster Fetch Error:", error)
         return { definition: "Error fetching definition." }
       }
     },
@@ -403,7 +312,6 @@ export const definitionSources = {
             extrasFetched: true
           }
       } catch (error) {
-        console.error("Merriam-Webster Extras Fetch Error:", error)
         return {
           synonyms: [],
           antonyms: [],
@@ -492,9 +400,8 @@ export const definitionSources = {
         extrasFetched: true  // because it's all already fetched
       }
       } catch (error) {
-        console.error("FreeDictionaryAPI Fetch Error:", error)
         return {
-          definition: "Error fetching definition.",
+          definition: "",
           synonyms: [],
           antonyms: [],
           phoneticText: "",
@@ -548,7 +455,6 @@ export const definitionSources = {
 
         return { definition }
       } catch (error) {
-        console.error("DuckDuckGo fetch failed:", error)
         return { definition: "Error fetching definition." }
       }
     },
@@ -664,7 +570,6 @@ export const definitionSources = {
         extrasFetched: true
       }
       } catch (error) {
-        console.error("Lingua Robot Fetch Error:", error)
         return {
           definition: "Error fetching definition.",
           synonyms: [],

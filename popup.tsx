@@ -246,10 +246,18 @@ function IndexPopup() {
     chrome.storage.local.get(["hasSeenTutorial"], async (result) => {
       if (!result.hasSeenTutorial) {
         chrome.storage.local.set({ hasSeenTutorial: true })
-        // Trigger content script tutorial instead
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-        if (tab.id) {
-          chrome.tabs.sendMessage(tab.id, { type: "SHOW_TUTORIAL" })
+
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+          if (tab?.id) {
+            await chrome.tabs.sendMessage(tab.id, { type: "SHOW_TUTORIAL" })
+          }
+        } catch (error) {
+          // Ignore errors (e.g., no active tab or restricted page)
+        } finally {
+          setTimeout(() => {
+            window.close()
+          }, 50)
         }
       }
     })
@@ -1146,6 +1154,10 @@ function IndexPopup() {
               <HiOutlineChatBubbleBottomCenterText size={20} />
               <h2>Keyboard Shortcuts</h2>
             </div>
+
+            <p className="text-sm text-otherText mb-3">
+              Highlight a word on any page, then use your configured shortcut to pop the bubble open automatically.
+            </p>
 
             {/* Trigger Method Dropdown */}
             <label className="block text-dataText mb-1 font-medium">Trigger Method</label>
@@ -2367,4 +2379,3 @@ function IndexPopup() {
 }
 
 export default IndexPopup
-

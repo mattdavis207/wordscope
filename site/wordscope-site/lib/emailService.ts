@@ -137,7 +137,6 @@ class EmailService {
                       <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #2563EB; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Context AI</strong> - 50,000 tokens/month</li>
                       <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #2563EB; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Unlimited exports</strong> (CSV, TSV, JSON, PDF)</li>
                       <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #2563EB; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Unlimited history storage</strong></li>
-                      <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #2563EB; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Premium themes</strong> and customization</li>
                       <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #2563EB; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Priority support</strong> and early access to new features</li>
                     </ul>
                   </div>
@@ -170,7 +169,6 @@ Enter this code in the Wordscope extension to complete your email verification a
 • Context AI - 50,000 tokens/month
 • Unlimited exports (CSV, TSV, JSON, PDF)
 • Unlimited history storage
-• Premium themes and customization
 • Priority support and early access to new features
 
 Security Notice: We sent this code because you requested email verification for Wordscope Pro features. If you didn't make this request, please ignore this email and your account will remain secure.
@@ -246,7 +244,6 @@ Security Notice: We sent this code because you requested email verification for 
                     <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #48bb78; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Context AI</strong> - 50,000 tokens/month</li>
                     <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #48bb78; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Unlimited exports</strong> (CSV, TSV, JSON, PDF)</li>
                     <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #48bb78; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Unlimited history storage</strong></li>
-                    <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #48bb78; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Premium themes</strong> and customization</li>
                     <li><span style="display: inline-block; width: 8px; height: 8px; background-color: #48bb78; border-radius: 50%; margin-right: 8px;"></span><strong style="color: #BBE1FA;">Priority support</strong> and early access to new features</li>
                   </ul>
                 </div>
@@ -291,7 +288,6 @@ Thank you for subscribing to Wordscope Pro! Your subscription is now active and 
 • Context AI - 50,000 tokens/month
 • Unlimited exports (CSV, TSV, JSON, PDF)
 • Unlimited history storage
-• Premium themes and customization
 • Priority support and early access to new features
 
 Start using Wordscope Pro right away! Simply highlight any word on any webpage and let our AI provide instant, contextual definitions and explanations.

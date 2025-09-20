@@ -1,5 +1,7 @@
 
 
+export type DefinitionStatus = "ok" | "empty" | "error"
+
 export type DefinitionData = {
     definition: string
     synonyms?: string[]
@@ -7,4 +9,5 @@ export type DefinitionData = {
     phoneticText?: string
     pronunciationAudio?: string
     extrasFetched?: boolean
+    status?: DefinitionStatus
   }

@@ -24,17 +24,68 @@ function getContainer(): HTMLDivElement {
   return container;
 }
 
-function colorsFor(type: ToastType) {
-  switch (type) {
-    case "success":
-      return { bg: "#16a34a", border: "#15803d" };
-    case "error":
-      return { bg: "#dc2626", border: "#b91c1c" };
-    case "warning":
-      return { bg: "#f59e0b", border: "#d97706" };
-    default:
-      return { bg: "#374151", border: "#1f2937" };
+function parseHex(color: string): string | null {
+  const value = color.trim()
+  if (/^#([0-9a-f]{3})$/i.test(value)) {
+    const shorthand = value.slice(1)
+    return `#${shorthand[0]}${shorthand[0]}${shorthand[1]}${shorthand[1]}${shorthand[2]}${shorthand[2]}`
   }
+  if (/^#([0-9a-f]{6})$/i.test(value)) {
+    return value
+  }
+  return null
+}
+
+function hexToRgb(hex: string) {
+  const normalized = hex.replace('#', '')
+  const bigint = parseInt(normalized, 16)
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255
+  }
+}
+
+function rgbToHex({ r, g, b }: { r: number; g: number; b: number }) {
+  const toHex = (value: number) => value.toString(16).padStart(2, '0')
+  const clamp = (value: number) => Math.max(0, Math.min(255, Math.round(value)))
+  return `#${toHex(clamp(r))}${toHex(clamp(g))}${toHex(clamp(b))}`
+}
+
+function mixColors(baseHex: string, blendHex: string, ratio: number) {
+  const base = hexToRgb(baseHex)
+  const blend = hexToRgb(blendHex)
+  const mix = {
+    r: base.r * (1 - ratio) + blend.r * ratio,
+    g: base.g * (1 - ratio) + blend.g * ratio,
+    b: base.b * (1 - ratio) + blend.b * ratio
+  }
+  return rgbToHex(mix)
+}
+
+function getCssVar(name: string, fallback: string) {
+  if (typeof window === "undefined") return fallback
+  const computed = getComputedStyle(document.documentElement).getPropertyValue(name)
+  const parsed = parseHex(computed) ?? parseHex(fallback)
+  return parsed ?? fallback
+}
+
+function colorsFor(type: ToastType) {
+  const themeBackground = getCssVar('--main-body', '#072141')
+  const borderBase = getCssVar('--border', '#374151')
+  const palette: Record<ToastType, string> = {
+    success: '#22c55e',
+    error: '#ef4444',
+    warning: '#f59e0b',
+    info: '#2563eb'
+  }
+
+  const blendColor = palette[type]
+  const bg = mixColors(themeBackground, blendColor, type === 'warning' ? 0.3 : type === 'error' ? 0.35 : type === 'success' ? 0.28 : 0.24)
+  const border = mixColors(borderBase, blendColor, 0.2)
+  const text = getCssVar('--text', '#FFFFFF')
+
+  return { bg, border, text }
 }
 
 export function showToast(message: string, type: ToastType = "info", opts: ToastOptions = {}) {
@@ -43,13 +94,13 @@ export function showToast(message: string, type: ToastType = "info", opts: Toast
 
   const container = getContainer();
   const toast = document.createElement("div");
-  const { bg, border } = colorsFor(type);
+  const { bg, border, text } = colorsFor(type);
 
   Object.assign(toast.style, {
     minWidth: "240px",
     maxWidth: "420px",
     background: bg,
-    color: "white",
+    color: text,
     border: `1px solid ${border}`,
     borderRadius: "10px",
     padding: "10px 14px",
@@ -90,4 +141,3 @@ export function showToast(message: string, type: ToastType = "info", opts: Toast
 
   setTimeout(remove, duration);
 }
-
