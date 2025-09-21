@@ -1297,7 +1297,7 @@ export default function Home() {
               <button
                 onClick={async () => {
                   try {
-                    const res = await fetch("https://wordscope-extension.vercel.app/api/create-checkout-session", {
+                    const res = await fetch("https://www.wordscope.app/api/create-checkout-session", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({}), // No email, let Stripe collect it
@@ -1306,7 +1306,6 @@ export default function Home() {
                 
                     if (!res.ok) {
                       const text = await res.text();
-                      console.error("Checkout fetch failed:", res.status, text);
                       showToast(`Checkout failed: ${res.status}`, "error");
                       return;
                     }
@@ -1315,11 +1314,9 @@ export default function Home() {
                     if (data?.url) {
                       window.location.href = data.url;
                     } else {
-                      console.error("No URL in response:", data);
                       showToast("No checkout URL returned.", "warning");
                     }
                   } catch (e) {
-                    console.error("Network error:", e);
                     showToast("Network error – see console for details.", "error");
                   }
                 }}

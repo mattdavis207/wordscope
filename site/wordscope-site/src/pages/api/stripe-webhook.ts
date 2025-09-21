@@ -91,7 +91,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               const customerName = session.customer_details?.name || undefined;
               await emailService.sendSubscriptionWelcomeEmail(session.customer_email, customerName);
             } catch (error) {
-              console.error('❌ Failed to send welcome email:', error);
               // Don't fail the webhook for email issues
             }
           }
@@ -131,7 +130,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               await emailService.sendSubscriptionCancellationEmail(customer.email, customerName);
             }
           } catch (error) {
-            console.error('❌ Failed to send cancellation email:', error);
             // Don't fail the webhook for email issues
           }
         }
@@ -192,7 +190,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.json({ received: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
-    console.error("Webhook internal error:", e);
     return res.status(500).json({ error: e.message || "Internal Server Error" });
   }
 }

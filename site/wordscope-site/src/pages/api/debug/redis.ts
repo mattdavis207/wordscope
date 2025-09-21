@@ -62,7 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error) {
-    console.error("Debug API error:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { redis } from '../../../../lib/redis'
 import { withCORS } from '../../../../lib/corsMiddleware'
+import { isTesterEmail } from '../../../../lib/testerBypass'
 
 // Force Node.js runtime for email functionality
 export const config = {
@@ -21,7 +22,6 @@ async function getEmailService(): Promise<EmailService> {
       const emailModule = await import('../../../../lib/emailService')
       emailServiceInstance = emailModule.emailService
     } catch (importError) {
-      console.error('❌ Failed to import email service:', importError)
       throw new Error(`Email service import failed: ${importError instanceof Error ? importError.message : 'Unknown error'}`)
     }
   }
@@ -55,6 +55,15 @@ async function handler(
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!email || !emailRegex.test(email)) {
       return res.status(400).json({ success: false, message: 'Invalid email address' })
+    }
+
+    if (isTesterEmail(email)) {
+      const verifiedKey = `verified:${email}`
+      await redis.set(verifiedKey, JSON.stringify({ verified: true, timestamp: Date.now() }), { ex: 86400 })
+      return res.status(200).json({
+        success: true,
+        message: 'Tester email auto-verified'
+      })
     }
 
     // Rate limiting setup
@@ -105,10 +114,6 @@ async function handler(
       await service.sendVerificationCode(email, verificationCode)
       // Email sent successfully
     } catch (emailError) {
-      console.error('❌ API: Email sending failed:', emailError)
-      console.error('📋 API: Error type:', typeof emailError)
-      console.error('📋 API: Error name:', emailError instanceof Error ? emailError.name : 'Unknown')
-      console.error('📋 API: Error message:', emailError instanceof Error ? emailError.message : 'Unknown')
       
       // Log the code for debugging if email fails
       // Fallback: Email service failed, code stored in Redis
@@ -125,7 +130,6 @@ async function handler(
     })
 
   } catch (error) {
-    console.error('Send verification error:', error)
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 

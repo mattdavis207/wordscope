@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { redis } from '../../../../lib/redis'
 import { withCORS } from '../../../../lib/corsMiddleware'
+import { isTesterEmail } from '../../../../lib/testerBypass'
 
 interface VerifyRequest {
   email: string
@@ -36,6 +37,16 @@ async function handler(
       return res.status(400).json({ success: false, message: 'Invalid verification code format' })
     }
 
+    if (isTesterEmail(email)) {
+      const verifiedKey = `verified:${email}`
+      await redis.set(verifiedKey, JSON.stringify({ verified: true, timestamp: Date.now() }), { ex: 86400 })
+      return res.status(200).json({
+        success: true,
+        message: 'Tester email auto-verified',
+        isVerified: true
+      })
+    }
+
     // Get stored verification data
     const verificationKey = `verification:${email}`
     const storedData = await redis.get(verificationKey)
@@ -54,7 +65,6 @@ async function handler(
     } else if (typeof storedData === 'object') {
       verificationData = storedData
     } else {
-      console.error('Unexpected stored data type:', typeof storedData, storedData)
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid verification data format' 
@@ -99,7 +109,6 @@ async function handler(
     })
 
   } catch (error) {
-    console.error('Email verification error:', error)
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 

@@ -40,7 +40,6 @@ export default async function handler(
     })
 
   } catch (error) {
-    console.error('Test email error:', error)
     return res.status(500).json({ 
       success: false, 
       message: 'Failed to send test email',

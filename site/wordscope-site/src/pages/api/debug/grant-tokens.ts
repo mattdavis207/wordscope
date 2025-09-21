@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { redis } from "@/../lib/redis";
+import { getTesterCustomerId, isTesterEmail } from "@/../lib/testerBypass";
 
 const ENV = process.env.VERCEL_ENV || process.env.NODE_ENV || "development";
 const PREFIX = ENV === "production" ? "prod" : "dev";
@@ -17,9 +18,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { email, tokens = 50000 } = req.body;
     if (!email) return res.status(400).json({ error: "email required" });
 
-    // Get customer ID
-    const customers = await stripe.customers.list({ email, limit: 1 });
-    const customerId = customers.data[0]?.id;
+    let customerId: string | undefined;
+
+    if (isTesterEmail(email)) {
+      customerId = getTesterCustomerId(email);
+    } else {
+      const customers = await stripe.customers.list({ email, limit: 1 });
+      customerId = customers.data[0]?.id;
+    }
 
     if (!customerId) {
       return res.status(404).json({ error: "No Stripe customer found" });
@@ -46,7 +52,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error) {
-    console.error("Manual grant error:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

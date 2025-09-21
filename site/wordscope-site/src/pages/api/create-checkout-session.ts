@@ -59,7 +59,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     res.status(200).json({ url: session.url });
   } catch (err) {
-    console.error("❌ API error in create-checkout-session:", err)
     res.status(500).json({ error: "Internal Server Error" });
   }
 }

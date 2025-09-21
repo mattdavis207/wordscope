@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 // Allowed origins for your extension and site
 const ALLOWED_ORIGINS = [
   // Your Vercel site
-  'https://wordscope-extension.vercel.app',
+  'https://www.wordscope.app',
   'https://wordscope-site.vercel.app', 
   
   // Chrome extension origins (allow any extension ID)

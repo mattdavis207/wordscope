@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import Stripe from "stripe"
 import { redis } from "@/../lib/redis"
+import { isTesterEmail } from "@/../lib/testerBypass"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-06-30.basil",
@@ -12,6 +13,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const email = req.query.email as string
     if (!email) return res.status(400).json({ error: "Email is required" })
+
+    if (isTesterEmail(email)) {
+      const verifiedKey = `verified:${email}`
+      await redis.set(verifiedKey, JSON.stringify({ verified: true, timestamp: Date.now() }), { ex: 86400 })
+      return res.status(200).json({
+        isPro: true,
+        reason: "tester_bypass",
+        isVerified: true
+      })
+    }
 
     // First, check if email is verified
     const verifiedKey = `verified:${email}`
@@ -54,7 +65,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       isVerified: true
     })
   } catch (err) {
-    console.error("❌ API error in is-pro:", err)
     res.status(500).json({ error: "Internal Server Error" })
   }
 }

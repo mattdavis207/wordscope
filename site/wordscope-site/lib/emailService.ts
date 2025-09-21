@@ -40,13 +40,6 @@ class EmailService {
       try {
         await this.transporter.verify()
       } catch (error) {
-        console.error('❌ Email service connection failed:', error)
-        console.error('Connection details:', {
-          host: config.host,
-          port: config.port,
-          user: config.auth.user,
-          hasPassword: !!config.auth.pass
-        })
         throw new Error(`Failed to connect to email service: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
@@ -179,12 +172,6 @@ Security Notice: We sent this code because you requested email verification for 
       await transporter.sendMail(mailOptions)
       
     } catch (error) {
-      console.error('❌ Failed to send verification email:', error)
-      console.error('📋 Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      })
       throw new Error(`Failed to send verification email: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -301,7 +288,6 @@ Questions? Reply to this email or visit our support center.
       await transporter.sendMail(mailOptions)
       
     } catch (error) {
-      console.error('❌ Failed to send subscription welcome email:', error)
       throw new Error(`Failed to send subscription welcome email: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -376,7 +362,7 @@ Questions? Reply to this email or visit our support center.
                 </p>
                 
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="https://wordscope-extension.vercel.app" style="background: linear-gradient(135deg, #2563EB 0%, #2A4E75 100%); color: #BBE1FA; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: bold; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                  <a href="https://www.wordscope.app" style="background: linear-gradient(135deg, #2563EB 0%, #2A4E75 100%); color: #BBE1FA; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: bold; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
                     Resubscribe to Wordscope Pro
                   </a>
                 </div>
@@ -409,7 +395,7 @@ What happens next:
 
 Changed your mind? You can resubscribe anytime and pick up right where you left off.
 
-Visit: https://wordscope-extension.vercel.app
+Visit: https://www.wordscope.app
 
 We'd love to hear your feedback about why you cancelled.
 
@@ -420,7 +406,6 @@ We'd love to hear your feedback about why you cancelled.
       await transporter.sendMail(mailOptions)
       
     } catch (error) {
-      console.error('❌ Failed to send subscription cancellation email:', error)
       throw new Error(`Failed to send subscription cancellation email: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -432,7 +417,6 @@ We'd love to hear your feedback about why you cancelled.
       await transporter.verify()
       return true
     } catch (error) {
-      console.error('Email service test failed:', error)
       return false
     }
   }

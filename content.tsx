@@ -3,8 +3,7 @@ export const config = {
   matches: [
     "https://*/*",
     "http://*/*", 
-    "https://wordscope-extension.vercel.app/*",
-    "*://*/*.pdf"
+    "https://www.wordscope.app/*"
   ]
 }
 
@@ -65,8 +64,8 @@ document.addEventListener("contextmenu", (e) => {
 
 chrome.storage.local.get("userEmail", (result) => {})
 
-// Auth communication bridge for wordscope-extension.vercel.app
-if (window.location.hostname === 'wordscope-extension.vercel.app') {
+// Auth communication bridge for www.wordscope.app
+if (window.location.hostname === 'www.wordscope.app') {
   // Listen for auth success messages from the auth page
   window.addEventListener('message', (event) => {
     if (event.data.type === 'AUTH_SUCCESS' && event.data.email) {

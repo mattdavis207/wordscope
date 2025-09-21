@@ -75,13 +75,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     // Surface the actual reason to your logs
-    console.error("balance error:", {
-      message: e?.message,
-      type: e?.type,
-      code: e?.code,
-      param: e?.param,
-      raw: e?.raw,
-    });
     return res.status(500).json({ error: e?.message || "Internal Server Error" });
   }
 }

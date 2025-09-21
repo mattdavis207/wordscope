@@ -296,7 +296,6 @@ function IndexPopup() {
           }
         }
       } catch (error) {
-        console.error('Error checking auth success:', error)
       }
     }
     
@@ -745,7 +744,7 @@ function IndexPopup() {
                 </button>
                 {/* Website */}
                 <a
-                  href="https://wordscope-extension.vercel.app/"
+                  href="https://www.wordscope.app/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center space-x-2 w-full text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
@@ -1325,7 +1324,7 @@ function IndexPopup() {
                       onClick={async () => {
                         // Open authentication in new tab
                         await chrome.tabs.create({
-                          url: 'https://wordscope-extension.vercel.app/auth',
+                          url: 'https://www.wordscope.app/auth',
                           active: true
                         })
                         setShowSignInModal(false)

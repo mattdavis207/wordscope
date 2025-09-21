@@ -31,10 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({ success: true })
   } catch (err) {
     if (err instanceof Error) {
-        console.error("⚠️ Webhook signature verification failed.", err.message)
         return res.status(400).send(`Webhook Error: ${err.message}`)
       } else {
-        console.error("⚠️ Unknown error during webhook verification.", err)
         return res.status(400).send("Webhook Error: Unknown error")
       }
   }

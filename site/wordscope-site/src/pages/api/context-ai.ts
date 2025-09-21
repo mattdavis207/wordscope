@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { redis } from "@/../lib/redis";
 import { DEC_IF_ENOUGH } from "@/../lib/redisScripts";
+import { getTesterCustomerId, isTesterEmail } from "@/../lib/testerBypass";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-06-30.basil",
@@ -14,6 +15,12 @@ const emailCacheKey = (email: string)    => `${PREFIX}:ws:email:${email.toLowerC
 
 // Resolve customer by email, with Redis cache + list fallback
 async function resolveCustomerIdByEmail(email: string): Promise<string | null> {
+    if (isTesterEmail(email)) {
+      const testerId = getTesterCustomerId(email)
+      await redis.set(emailCacheKey(email), testerId, { ex: 86400 })
+      return testerId
+    }
+
     // 1) try cache
     const cached = await redis.get<string>(emailCacheKey(email));
     if (cached) return cached;
@@ -81,7 +88,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // Check quota
         const key = quotaKey(customerId);
-        const quota = await redis.hgetall<{ tokensRemaining?: number; periodEnd?: number }>(key);
+        let quota = await redis.hgetall<{ tokensRemaining?: number; periodEnd?: number }>(key);
+
+        if (isTesterEmail(email) && (!quota?.tokensRemaining || quota.tokensRemaining <= 0)) {
+            const periodEnd = Date.now() + 30 * 24 * 60 * 60 * 1000;
+            await redis.hmset(key, {
+                tokensRemaining: 50000,
+                periodEnd
+            });
+            quota = { tokensRemaining: 50000, periodEnd };
+        }
         if (!quota?.tokensRemaining || quota.tokensRemaining <= 0) {
             return res.status(402).json({ error: "Token limit reached", remainingTokens: 0 });
         }
@@ -123,13 +139,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.json({ text, used, remainingTokens });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
-        console.error("context-ai error:", {
-            message: e?.message,
-            type: e?.type,
-            code: e?.code,
-            param: e?.param,
-            raw: e?.raw,
-        });
         return res.status(500).json({ error: e.message || "Internal Server Error" });
     }
 }

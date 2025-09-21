@@ -22,7 +22,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Add listener for fetch requests from content.tsx
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const API_BASE = "https://wordscope-extension.vercel.app/api"
+  const API_BASE = "https://www.wordscope.app/api"
 
   // Handle isPro check
   if (message.type === "CHECK_IS_PRO" && message.email) {
@@ -57,8 +57,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 })
 
-
-
 // Create chrome contextMenu 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
@@ -67,42 +65,6 @@ chrome.runtime.onInstalled.addListener(() => {
       contexts: ["selection"]
     })
   })
-
-// Scripting for getting selection from chrome's pdf viewer
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (typeof tabId !== "number" || tabId < 0) return;
-  if (changeInfo.status !== "complete") return;
-  if (!tab || !tab.url) return;
-
-  // Handle Chrome's built-in PDF viewer and direct PDF URLs
-  if (tab.url?.startsWith("chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai") || 
-      tab.url?.endsWith(".pdf") || 
-      tab.url?.includes("/pdf/")) {
-    chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-        // Avoid duplicate listeners
-        if ((window as any).wordScopePdfListenerAdded) return;
-        (window as any).wordScopePdfListenerAdded = true;
-
-        document.addEventListener("selectionchange", () => {
-          const selectedText = window.getSelection()?.toString().trim()
-          if (selectedText && selectedText.length > 0) {
-            chrome.runtime.sendMessage({
-              type: "PDF_SELECTION",
-              text: selectedText
-            }).catch(() => {}); // Ignore errors if content script not loaded
-          }
-        });
-      }
-    }).catch((err) => {
-      // Silently handle injection failures (e.g., restricted pages)
-    });
-  }
-});
-
-
-
 
   
 // Define the listener is clicked and send message to content.tsx to trigger bubble popup
@@ -114,8 +76,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     })
   }
 })
-
-
 
 
 // Add listener for opening sidepanel
@@ -190,7 +150,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // keep the channel open for async sendResponse
   }
 });
-
 
 
 
