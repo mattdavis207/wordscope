@@ -16,7 +16,6 @@ import {
   FaChevronRight,
   FaWindowMaximize
 } from 'react-icons/fa';
-// import { Bubble } from "../../../content.tsx"
 import "./tailwind.css"
 import './globals.css'
 import { showToast } from "../lib/toast";
