@@ -552,14 +552,27 @@ export default function Home() {
     }
   ];
 
-  const browsers = [
-    { name: "Chrome", logo: "/browsers/chrome-logo.png", url: "https://chrome.google.com/webstore" },
-    { name: "Edge", logo: "/browsers/edge-logo.png", url: "https://microsoftedge.microsoft.com/addons" },
-    { name: "Brave", logo: "/browsers/brave-logo.png", url: "https://chrome.google.com/webstore" },
-    { name: "Opera", logo: "/browsers/opera-logo.png", url: "https://addons.opera.com" },
-    { name: "Vivaldi", logo: "/browsers/vivaldi-logo.png", url: "https://chrome.google.com/webstore" },
-    { name: "Yandex", logo: "/browsers/yandex-logo.png", url: "https://chrome.google.com/webstore" }
-  ];
+  const chromeDownload = {
+    name: "Chrome",
+    logo: "/browsers/chrome-logo.png",
+    url: "https://chrome.google.com/webstore"
+  };
+
+  const ChromeDownloadButton = ({ className = "" }: { className?: string }) => (
+    <a
+      href={chromeDownload.url}
+      className={`group inline-flex items-center justify-center bg-[#1c2f47] hover:bg-[#2A4E75] border border-[#374151] hover:border-[#2563EB] text-white px-10 py-5 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg gap-3 font-semibold text-lg min-w-[280px] ${className}`}
+    >
+      <Image
+        src={chromeDownload.logo}
+        alt={`${chromeDownload.name} logo`}
+        width={38}
+        height={38}
+        className="group-hover:scale-110 transition-transform"
+      />
+      <span>Download for Chrome</span>
+    </a>
+  );
 
   return (
     <div id="main" className="bg-[#01122B] text-[#BBE1FA] font-sans min-h-screen">
@@ -629,24 +642,9 @@ export default function Home() {
           </p>
 
           <div id="download" className="mt-20">
-            <p className="text-[#9CA3AF] mb-6 text-lg font-medium">Available for all major browsers:</p>
-            <div className="flex flex-wrap justify-center gap-4">
-              {browsers.map((browser) => (
-                <a
-                  key={browser.name}
-                  href={browser.url}
-                  className="group bg-[#1c2f47] hover:bg-[#2A4E75] border border-[#374151] hover:border-[#2563EB] text-white px-4 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center space-x-2"
-                >
-                  <Image 
-                    src={browser.logo} 
-                    alt={`${browser.name} logo`} 
-                    width={30} 
-                    height={30}
-                    className="group-hover:scale-110 transition-transform"
-                  />
-                  <span className="font-medium text-lg">{browser.name}</span>
-                </a>
-              ))}
+            <p className="text-[#9CA3AF] mb-6 text-lg font-medium">Download Wordscope on Chrome.</p>
+            <div className="flex justify-center">
+              <ChromeDownloadButton className="w-full sm:w-auto" />
             </div>
           </div>
         </div>
@@ -1329,6 +1327,18 @@ export default function Home() {
               
               <p className="text-[#9CA3AF] text-sm mt-4">Cancel anytime</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-24 px-6 bg-[#01122B] border-t border-[#072141]">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="font-bold mb-6" style={{ fontSize: "2.2rem" }}>Ready to explore every word?</h2>
+          <p className="text-[#9CA3AF] text-lg">
+            Install Wordscope on Chrome and start getting instant definitions wherever you read.
+          </p>
+          <div className="mt-10 flex justify-center">
+            <ChromeDownloadButton className="w-full sm:w-auto" />
           </div>
         </div>
       </section>
