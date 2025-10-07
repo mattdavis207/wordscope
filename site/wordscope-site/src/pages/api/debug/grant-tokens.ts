@@ -14,6 +14,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
+  const env = process.env.VERCEL_ENV || process.env.NODE_ENV || "development";
+  if (env === "production") {
+    return res.status(403).json({ error: "Disabled in production" });
+  }
+
   try {
     const { email, tokens = 50000 } = req.body;
     if (!email) return res.status(400).json({ error: "email required" });

@@ -1,11 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import Stripe from "stripe"
+import { withCORS } from "../../../lib/corsMiddleware"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-06-30.basil",
 })
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end("Method Not Allowed")
 
   const { email } = req.body
