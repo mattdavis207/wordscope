@@ -7,8 +7,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 
-// CORS handled by withCORS wrapper
-
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   // CORS handled by withCORS wrapper
   if (req.method !== "POST") {

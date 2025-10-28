@@ -26,12 +26,28 @@ export function applyCORS(req: NextApiRequest, res: NextApiResponse): boolean {
   const origin = req.headers.origin
   const referer = req.headers.referer
   
+  const userAgent = req.headers['user-agent']
+  const secFetchSite = req.headers['sec-fetch-site']
+  const secFetchMode = req.headers['sec-fetch-mode']
+  const secFetchDest = req.headers['sec-fetch-dest']
+
   // Allow requests with no origin (like Stripe webhooks, server-to-server, chrome extensions)
   if (!origin && !referer) {
     // Additional validation for webhooks
-    const userAgent = req.headers['user-agent']
     if (userAgent?.includes('Stripe')) {
       return true // Allow Stripe webhooks
+    }
+
+    const looksLikeExtensionFetch =
+      secFetchSite === 'none' &&
+      (!secFetchMode || secFetchMode === 'cors' || secFetchMode === 'no-cors') &&
+      (!secFetchDest || secFetchDest === 'empty')
+
+    if (looksLikeExtensionFetch) {
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, stripe-signature')
+      return true
     }
     
     // For debugging APIs, allow if in development
@@ -54,8 +70,10 @@ export function applyCORS(req: NextApiRequest, res: NextApiResponse): boolean {
   const isChromeExtension = origin && origin.startsWith('chrome-extension://');
   
   if (isAllowed || isChromeExtension) {
-    // Set CORS headers for allowed origins
-    res.setHeader('Access-Control-Allow-Origin', origin!)
+    if (origin) {
+      // Set CORS headers for allowed origins
+      res.setHeader('Access-Control-Allow-Origin', origin)
+    }
     res.setHeader('Access-Control-Allow-Credentials', 'true')
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, stripe-signature')

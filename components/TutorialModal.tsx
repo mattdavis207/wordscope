@@ -11,6 +11,7 @@ import "~/public/styles/tailwind.css"
 import "~/public/styles/globals.css";
 import { injectSavedThemes } from "../hooks/injectThemes";
 import type { Theme } from "../hooks/injectThemes"
+import { getChromeStoreReviewUrl } from "~/utils/chromeStore"
 
 // Import demo assets - GIFs work with require, videos use URL paths
 const sidepanel_demo = chrome.runtime.getURL("assets/sidepanel/Sidepanel Demo.gif")
@@ -163,6 +164,7 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
     // Theme useStates
     const [themes, setThemes] = useState<Theme[]>([]);
     const [appliedTheme, setAppliedTheme] = useState<string>("");
+    const reviewUrl = getChromeStoreReviewUrl()
     
     // Modal navigation states
     const [step, setStep] = useState(0)
@@ -571,34 +573,36 @@ export const TutorialModal = ({ onClose, onShowDonate }: { onClose: () => void, 
                 </button>
               
                 {/* Review Button */}
-                <a
-                    className="wordscope-tutorial-btn wordscope-tutorial-btn-inverse"
-                    href="https://chrome.google.com/webstore/detail/your-extension-id"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '14px 28px',
-                      backgroundColor: 'var(--tab-active-bg)',
-                      color: 'white',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      borderRadius: '10px',
-                      textDecoration: 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'var(--dull-box)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'var(--tab-active-bg)'
-                    }}
-                >
-                <FaStar size={18} style={{ color: '#fbbf24' }} />
-                <span>Leave a Review</span>
-                </a>
+                {reviewUrl && (
+                  <a
+                      className="wordscope-tutorial-btn wordscope-tutorial-btn-inverse"
+                      href={reviewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '14px 28px',
+                        backgroundColor: 'var(--tab-active-bg)',
+                        color: 'white',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--dull-box)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--tab-active-bg)'
+                      }}
+                  >
+                  <FaStar size={18} style={{ color: '#fbbf24' }} />
+                  <span>Leave a Review</span>
+                  </a>
+                )}
               </div>
             </div>
           )

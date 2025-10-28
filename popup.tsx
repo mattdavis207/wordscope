@@ -35,6 +35,7 @@ import { useClickOutside } from "~hooks/useClickOutside";
 import { ModalContainer } from "~components/ModalContainer";
 import { SignInModal } from "~components/SignInModal";
 import { DonateModal } from "~components/DonateModal";
+import { getChromeStoreReviewUrl } from "~/utils/chromeStore";
 
 // Source imports
 import { definitionSources } from "~sources/definitionSources"
@@ -194,6 +195,7 @@ function IndexPopup() {
   const [exportCount, setExportCount] = useState<number | null>(null)
   const [showSignInModal, setShowSignInModal] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const reviewUrl = useMemo(() => getChromeStoreReviewUrl(), [])
 
   const scroll = (dir: "left" | "right") => {
     scrollRef.current?.scrollBy({
@@ -214,7 +216,7 @@ function IndexPopup() {
   useEffect(() => {
     const email = localStorage.getItem("userEmail")
     if (!email) return
-    
+
     fetch(`${process.env.PLASMO_PUBLIC_NEXT_PUBLIC_API_URL}/is-pro?email=${email}`)
       .then((res) => res.json())
       .then((data) => {
@@ -281,13 +283,13 @@ function IndexPopup() {
           
           // Process if timestamp is recent (within 5 minutes to allow for delays)
           if (now - timestamp < 300000) {
-            localStorage.setItem("userEmail", authEmail)
+          localStorage.setItem("userEmail", authEmail)
             chrome.storage.local.set({ "userEmail": authEmail })
-            setUserEmail(authEmail)
-            
-            // Clean up the auth success markers
-            chrome.storage.local.remove(['AUTH_SUCCESS_EMAIL', 'AUTH_SUCCESS_TIMESTAMP'])
-            
+          setUserEmail(authEmail)
+
+          // Clean up the auth success markers
+          chrome.storage.local.remove(['AUTH_SUCCESS_EMAIL', 'AUTH_SUCCESS_TIMESTAMP'])
+
             // Reload to refresh Pro status
             setTimeout(() => window.location.reload(), 500)
           } else {
@@ -312,9 +314,9 @@ function IndexPopup() {
         setTimeout(() => window.location.reload(), 500)
       }
     }
-    
+
     chrome.runtime.onMessage.addListener(messageListener)
-    
+
     // Cleanup listener on component unmount
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener)
@@ -785,15 +787,17 @@ function IndexPopup() {
                   <span>Support Developer</span>
                 </button>
                 {/* Review */}
-                <a
-                  href="https://chrome.google.com/webstore/detail/your-extension-id"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-2 w-full text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
-                >
-                  <FaStar size={16} className="text-yellow-400" />
-                  <span>Leave a Review</span>
-                </a>
+                {reviewUrl && (
+                  <a
+                    href={reviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 w-full text-left hover:bg-dullBox p-2 rounded-lg text-dataText"
+                  >
+                    <FaStar size={16} className="text-yellow-400" />
+                    <span>Leave a Review</span>
+                  </a>
+                )}
               </div>
             </ModalContainer>
           </div>

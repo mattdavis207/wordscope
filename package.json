@@ -61,8 +61,7 @@
       "contextMenus",
       "storage",
       "sidePanel",
-      "tabs",
-      "scripting"
+      "tabs"
     ],
     "web_accessible_resources": [
       {
