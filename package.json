@@ -22,7 +22,6 @@
     "framer-motion": "^12.23.12",
     "google-dictionary-api": "^1.0.8",
     "isnan": "^0.0.0",
-    "jspdf": "^3.0.2",
     "marked": "^16.2.1",
     "mozilla": "^0.0.0",
     "overscroll": "^0.0.39",
@@ -75,7 +74,8 @@
           "assets/sidepanel/*.gif",
           "assets/sidepanel/*.png",
           "assets/history/*.gif",
-          "assets/util-buttons/*.gif"
+          "assets/util-buttons/*.gif",
+          "lib/pdfobject.js"
         ],
         "matches": [
           "<all_urls>"

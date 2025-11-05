@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { useSourceSettings } from "./useSourceSettings"
-import { jsPDF } from "jspdf";
 
 const HISTORY_KEY = "history"
 const AUTO_ADD_KEY = "autoAddToHistory"
@@ -142,53 +141,163 @@ export function useHistory() {
 
   
 
-  const exportAsPDF = (exportSource: string, includeAllWords: boolean, selectedWords: string[]) => {
-    const doc = new jsPDF();
-    const pageHeight = 280; // Leave margin at bottom
-    const lineHeight = 6; // Standard line height
-    const maxWidth = 190; // Max text width
-
+  const exportAsPDF = async (
+    exportSource: string,
+    includeAllWords: boolean,
+    selectedWords: string[]
+  ): Promise<Uint8Array | null> => {
     const wordsToExport = includeAllWords
       ? history
-      : history.filter((h) => selectedWords.includes(h.word));
+      : history.filter((h) => selectedWords.includes(h.word))
 
-    let y = 20; // Start position on page with more top margin
-    let count = 1; // Fix numbering so it only increments for added words
-  
+    if (wordsToExport.length === 0) {
+      return null
+    }
+
+    const wrapText = (text: string, maxChars: number) => {
+      const words = text.split(/\s+/).filter(Boolean)
+      const lines: string[] = []
+      let current = ""
+
+      words.forEach((word) => {
+        const candidate = current.length ? `${current} ${word}` : word
+        if (candidate.length <= maxChars) {
+          current = candidate
+        } else {
+          if (current) lines.push(current)
+          current = word
+        }
+      })
+
+      if (current) {
+        lines.push(current)
+      }
+
+      return lines
+    }
+
+    const escapePdfText = (text: string) =>
+      text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")
+
+    const lines: string[] = []
+    let count = 1
+
     wordsToExport.forEach(({ word, sources }) => {
       const sourceKey =
-        exportSource || defaultExportSource || sourceOrder.find((k) => enabledSources[k]);
-  
-      const defs = sources[sourceKey]?.definition?.trim();
-      if (!defs) return; // skip if no definition
-  
-      const firstDef = defs.split("\n")[0]; // Take first definition only
-      
-      // Calculate how much space this entry will need
-      const definitionText = `Definition: ${firstDef}`;
-      const wrappedLines = doc.splitTextToSize(definitionText, maxWidth);
-      const entryHeight = lineHeight + (wrappedLines.length * lineHeight) + 15; // word + definition + spacing
-      
-      // Check if we need a new page before adding this entry
-      if (y + entryHeight > pageHeight) {
-        doc.addPage();
-        y = 20;
+        exportSource || defaultExportSource || sourceOrder.find((k) => enabledSources[k])
+
+      const defs = sources[sourceKey]?.definition?.trim()
+      if (!defs) {
+        return
       }
-  
-      // Add the word number and title
-      doc.setFont("helvetica", "bold");
-      doc.text(`${count}. ${word}`, 10, y);
-      y += lineHeight + 3; // Small gap after word
-      
-      // Add the definition with proper wrapping
-      doc.setFont("helvetica", "normal");
-      doc.text(wrappedLines, 10, y);
-      y += (wrappedLines.length * lineHeight) + 12; // Dynamic spacing based on actual lines
-  
-      count++; // Increment count after adding
-    });
-  
-    doc.save("dictionary_history.pdf");
+
+      const firstDef = defs.split("\n")[0]
+      lines.push(`${count}. ${word}`)
+      wrapText(`Definition: ${firstDef}`, 70).forEach((line) => lines.push(line))
+      lines.push(" ")
+      count += 1
+    })
+
+    while (lines.length && lines[lines.length - 1].trim() === "") {
+      lines.pop()
+    }
+
+    if (!lines.length) {
+      return null
+    }
+
+    const pageWidth = 612
+    const pageHeight = 792
+    const margin = 72
+    const lineHeight = 18
+    const maxLinesPerPage = Math.floor((pageHeight - margin * 2) / lineHeight)
+
+    const pages: string[][] = []
+    for (let i = 0; i < lines.length; i += maxLinesPerPage) {
+      pages.push(lines.slice(i, i + maxLinesPerPage))
+    }
+
+    const encoder = new TextEncoder()
+    type PdfObject = { id: number; render: () => string }
+    const objects: PdfObject[] = []
+    const addObject = (render: () => string) => {
+      const id = objects.length + 1
+      objects.push({ id, render })
+      return id
+    }
+
+    const fontId = addObject(() => "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    const pageIds: number[] = []
+    let pagesId = 0
+
+    const buildStream = (pageLines: string[]) => {
+      const content: string[] = [
+        "BT",
+        "/F1 12 Tf",
+        `${lineHeight} TL`,
+        `${margin} ${pageHeight - margin} Td`
+      ]
+
+      pageLines.forEach((line, index) => {
+        if (index > 0) {
+          content.push("T*")
+        }
+        content.push(`(${escapePdfText(line)}) Tj`)
+      })
+
+      content.push("ET")
+      return content.join("\n")
+    }
+
+    pages.forEach((pageLines) => {
+      const streamData = buildStream(pageLines)
+      const streamLength = encoder.encode(streamData).length
+      const contentsId = addObject(
+        () => `<< /Length ${streamLength} >>\nstream\n${streamData}\nendstream`
+      )
+
+      const pageId = addObject(
+        () =>
+          `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Contents ${contentsId} 0 R /Resources << /Font << /F1 ${fontId} 0 R >> >> >>`
+      )
+      pageIds.push(pageId)
+    })
+
+    pagesId = addObject(
+      () =>
+        `<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds
+          .map((id) => `${id} 0 R`)
+          .join(" ")}] >>`
+    )
+
+    const catalogId = addObject(() => `<< /Type /Catalog /Pages ${pagesId} 0 R >>`)
+
+    const objectStrings = objects.map(
+      ({ id, render }) => `${id} 0 obj\n${render()}\nendobj\n`
+    )
+
+    let pdfContent = "%PDF-1.4\n"
+    const offsets: number[] = [0]
+    let position = encoder.encode(pdfContent).length
+
+    objectStrings.forEach((entry) => {
+      offsets.push(position)
+      pdfContent += entry
+      position += encoder.encode(entry).length
+    })
+
+    const xrefStart = position
+    let xref = `xref\n0 ${offsets.length}\n0000000000 65535 f \n`
+    for (let i = 1; i < offsets.length; i++) {
+      xref += `${offsets[i].toString().padStart(10, "0")} 00000 n \n`
+    }
+    pdfContent += xref
+    position += encoder.encode(xref).length
+
+    const trailer = `trailer\n<< /Size ${offsets.length} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`
+    pdfContent += trailer
+
+    return encoder.encode(pdfContent)
   };
 
 

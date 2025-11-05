@@ -104,7 +104,7 @@ function IndexPopup() {
 
   // Export flags and state variables
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFileType, setExportFileType] = useState<"tsv" | "csv" | "json">("tsv");
+  const [exportFileType, setExportFileType] = useState<"tsv" | "csv" | "json" | "pdf">("tsv");
   const [exportSource, setExportSource] = useState(defaultExportSource || "");
   const [includeAllWords, setIncludeAllWords] = useState(false);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
@@ -559,26 +559,44 @@ function IndexPopup() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sourceOrder, enabledSources, definitionSources]);
   
-    const handleExport = () => {
-      let data = "";
-      if (exportFileType === "tsv") {
-        data = exportAsTSV(exportSource, includeAllWords, selectedWords);
-      } else if (exportFileType === "csv") {
-        data = exportAsCSV(exportSource, includeAllWords, selectedWords);
-      } else if (exportFileType === "json") {
-        data = exportAsJSON(exportSource, includeAllWords, selectedWords);
-      } else if (exportFileType === "pdf") {
-        exportAsPDF(exportSource, includeAllWords, selectedWords);
+    const handleExport = async () => {
+      try {
+        if (exportFileType === "pdf") {
+          const pdfBytes = await exportAsPDF(exportSource, includeAllWords, selectedWords);
+          if (!pdfBytes) {
+            return;
+          }
+          const blob = new Blob([pdfBytes], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "dictionary_history.pdf";
+          link.click();
+          URL.revokeObjectURL(url);
+          setShowExportModal(false);
+          return;
+        }
+
+        let data = "";
+        if (exportFileType === "tsv") {
+          data = exportAsTSV(exportSource, includeAllWords, selectedWords);
+        } else if (exportFileType === "csv") {
+          data = exportAsCSV(exportSource, includeAllWords, selectedWords);
+        } else if (exportFileType === "json") {
+          data = exportAsJSON(exportSource, includeAllWords, selectedWords);
+        }
+
+        const blob = new Blob([data], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `dictionary_history.${exportFileType}`;
+        link.click();
+        URL.revokeObjectURL(url);
+        setShowExportModal(false);
+      } catch (error) {
+        // Ignore download interruption silently
       }
-    
-      const blob = new Blob([data], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `dictionary_history.${exportFileType}`;
-      link.click();
-      URL.revokeObjectURL(url);
-      setShowExportModal(false);
     };
 
     const applyTheme = (themeClass) => {
@@ -2022,7 +2040,7 @@ function IndexPopup() {
               <select
                 className="bg-mainBody text-text rounded px-2 py-1"
                 value={exportFileType}
-                onChange={(e) => setExportFileType(e.target.value as "tsv" | "csv" | "json")}
+                onChange={(e) => setExportFileType(e.target.value as "tsv" | "csv" | "json" | "pdf")}
               >
                 <option value="tsv">TSV (.tsv)</option>
                 <option value="csv">CSV (.csv)</option>
