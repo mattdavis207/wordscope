@@ -555,7 +555,7 @@ export default function Home() {
   const chromeDownload = {
     name: "Chrome",
     logo: "/browsers/chrome-logo.png",
-    url: "https://chrome.google.com/webstore"
+    url: "https://chromewebstore.google.com/detail/wordscope/addoplpjimhgkhmohkkpehjjokflnlcp"
   };
 
   const ChromeDownloadButton = ({ className = "" }: { className?: string }) => (
