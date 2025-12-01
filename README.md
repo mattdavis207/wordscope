@@ -1,39 +1,131 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+Chrome Extension — Built with Plasmo
 
-## Getting Started
+This project is a modern browser extension built using Plasmo, a React-powered framework that simplifies extension development across Chrome, Firefox, Edge, and more.
 
-First, run the development server:
+Plasmo handles bundling, HMR, manifest generation, and cross-browser builds—so you can focus on building your extension’s logic, UI, and features.
 
-```bash
+📦 Tech Stack
+
+Plasmo Framework (React-based extension framework)
+
+TypeScript
+
+React
+
+TailwindCSS
+
+Manifest V3
+
+pnpm / npm for package management
+
+🛠️ Getting Started
+1. Install Dependencies
+pnpm install
+# or
+npm install
+
+2. Run the Development Server
 pnpm dev
 # or
 npm run dev
-```
 
-Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
 
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
+This starts Plasmo’s dev server with Hot Module Reloading (HMR) for your extension.
 
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
+3. Load the Extension in Your Browser
 
-## Making production build
+After running the dev command, Plasmo generates a development build under:
 
-Run the following:
+/build/chrome-mv3-dev
 
-```bash
+
+To load it in Chrome:
+
+Go to chrome://extensions
+
+Enable Developer Mode
+
+Click Load unpacked
+
+Select the folder above
+
+The extension will auto-reload as you edit source files.
+
+🧩 Project Structure
+
+Plasmo uses a file-based routing system for extension components:
+
+File	Purpose
+popup.tsx	Popup UI shown when the extension icon is clicked
+options.tsx	(Optional) Options page at chrome://extensions/?options=
+content.ts	Content script injected into webpages
+background.ts	Service worker / background logic
+assets/	Images, stylesheets, icons
+components/	Reusable React components
+
+To add a page or script, simply create the corresponding file in the project root and Plasmo will automatically include it in the manifest.
+
+🎨 TailwindCSS
+
+Tailwind is included in the build pipeline.
+
+If you update Tailwind classes in content scripts, regenerate the stylesheet:
+
+npx tailwindcss -c tailwind.config.js \
+  -i ./input.css \
+  -o ./assets/styles/tailwind-content.css \
+  --minify
+
+📦 Production Build
+
+Create a minified, optimized build ready for publishing:
+
 pnpm build
 # or
 npm run build
-```
-
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
-
-## Submit to the webstores
-
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/framework/workflows/submit) and you should be on your way for automated submission!
 
 
+Output will be generated in:
 
-# For regenerating the tailwind-content.css
+/build/chrome-mv3
 
-npx tailwindcss -c tailwind.config.js -i ./input.css -o ./assets/styles/tailwind-content.css --minify
+
+You can zip this folder for Chrome Web Store submission.
+
+🚀 Deployment & Store Publishing
+
+The easiest deployment method is Plasmo’s Built-in Publishing Pipeline (bpp) GitHub Action.
+
+Steps:
+
+Manually upload your first version to the Chrome Web Store
+(this initializes store credentials)
+
+Enable Plasmo's GitHub Action following the Plasmo BPP Setup
+
+On every tagged release, GitHub will automatically:
+
+Build your extension
+
+Package it
+
+Submit it to the Chrome Web Store (and others if configured)
+
+📚 Documentation
+
+For more info on APIs, file conventions, content scripts, and background workers:
+
+🔗 Plasmo Docs: https://docs.plasmo.com
+
+🔗 Chrome Extensions Docs: https://developer.chrome.com/docs/extensions
+
+🤝 Contributing
+
+Pull requests, feature ideas, and improvements are welcome.
+Feel free to open an issue if you encounter a bug or want to propose an enhancement.
+
+📝 License
+
+MIT License — You’re free to use, modify, and distribute this project.
+
+If you want, I can customize the README for your Wordscope extension, include screenshots, feature lists, architecture diagrams, badges, or a full "How It Works" section.
